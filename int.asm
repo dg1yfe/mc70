@@ -1,9 +1,10 @@
 ;****************************************************************************
 ;
-;    MC 70    v1.0.1 - Firmware for Motorola mc micro trunking radio
+;    MC2_E9   v1.0   - Firmware for Motorola mc micro trunking radio
 ;                      for use as an Amateur-Radio transceiver
 ;
-;    Copyright (C) 2004 - 2007  Felix Erckenbrecht, DG1YFE
+;    Copyright (C) 2004 - 2009  Felix Erckenbrecht, DG1YFE
+;
 ;
 ;
 ;****************************************************************************
@@ -14,25 +15,19 @@
 ; I N I T   O C I   I N T
 ;************************
 init_OCI
-                pshb
-                psha
-                pshx
-
                 clr   irq_wd_reset                ; IRQ Routine darf Watchdog zurücksetzen
                 ldd   FRC
-                addd  #1994                       ; etwa alle 1ms einen Int auslösen
+;                addd  #1994                       ; etwa alle 1ms einen Int auslösen
+                addd  #1230                       ; etwa alle 1ms einen Int auslösen
                 std   OCR1
                 ldab  #%1000
                 stab  TCSR1                       ; enable Output Compare Interrupt
-                ldx   #0
-                stx   tick_ms
-                stx   tick_hms
-                inx
-                stx   next_hms
+                ldd   #0
+                std   tick_ms
+                std   tick_hms
+                addd  #10
+                std   next_hms
 
-                pulx
-                pula
-                pulb
                 rts
 ;************************
 ; I N I T   S I O   I N T
@@ -41,10 +36,6 @@ init_OCI
 ; SIO Interrupt initialisieren
 ;
 init_SIO
-                pshb
-                psha
-                pshx
-
                 clr  io_outbuf_w
                 clr  io_outbuf_r                  ; Output Ringbuffer initialisieren
 
@@ -52,11 +43,8 @@ init_SIO
                 clr  io_inbuf_r                   ; Input Ringbuffer initialisieren
 
 ;                oim  #%10100,TRCSR1               ; SIO Interrupt aktivieren
-                oim  #%10000,TRCSR1               ; SIO Interrupt aktivieren nur für RX
+                oim  #%00010000,TRCSR1           ; SIO Interrupt aktivieren nur für RX
 
-                pulx
-                pula
-                pulb
                 rts
 
 ;************************************
@@ -66,7 +54,6 @@ init_SIO
 ; I S R
 ;*******
 NMI_SR               ; no NMI
-                jmp  isu_copy
                 rti
 ;************************************
 SWI_SR               ; SWI als Taskswitch
@@ -75,9 +62,6 @@ SWI_SR               ; SWI als Taskswitch
                 inx                        ; TXS subtrahiert 1 vom Wert vor Transfer
                 txs                        ; anderen Stackpointer laden
                 inc  tasksw                ; Taskswitch Counter erhöhen
-                ldx  ts_count
-                inx
-                stx  ts_count
                 rti                        ; Taskswitch durchführen
 ;************************************
 IRQ1_SR              ; no IRQ1
@@ -89,32 +73,49 @@ ICI_SR               ; no ICI
 OCI_SR
                 ldab TCSR2                 ; Timer Sontrol / Status Register 2 lesen
                 tba
-                andb #%00001000            ; Auf EOCI2 testen
-                beq  ocf1
-
+                andb #%00001000            ; Auf EOCI2 testen (Tone Interrupt)
+                beq  OCI1_SR               ; ansonsten beim normalen 1ms Int weitermachen
+;
                 ldab TCSR2                 ; Timer Sontrol / Status Register 2 lesen
                 ldd  OCR2
-                addd #285                  ; ca 7000 mal pro sek Int auslösen
+                addd #TONE_DPHASE          ; ca 3500 mal pro sek Int auslösen
                 std  OCR2
-                andb #1                    ;
-                bne  ocf1_test             ; nur jedes 2. Mal OCF2 aufrufen
-                jsr  ocf2
+
+                ldab tone_index
+                bne  ocf1_f2_tonelo
+                oim  #%00001111, Port6_Data
+                eim  #1,tone_index
+                bra  ocf1_test
+ocf1_f2_tonelo
+                aim  #%11110000, Port6_Data
+                eim  #1,tone_index
 ocf1_test
-                dec  oci_ctr
-                beq  ocf1                  ; Kein OCF1 - Ende
-                jmp  end_int
-ocf1
-                ldab #7
-                stab oci_ctr
+                ldab TCSR1                 ; Timer Control & Status Reg 1 lesen
+                andb #%01000000            ; auf OCF1 (1ms Flag) testen
+
+                bne  OCI1_SR               ; falls gesetzt, den 1 ms Int ausführen
+                rti                        ; ansonsten ist hier Schluß
+;**********************************************************************
+;
+; OCI1 ISR (1 ms Interrupt)
+;
+OCI1_SR
+                ldab TCSR1                 ; Interruptflag zurücksetzen
+                ldd  OCR1H
+                addd #1231
+                std  OCR1H                 ; in 1ms wieder einen Int ausführen
 
                 tst  irq_wd_reset          ; währen I2C Zugriff,
                 bne  oci_no_wd_reset       ; keinen Watchdog Reset durchführen
-                jsr  watchdog_toggle       ; Watchdog Reset (Pseudo I2C Zugriff)
+;***********
+; Watchdog Toggle
+                ldab Port2_DDR_buf               ; Port2 DDR lesen
+                eorb #%10                        ; Bit 1 invertieren
+                stab Port2_DDR_buf
+                stab Port2_DDR                   ; neuen Status setzen
+                aim  #%11111101,Port2_Data       ;Data auf 0
+;***********
 oci_no_wd_reset
-                ldab TCSR1
-                ldd  FRC
-                addd #1994
-                std  OCR1H                 ; in 1ms wieder einen Int ausführen
 ; General Purpose Timer
                 dec  gp_timer              ; Universalvtimer--
 ; Basis Tick Counter
@@ -133,14 +134,40 @@ oci_no_wd_reset
                 inx                        ; 100ms Tick Counter erhöhen
                 stx  tick_hms
 
-                bsr  oci_hms_timer         ; Alle 100ms Timer erhöhen
+;***************
+; OCI HMS                                   ; Alle 100ms Timer erhöhen
+;
+;  100 MS Timer (menu, pll)
+;
+                ldx  m_timer               ; m_timer = 0 ?
+                beq  oci_pll_timer         ; Dann kein decrement
+                dex                        ; m_timer --
+                stx  m_timer               ; und sichern
+oci_pll_timer
+                ldab  pll_timer
+                beq   oci_tone_timer       ; falls auf 0, nicht mehr runterzaehlen
+                decb
+                stab  pll_timer
+oci_tone_timer
+                ldab tone_timer
+                beq  oci_hms_timer_end
+                dec  tone_timer
+                bne  oci_hms_timer_end
+;***********
+; TONE STOP
+                aim  #%11110111, TCSR2     ; OCI2 Int deaktivieren
+
+                oim  #%00001000, TCSR1     ; OCI1 Int aktivieren
+                oim  #%00001000, Port6_Data; Pin auf 0 setzen
+                aim  #%11111000, Port6_Data; Pin auf 0 setzen
+;***********
+                clr  ui_ptt_req
+oci_hms_timer_end
 oci_no_hms
 ; LCD Timeout Timer aktualisieren
                 ldx  lcd_timer             ; lcd_timer holen
                 beq  oci_no_lcd_dec        ; falls lcd_timer schon =0, kein decrement mehr
                 dex                        ; ansonsten lcd_timer--
-                bne  oci_store_lcdt        ; Wenn Timer jetzt gerade abgelaufen, dann
-;                oim  #%00000100, TRCSR1    ; den Transmit Interrupt wieder zulassen
 oci_store_lcdt
                 stx  lcd_timer             ; und speichern
 oci_no_lcd_dec
@@ -150,15 +177,6 @@ oci_no_lcd_dec
                 decb                       ; ansonsten timer--
                 stab sql_timer             ; und speichern
 oci_no_sql_dec
-; PLL Status check
-                jsr  pll_lock_chk          ; returns B=0 if PLL is NOT locked
-                ldaa pll_locked_flag
-                anda #$7F
-                cba                        ; hat sich PLL lock Status geändert?
-                beq  oci_pll_no_chg        ; Nein, dann Ende
-                orab #$80                  ; "changed" Flag setzen
-                stab pll_locked_flag       ; und mit dem aktuellen Status speichern
-oci_pll_no_chg
                 ldab tasksw_en             ; auf Taskswitch prüfen?
                 bne  end_int               ; Nein? Dann Ende
 
@@ -177,44 +195,6 @@ end_int
                 rti
 
 ;************************************
-;
-;  100 MS Timer (menu, pll)
-;
-oci_hms_timer
-                ldx  m_timer               ; m_timer = 0 ?
-                beq  oci_pll_timer         ; Dann kein decrement
-                dex                        ; m_timer --
-                stx  m_timer               ; und sichern
-oci_pll_timer
-                ldab  pll_timer
-                beq   oci_rc_timer
-;                beq   oci_hms_timer_end
-                decb
-                stab  pll_timer
-; Roundcount Timer
-oci_rc_timer
-                dec  rc_timer              ; rc timer--
-                bne  oci_tone_timer        ; falls auf 0, nicht mehr runterzaehlen
-                ldab #10
-                stab rc_timer              ; RC Timer auf 1sek
-                ldd  roundcount            ; Rundenzähler holen
-                std  rc_last_sec           ; und Anzahl der Runden der letzten Sekunde speichern
-                clr  roundcount
-                clr  roundcount+1          ; Zähler auf 0 setzen
-
-                ldd  ts_count
-                std  ts_last_s
-                clr  ts_count
-                clr  ts_count+1
-oci_tone_timer
-                ldab tone_timer
-                beq  oci_hms_timer_end
-                dec  tone_timer
-                bne  oci_hms_timer_end
-                jsr  tone_stop
-                clr  ui_ptt_req
-oci_hms_timer_end
-                rts
 ;************************************
 ocf2
 ;                ldx  #tone_tab
@@ -321,7 +301,7 @@ sio_tdre
 sio_ob_empty
                 aim  #%11111011,TRCSR1     ; "Transmit Data Register Empty"-Interrupt deaktivieren
 sio_tdre_end
-                rts
+                rti
 
 ;************************************
 CMI_SR               ; no CMI

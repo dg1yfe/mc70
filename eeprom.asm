@@ -5,6 +5,20 @@
 ;
 ;    Copyright (C) 2004 - 2007  Felix Erckenbrecht, DG1YFE
 ;
+;    This program is free software; you can redistribute it and/or modify
+;    it under the terms of the GNU General Public License as published by
+;    the Free Software Foundation; either version 2 of the License, or
+;    any later version.
+;
+;    This program is distributed in the hope that it will be useful,
+;    but WITHOUT ANY WARRANTY; without even the implied warranty of
+;    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;    GNU General Public License for more details.
+;
+;    You should have received a copy of the GNU General Public License
+;    along with this program; if not, write to the Free Software
+;    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+;
 ;
 ;****************************************************************************
 ;**************
@@ -28,20 +42,13 @@
 ;             ( A - Dev.&Page Adresse (3 LSBs), B - Datenadresse im EEPROM, Stack - Datenbyte |
 ;               A - Status (0=OK) )
 ;
-; eep_write_seq - Schreibt sequentiell ins EEPROM
-;             ( STACK(4) - Datenadresse im Speicher
-;               STACK(3) - Datenadresse im EEPROM (Byte Adresse)
-;               STACK(2) - Device&Page Adresse (3 Bit, LSB)
-;               STACK(0) - Bytecount)
-;
-; Ergebnis : A - Status: 0 - OK
-;
 ; eep_get_size - Prüft die Größe des EEPROMs ( nix | D - EEPROM Größe )
 ;
 ;
 ; eep_chk_crc - Bildet CRC über den Config Bereich ( nix | A - Status, X - CRC )
 ;
 ; eep_write_crc - CRC16 über Config Block bilden und schreiben ( nix | X - CRC, A - Status )
+;
 ;
 ;
 ;
@@ -434,155 +441,5 @@ egs_page_loop
                 bcs  egs_page_loop
 egs_r_error
                 rts
-
-;***********************
-; E E P   C H K   C R C *BROKEN*
-;***********************
-;
-; Bildet CRC über den Config Bereich
-;
-; Parameter: keine
-;
-; Ergebnis : A - Read Status :  0 = OK
-;                               1 = CRC Error
-;                              >8 = Lesefehler:
-;
-;
-;
-;
-;            X - CRC
-;
-; changed Regs : A, X
-;
-eep_chk_crc
-                pshb
-                tsx
-                xgdx
-;                subd #EP_CONF_MEM  ; Platz für Config auf dem Stack schaffen
-                xgdx
-                txs
-                ldx  #0            ;
-                pshx               ; CRC auf 0 initialisieren
-
-                xgdx               ; Start im EEPROM bei Adresse 0 (EEPROM Adresse in A:B)
-
-                tsx
-                xgdx
- ;               subd #EP_CONF_MEM
-                xgdx
-                txs                ; 52 Byte auf dem Stack reservieren
-                pshx               ; Adresse auf Stack
-;                ldx  #EP_CONF_MEM  ; 52 Byte lesen (nur den Config Bereich + CRC)
-                jsr  eep_seq_read  ; Block lesen
-                ins
-                ins                ; Adresse vom Stack löschen
-;                cpx  #EP_CONF_MEM  ; komplette Config gelesen ?
-                bne  ecc_read_err  ; Nein? Dann Fehler
-                xgdx               ; Bytecount nach D
-                tsx                ; Startadresse im RAM
-                pshb               ;
-                ldab #2            ; für CRC Calc
-                abx                ; berechnen (Daten liegen auf Stack)
-                pulb               ; B wiederholen (Bytecount/LoByte)
-                                   ; Auf Stack liegt CRC Init Wert bzw.
-                jsr  crc16         ; CRC über den Block berechnen
-                xgdx               ; CRC nach X
-                cpx  #0            ; CRC =0?
-                bne  ecc_crc_err   ; Nein? Dann CRC Error
-                clra               ; kein Lese Fehler aufgetreten
-ecc_end
-                tsx
-                xgdx
-;                addd #EP_CONF_MEM+2; Stack bereinigen
-                xgdx
-                txs
-                pulb               ; B wiederherstellen
-                rts
-ecc_read_err
-                oraa #8            ; Lesefehler
-                bra  ecc_end
-ecc_crc_err
-                ldaa #1
-                bra  ecc_end
-
-;***************************
-; E E P   W R I T E   C R C *BROKEN*
-;***************************
-;
-; CRC16 über Config Block bilden und schreiben
-;
-; Parameter: keine
-;
-; Ergebnis : X - CRC
-;          : A - Read Status :   0 = OK
-;                             >= 8 = Read-Error
-;                             >=16 = Write-Error
-;
-eep_write_crc
-                pshb
-                psha
-                pshx
-                tsx
-                xgdx
-                subd #50           ; 50 Byte Platz auf dem Stack schaffen
-                xgdx
-                txs
-                ldx  #0            ;
-                pshx               ; CRC auf 0 initialisieren
-                xgdx               ; Start im EEPROM bei Adresse 0 (EEPROM Adresse in A:B)
-ewc_loop
-                pshb               ; Daten aus EEPROM sollen auf
-                tsx                ;
-                xgdx
-                subd
-                ldab #4            ; den Stack gelegt werden,
-                abx                ; dazu die Adresse berechnen
-                pulb
-                pshx               ; Bytecount auf Stack
-                ldx  #50           ; 50 Byte lesen (nur den Config Bereich)
-                jsr  eep_seq_read  ; Block lesen
-                ins
-                ins                ; Bytecount vom Stack löschen
-                cpx  #50           ; 50 Bytes gelesen ?
-                bne  ewc_read_err  ; Nein? Dann Fehler
-                xgdx               ; Bytecount nach D
-                tsx                ; Startadresse im RAM
-                pshb               ;
-                ldab #2            ; für CRC Calc
-                abx                ; berechnen (Daten liegen auf Stack)
-                pulb               ; B wiederholen (Bytecount/LoByte)
-                                   ; Auf Stack liegt CRC Init Wert
-                jsr  crc16         ; CRC über den Block berechnen
-                                   ; CRC liegt auf Stack, zuerst LoByte ins EEPROM schreiben
-                pulb
-                ldx  #50
-                pshx
-                jsr  eep_write     ; Byte schreiben
-                pulx
-                tsta
-                bne  ewc_write_err ; Schreibfehler
-                pulb
-                ldx #51
-                pshx
-                jsr  eep_write     ; Byte schreiben
-                pulx
-                tsta
-                bne  ewc_write_err ; Schreibfehler
-ewc_end
-                tsx
-                xgdx
-                addd #51           ; Stack bereinigen
-                xgdx
-                txs
-                pula
-                pulb
-                pulx
-                rts
-ewc_read_err
-                oraa #$8
-                bra  ewc_end
-ewc_write_err
-                oraa #$10
-                bra  ewc_end
 
 

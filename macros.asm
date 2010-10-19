@@ -1,51 +1,59 @@
 ;****************************************************************************
 ;
-;    MC 70    v1.0.1 - Firmware for Motorola mc micro trunking radio
+;    MC2_E9   v1.0   - Firmware for Motorola mc micro trunking radio
 ;                      for use as an Amateur-Radio transceiver
 ;
-;    Copyright (C) 2004 - 2007  Felix Erckenbrecht, DG1YFE
+;    Copyright (C) 2004 - 2009  Felix Erckenbrecht, DG1YFE
 ;
-;    This program is free software; you can redistribute it and/or modify
-;    it under the terms of the GNU General Public License as published by
-;    the Free Software Foundation; either version 2 of the License, or
-;    any later version.
-;
-;    This program is distributed in the hope that it will be useful,
-;    but WITHOUT ANY WARRANTY; without even the implied warranty of
-;    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-;    GNU General Public License for more details.
-;
-;    You should have received a copy of the GNU General Public License
-;    along with this program; if not, write to the Free Software
-;    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 ;
 ;
 ;****************************************************************************
-#DEFINE STACK1  $1FFF
-#DEFINE STACK2  $1EFF
+;************************
+; Stack
+;
+#DEFINE STACK1  $013f     ; Main Loop Stack - max 32 Bytes
+#DEFINE STACK2  $00ff     ; UI Task Stack   - ~100 Bytes
+#DEFINE DEBSTACK $00b3    ; Stack für Debug Ausgaben
+;
+;************************
+; Timing
 ;
 #DEFINE MENUTIMEOUT   40  ; 4 sek Eingabetimeout
-#DEFINE PLLCHKTIMEOUT 5   ; 500ms Timeout für PLL Check
+#DEFINE PLLCHKTIMEOUT 2   ; 200ms Timeout für PLL Check
 #DEFINE PTT_DEBOUNCE_VAL 20
 #DEFINE TX_TO_RX_TIME 5  ; 5 ms TX -> RX Umschaltung
 #DEFINE RX_TO_TX_TIME 5  ; 5 ms RX -> TX Umschaltung
 ;
-#DEFINE RED_LED       $33
-#DEFINE YEL_LED       $31
-#DEFINE GRN_LED       $32
-#DEFINE OFF           0
-#DEFINE ON            4
-#DEFINE BLINK         8
-#DEFINE INVERT        128
+;************************
+#DEFINE TONE_DPHASE 352  ; Tone Phase Delta (Xtal/4/2 /Tone -1)
+;
+;
+;************************
+; Frequenzkram
+;
+#DEFINE FBASE 140000000         ; lowest frequency (for eeprom storage) = 140MHz (430 MHz with 70 cm)
+;#DEFINE FBASE 430000000         ; lowest frequency (for eeprom storage) = 140MHz (430 MHz with 70 cm)
+;
+#DEFINE FDEF  145500000         ; Default Frequency
+;#DEFINE FDEF  433500000         ; Default Frequency
+#DEFINE RXZF   21400000         ; 21,4 MHz IF (RX VCO has to be 21,4MHz below RX frequency)
+#DEFINE FREF   14400000         ; 14,4 MHz reference frequency
+#DEFINE FOFF0         0         ; Offset0
+#DEFINE FOFF06  0600000         ; Offset1
+#DEFINE FSTEP     12500         ; Schrittweite !> 3,5 kHz für f<458,3MHz ( muß größer sein als Frequenz/(Vorteiler*1023) )
+;
+#DEFINE PLLREF FREF/FSTEP
+#DEFINE PRESCALER    40         ; PLL Prescaler (40 für 2m, 127 für 70cm)
+;#DEFINE PRESCALER   127         ; PLL Prescaler (40 für 2m, 127 für 70cm)
+#DEFINE PLLLOCKWAIT 200         ; Maximale Wartezeit in ms für PLL um einzurasten
+;#DEFINE FSTEP      6250        ; Schrittweite !> 3,5 kHz für f<458,3MHz ( muß größer sein als Frequenz/(128*1023) )
+;#DEFINE PLLREF     1152
+;#DEFINE PLLREF     2304
+;
+;
+; **************************************************************
 
-#DEFINE ARROW         $6D
-#DEFINE A_OFF           0
-#DEFINE A_ON            1
-#DEFINE A_BLINK         2
-; non printable chars
-#DEFINE semikolon  $3B
-#DEFINE komma      $2C
-#DEFINE backslash  $5C
+; **************************************************************
 
 
 #DEFINE WAIT(ms)    pshx \ ldx  #ms \ jsr wait_ms \ pulx
@@ -58,28 +66,6 @@
 #DEFINE PPLAIN(cmd) psha \ ldaa #'p' \ ldab #cmd \ jsr putchar \ pula
 
 #DEFINE PRINTF(cmd) pshx \ ldx #cmd \ jsr printf \ pulx
-;
-;
-;************************
-; Frequenzkram
-;
-#DEFINE FDEF  433500000         ; int. Anruffrequenz auf 70cm - Default Frequenz
-#DEFINE RXZF   21400000         ; 21,4 MHz ZF (RX VCO muß 21,4MHz unter RX Frequenz arbeiten)
-#DEFINE FREF   14400000         ; 14,4 MHz Referenzfrequenz
-#DEFINE FOFF0         0         ; Offset0
-#DEFINE FOFF76  7600000         ; Offset1
-#DEFINE FOFF94  9400000         ; Offset2
-#DEFINE FBASE 430000000         ; unterste Frequenz = 430MHz
-#DEFINE CM70  430000000         ; Beginn des 70cm Bands
-#DEFINE FSTEP     12500         ; Schrittweite !> 3,5 kHz für f<458,3MHz ( muß größer sein als Frequenz/(128*1023) )
-#DEFINE PLLREF FREF/FSTEP
-
-;#DEFINE FSTEP      6250        ; Schrittweite !> 3,5 kHz für f<458,3MHz ( muß größer sein als Frequenz/(128*1023) )
-;#DEFINE PLLREF     1152
-;#DEFINE PLLREF     2304
-;
-;
-; **************************************************************
 ; *******
 ; I 2 C
 ; *******
@@ -125,13 +111,108 @@
 #DEFINE I2C_CDH aim #%11111001, Port2_DDR_buf \ ldaa Port2_DDR_buf \ staa Port2_DDR
 ;***********************
 ;
+; Parameter:
+;           X:D   Summand (32Bit)
+;           Stack Summand (32Bit)
+; Ergebnis:
+;           Stack Summe   (32Bit)
+;
+; Kommentar siehe MATH.ASM
+;
+#DEFINE ADD32 pshx
+#DEFCONT    \ tsx
+#DEFCONT    \ addd 2+2,x
+#DEFCONT    \ std  2+2,x
+#DEFCONT    \ pula \ pulb
+#DEFCONT    \ adcb 1+2,x
+#DEFCONT    \ stab 1+2,x
+#DEFCONT    \ adca 0+2,x
+#DEFCONT    \ staa 0+2,x
+;***********************
+;
+; Parameter:
+;           Stack Minuend    (32Bit)
+;           X:D   Subtrahend (32Bit)
+; Ergebnis:
+;           Stack Differenz  (32Bit)
+;
+; Kommentar siehe MATH.ASM
+;
+#DEFINE SUB32 pshb \ psha \ pshx
+#DEFCONT    \ tsx
+#DEFCONT    \ ldd  6,x
+#DEFCONT    \ subd 2,x
+#DEFCONT    \ std  6,x
+#DEFCONT    \ ldd  4,x
+#DEFCONT    \ sbcb 1,x
+#DEFCONT    \ stab 5,x
+#DEFCONT    \ sbcb 0,x
+#DEFCONT    \ stab 4,x
+#DEFCONT    \ pulx \ pula \ pulb
+
+
+#DEFINE SUB32b pshb \ psha \ pshx
+#DEFCONT    \ tsx
+#DEFCONT    \ ldd  2,x
+#DEFCONT    \ subd 6,x
+#DEFCONT    \ std  6,x
+#DEFCONT    \ ldd  0,x
+#DEFCONT    \ sbcb 5,x
+#DEFCONT    \ stab 5,x
+#DEFCONT    \ sbcb 4,x
+#DEFCONT    \ stab 4,x
+#DEFCONT    \ pulx \ pula \ pulb
+
+; Vorzeichenumkehr
+;
+; Parameter:
+;           X:D   Zahl  (32Bit)
+; Ergebnis:
+;           Not(Zahl)+1 (Vorzeichenumkehr)
+;
+; Kommentar siehe MATH.ASM
+;
+#DEFINE SIGINV32 coma \ comb
+#DEFCONT       \ xgdx
+#DEFCONT       \ coma \ comb
+#DEFCONT       \ xgdx
+#DEFCONT       \ addd #1
+#DEFCONT       \ xgdx
+#DEFCONT       \ adcb #0
+#DEFCONT       \ adca #0
+#DEFCONT       \ xgdx
+
+
+;***********************
+;
+; LCD Macros
+;
+#DEFINE RED_LED       $33
+#DEFINE YEL_LED       $31
+#DEFINE GRN_LED       $32
+#DEFINE OFF           0
+#DEFINE ON            4
+#DEFINE BLINK         8
+#DEFINE INVERT        128
+
+#DEFINE ARROW         $6D
+#DEFINE A_OFF           0
+#DEFINE A_ON            1
+#DEFINE A_BLINK         2
+;
+; non printable chars
+;
+#DEFINE semikolon  $3B
+#DEFINE komma      $2C
+#DEFINE backslash  $5C
+;
 ; Character Stuff
 ;
 #DEFINE LCD_A     $4A
 #DEFINE LCD_ULINE $4B
 #DEFINE LCD_SPACE $4C
-
-
+;
+;
 ; "segment type""pos hor""pos. vert""diagonal"
 #DEFINE seg15left  $4D
 #DEFINE seg15right $4E
