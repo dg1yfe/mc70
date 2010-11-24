@@ -1,9 +1,10 @@
 ;****************************************************************************
 ;
-;    MC 70    v1.0.1 - Firmware for Motorola mc micro trunking radio
+;    MC2_E9   v1.0   - Firmware for Motorola mc micro trunking radio
 ;                      for use as an Amateur-Radio transceiver
 ;
-;    Copyright (C) 2004 - 2007  Felix Erckenbrecht, DG1YFE
+;    Copyright (C) 2004 - 2009  Felix Erckenbrecht, DG1YFE
+;
 ;
 ;
 ;****************************************************************************
@@ -57,29 +58,15 @@
 ; Ergebnis     : A - 0 = OK (Init aus EEPROM)
 ;
 ;
-; changed Regs : A
+; changed Regs : A, B, X
 ;
 freq_init
-                pshx
-                pshb
-
-                ldd  #FBASE%65536       ; Basisfrequenz (unterste einstellbare Frequenz) holen
-                ldx  #FBASE>>16
-                std  f_base+2
-                stx  f_base
-
-                ldd  #FSTEP             ; Kanalabstand holen
-                std  f_step
-
                 jsr  freq_init_eep      ; Versuchen Frequenzeinstellunegen aus EEPROM zu lesen
                 tsta
                 beq  fri_end            ; Bei Fehler
-
                 jsr  freq_init_rom      ; Aus ROM initialisieren
                 ldaa #1
 fri_end
-                pulb
-                pulx
                 rts
 
 ;***************************
@@ -93,13 +80,10 @@ fri_end
 ; Ergebnis : A -   0 = OK
 ;               Rest = Lesefehler
 ;
-; Changed Regs : A
+; Changed Regs : A,B,X
 ;
 ;
 freq_init_eep
-                pshx
-                pshb
-
                 tsx
                 xgdx
                 subd #12
@@ -119,22 +103,21 @@ ife_fail
                 bra  ife_end             ; Mit Fehlermeldung enden
 ife_ok
                 pulx
-                stx  frequency
-                pulx                     ; Frequenz holen
-                stx  frequency+2         ; und speichern
+                stx  offset              ; Offset holen
+                pulx
+                stx  offset+2            ; und speichern
 
                 pulx
                 stx  txshift
                 pulx                     ; TxShift holen
                 stx  txshift+2           ; Und speichern
+
                 pulx
-                stx  offset              ; Offset holen
-                pulx
-                stx  offset+2            ; und speichern
+                stx  frequency
+                pulx                     ; Frequenz holen
+                stx  frequency+2         ; und speichern
                 clra                     ; Alles ok -> A=0
 ife_end
-                pulb
-                pulx
                 rts
 
 ;***************************
@@ -164,7 +147,7 @@ freq_init_rom
                 stx  offset
                 stx  offset+2
 
-                ldx  #FOFF76>>16
+                ldx  #FOFF76>>16		; TODO: MACRO einfŸhren
                 stx  txshift
                 ldx  #FOFF76%65536
                 stx  txshift+2
@@ -237,62 +220,35 @@ pli_error
 ;***************
 ;
 ; Überprüft PLL Lock wenn PLL Timer abgelaufen ist
-;
-; Parameter    : Keine
-;
-; Ergebnis     : Nichts
-;
-; changed Regs : None
-;
-pll_led
-                pshb
-                psha
-                pshx
-
-                ldab pll_timer
-                bne  pll_no_chk
-                jsr  pll_chk
-                ldab #PLLCHKTIMEOUT
-                stab pll_timer
-pll_no_chk
-                pulx
-                pula
-                pulb
-                rts
-
-;***************
-; P L L   C H K
-;***************
-;
 ; aktiviert rote LED, wenn PLL nicht eingerastet ist
 ;
 ; Parameter    : Keine
 ;
 ; Ergebnis     : Nichts
 ;
-; changed Regs : None
+; changed Regs : A,B
 ;
-pll_chk
-                pshb
-                psha
-                ldab pll_locked_flag         ; Wenn sich nichts geändert hat (Bit7=0)
-                bpl  plc_end                 ; gleich zum Ende springen
-                andb #$7F
-                stab pll_locked_flag         ; Flag sichern
+pll_led
+                ldab pll_timer
+                bne  plc_end                 ; PLL check timer abgelaufen? nein, dann Ende
+                ldab #PLLCHKTIMEOUT
+                stab pll_timer
+
+                ldab Port5_Data
+                andb #%01000000
+                tba
+                eorb pll_locked_flag         ; Wenn sich nichts geändert hat (Bit6=0)
+                beq  plc_end                 ; gleich zum Ende springen
+                staa pll_locked_flag         ; sonst neuen Status speichern
+                tsta
                 bne  plc_locked
-;                ldaa #'p'
                 ldab #RED_LED+ON             ; Rote LED an
-;                jsr  putchar
                 jsr  led_set
                 bra  plc_end
 plc_locked
-;                ldaa #'p'
                 ldab #RED_LED+OFF
                 jsr  led_set
-;                jsr  putchar                 ; Rote LED aus
 plc_end
-                pula
-                pulb
                 rts
 ;
 ;************************
@@ -329,16 +285,13 @@ pll_lock_chk
 ;
 ;
 pll_set_channel
-                pshb
-                psha
-                pshx
                 stx  channel
                 std  channel+2              ; Kanal speichern
                 pshb
                 psha
                 pshx                        ; Dividend auf Stack
 
-                ldd  #127                   ; Vorteiler = 128
+                ldd  #PRESCALER             ; Vorteiler 127 für 70cm, 40 für 2m Version
 
                                             ; PLL Teiler für %128 Vorteiler berechnen
                 jsr  divide32               ; 32 Bit Division, Dividend auf Stack, Divisor in D,
@@ -357,9 +310,6 @@ pll_set_channel
                 ldx  #PLLREF
                 jsr  send2pll               ; set R
 
-                pulx
-                pula
-                pulb
                 rts
 
 ;**************************
@@ -376,18 +326,11 @@ pll_set_channel
 ;
 ;
 pll_set_freq
-                pshb
-                psha
-                pshx
-
-                jsr  frq_cv_freq_ch         ; Frequenz in Kanal mit Schrittweite f_step umrechnen
-                                            ; Kanal kommt in X:D
-                jsr  pll_set_channel        ; PLL programmieren
-
-                pulx
-                pula
-                pulb
-                rts
+                 jsr  frq_cv_freq_ch         ; Frequenz in Kanal mit Schrittweite f_step umrechnen
+                                             ; Kanal kommt in X:D
+                 jsr  pll_set_channel        ; PLL programmieren
+ 
+                 rts
 
 ;**************************
 ; S E T   R X   F R E Q
@@ -399,14 +342,10 @@ pll_set_freq
 ;
 ; Ergebnis     : Nichts
 ;
-; changed Regs : none
+; changed Regs : A, B, X
 ;
 ;
 set_rx_freq
-                pshb                        ; Registerinhalte sichern
-                psha
-                pshx
-
                 ldd  2,x                    ; Frequenzwort LoWord nach D
                 pshb
                 psha                        ; Lo Word auf Stack
@@ -442,9 +381,6 @@ set_rx_freq
                 pulx
                 stx  frequency+2            ; und Empfangsfrequenz speichern
 
-                pulx                        ; Registerinhalte wiederherstellen
-                pula
-                pulb
                 rts                         ; Rücksprung
 
 ;**************************
@@ -461,10 +397,6 @@ set_rx_freq
 ;
 ;
 set_tx_freq
-                pshb                        ; Registerinhalte sichern
-                psha
-                pshx
-
                 ldd  2,x                    ; Frequenzwort LoWord nach D
                 pshb
                 psha
@@ -474,7 +406,6 @@ set_tx_freq
                 ldd  offset+2
                 ldx  offset
                 jsr  sub32                  ; Offset von Frequenzwort abziehen -> TX VCO Frequenz berechnen
-
 stf_set
                 tsx                         ; Ergebnis (TX VCO Frequenz) liegt auf Stack
                 jsr  pll_set_freq           ; TX VCO Frequenz setzen
@@ -499,9 +430,6 @@ stf_set
                 pulx
                 stx  frequency+2            ; und neue Frequenz speichern
 
-                pulx
-                pula
-                pulb
                 rts
 
 ;**************************
@@ -520,6 +448,7 @@ stf_set
 set_freq
                 pshb
                 psha
+                pshx
                 ldab rxtx_state          ; senden oder empfangen wir gerade?
                 bne  sfq_tx              ; entsprechend status die Frequenz setzen
                 jsr  set_rx_freq
@@ -527,6 +456,7 @@ set_freq
 sfq_tx
                 jsr  set_tx_freq
 sfq_end
+                pulx
                 pula
                 pulb
                 rts
@@ -550,9 +480,9 @@ frq_cv_freq_ch
                 pshb
                 psha
                 pshx                             ; Frequenz=Dividend auf Stack
-                ldd  f_step                      ; Divisor holen
+                ldd  #FSTEP                      ; Divisor holen
                 jsr  divide32                    ; Durch Kanalabstand teilen
-                ldd  f_step                      ; Kanalabstand holen
+                ldd  #FSTEP                      ; Kanalabstand holen
                 lsrd                             ; durch 2 teilen
                 xgdx                             ; nach X bringen und Rest nach D
                 pshx                             ; Kanalabstand/2 auf Stack
@@ -588,7 +518,7 @@ frq_cv_ch_freq
                 pshb
                 psha
                 pshx                             ; Kanal auf Stack speichern
-                ldd  f_step                      ; Kanalabstand holen
+                ldd  #FSTEP                      ; Kanalabstand holen
                 ldx  #0                          ; HiWord = 0
                 jsr  multiply32                  ; Frequenz berechnen
                 rts
@@ -612,7 +542,7 @@ frq_get_freq
                 pshx
                 ldx  channel
                 pshx
-                ldd  f_step
+                ldd  #FSTEP
                 ldx  #0
                 jsr  multiply32
                 ins
@@ -738,13 +668,9 @@ frq_update
 ;
 ; Returns      : Nothing
 ;
-; changed Regs : None
+; changed Regs : A, B, X
 ;
 freq_print
-                pshb
-                psha
-                pshx
-
                 ldd  0,x              ; Frequenz Hi Word holen
                 ldx  2,x              ; Frequenz Lo Word holen
 
@@ -755,12 +681,10 @@ freq_print
                 ldaa #'l'             ; unsigned Longint ausgeben
                 ldab #3               ; die letzten 3 Stellen abscheiden
                 jsr  putchar
+
                 pulx
                 pulx                  ; Frequenz von Stack löschen
 
-                pulx
-                pula
-                pulb
                 rts
 ;
 ;********************************
@@ -792,13 +716,9 @@ freq_print
 ;
 ; Returns      : Nothing
 ;
-; changed Regs : None
+; changed Regs : A, B, X
 ;
 freq_offset_print
-                pshb
-                psha
-                pshx
-
                 clra                    ; Arrow = Off
 
                 ldx  offset
@@ -816,10 +736,6 @@ fop_negative
 fop_end
                 ldab #6
                 jsr  arrow_set
-
-                pulx
-                pula
-                pulb
                 rts
 
 ;
@@ -836,13 +752,9 @@ fop_end
 ;
 ; Returns      : Nothing
 ;
-; chanegd Regs : None
+; chanegd Regs : A, B, X
 ;
 frq_check
-                pshb
-                psha
-                pshx
-
                 ldx  ui_frequency           ; Neue Frequenz eingegeben?
                 beq  frc_chk_shift          ;  = 0? Dann hat sich nix geändert
                 ldx  #ui_frequency          ; Zeiger auf Frequenz holen
@@ -861,8 +773,5 @@ frc_chk_shift
                 ldx  #-1
                 stx  ui_txshift             ; Frequenz Flag setzen
 frc_end
-                pulx
-                pula
-                pulb
                 rts
 

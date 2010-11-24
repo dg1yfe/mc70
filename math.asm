@@ -1,9 +1,9 @@
 ;****************************************************************************
 ;
-;    MC 70    v1.0.5 - Firmware for Motorola mc micro trunking radio
+;    MC 70    v1.0.6 - Firmware for Motorola mc micro trunking radio
 ;                      for use as an Amateur-Radio transceiver
 ;
-;    Copyright (C) 2004 - 2008  Felix Erckenbrecht, DG1YFE
+;    Copyright (C) 2004 - 2010  Felix Erckenbrecht, DG1YFE
 ;
 ;
 ;****************************************************************************
@@ -13,7 +13,7 @@
 ;
 ; mathematische Funktionen, die nicht direkt von der CPU zur Verfügung gestellt werden
 ;
-; last change : 22.05.2008
+; last change : 02/2009
 ;
 ;***********************
 ; DIVIDE:
@@ -185,8 +185,8 @@ divide32_loop
                rol  4,x                    ; dividendl
                rol  3,x                    ; dividendh+1
                rol  2,x                    ; dividendh   - Dividend/2
-               ldd  0,x                    ; Hilfsregister holen,
-               rolb                        ; Bit in Hilfsregister
+               ldd  0,x                    ; Hilfsregister/Rest holen,
+               rolb                        ; Bit in Hilfsregister/Rest
                rola                        ; schieben
                bcs  divide32_sub           ; MSB des Hilfsregisters = 1 ?
                subd 6,x                    ; Hilfsregister <= Divisor?
@@ -195,7 +195,7 @@ divide32_loop
                clc                         ; Carryflag löschen
                bra  divide32_cont
 divide32_sub
-               subd 6,x                    ; Divisor von Dividend abziehen
+               subd 6,x                    ; Divisor vom Hilfsregister/Rest abziehen
 divide32_sec
                sec                         ; Carryflag setzen
 divide32_cont
@@ -218,6 +218,213 @@ divide32_cont
                pulx                        ; Rest der Division nach X
                rts
 
+;************************
+; D I V I D E 3 2 S
+;************************
+; Parameter:
+;           D     Divisor  (16Bit)
+;           Stack *Dividend(16Bit)
+; Ergebnis:
+;           Mem   Quotient (32Bit)
+;           D Quotient-lo  (16Bit)
+;           X Rest         (16Bit)
+;
+;
+; changed Regs: A,B,X
+;
+divide32s
+               tsx
+               pshb
+               psha                        ; Divisor speichern
+               ldx  0+2,x                  ; Zeiger auf Dividend holen
+               ldd  2,x                    ; Dividend LoWord holen
+               pshb
+               psha                        ; und speichern
+               ldd  0,x                    ; Dividend HiWord holen
+               pshb
+               psha                        ; und speichern
+               ldd  #0                     ; Hilfsregister/Rest löschen
+               pshb                        ; Hilfsregister/Rest auf Stack
+               psha
+
+               tsx
+               ldx  0+10,x
+               clr  0,x
+               clr  1,x
+               clr  2,x
+               ldab #1
+               stab 3,x                    ; Ergebnis kommt auf Stack, Bit0 setzen (Counter)
+                                           ; 0,1 = Hilfsregister
+                                           ; 2,3,4,5 = Dividend
+                                           ; 6,7 = Divisor
+                                           ; 8,9 = Return Adresse
+                                           ; 10,11,12,13 = Ergebnis
+divide32s_loop
+               tsx
+               lsl  5,x                    ; dividendl+1 - MSB von Dividend
+               rol  4,x                    ; dividendl
+               rol  3,x                    ; dividendh+1
+               rol  2,x                    ; dividendh   - Dividend/2
+               ldd  0,x                    ; Hilfsregister/Rest holen,
+               rolb                        ; Bit in Hilfsregister/Rest
+               rola                        ; schieben
+               bcs  divide32s_sub          ; MSB des Hilfsregisters = 1 ?
+               subd 6,x                    ; Hilfsregister <= Divisor?
+               bcc  divide32s_sec          ; ja, dann Divisor subtrahieren
+               addd 6,x                    ; Subtraktion rückgängig machen
+               clc                         ; Carryflag löschen
+               bra  divide32s_cont
+divide32s_sub
+               subd 6,x                    ; Divisor vom Hilfsregister/Rest abziehen
+divide32s_sec
+               sec                         ; Carryflag setzen
+divide32s_cont
+               std  0,x                    ; neues Hilfsregister speichern
+               ldx  0+10,x                 ; Zeiger auf Quotient holen
+               rol  3,x
+               rol  2,x
+               rol  1,x                    ; Carry ins Ergebnis
+               rol  0,x                    ; einfügen
+               bcc  divide32s_loop         ; Loop bis '1' herausgeschoben wurde
+                                           ; insgesamt 32 Bits verarbeiten
+                                           ; Ergebnis auf Stack,
+                                           ; Rest in Hilfsregister
+               tsx
+               pula
+               pulb                        ; Rest holen
+               std   6,x                   ; und verschieben
+               ldx  0+10,x
+               ldd  2,x                    ; LoWord des Ergebnis nach D
+               pulx
+               pulx                        ; Stack bereinigen
+               pulx                        ; Rest der Division nach X
+               rts
+;************************
+; D I V I D E 3 2 3 2
+;************************
+;
+; Division mit 32 Bit Dividend UND 32 Bit Divisor
+;
+; Parameter:
+;           Stack *Dividend(16Bit) (Zeiger auf Dividend)
+;           Stack Divisor  (32Bit)
+; Ergebnis:
+;           Mem Quotient   (32Bit)
+;           Stack Rest     (32Bit)
+;           D Quotient Lo  (16Bit)
+;           X Rest Lo      (16Bit)
+;
+;
+; changed Regs: A,B,X
+;
+divide3232
+               tsx
+               ldx  4+2,x                  ; Zeiger auf Dividend holen
+               ldd    2,x                  ; Dividend LoWord holen
+               pshb
+               psha                        ; und speichern
+               ldd    0,x                  ; Dividend HiWord holen
+               pshb
+               psha                        ; und speichern
+
+               ldx  #0                     ; Hilfsregister/Rest auf 0
+               pshx
+               pshx                        ; Hilfsregister/Rest auf Stack
+
+               tsx
+               ldx  4+10,x                 ; Zeiger auf Dividen (nun Quotient) holen
+               clr  0,x
+               clr  1,x
+               clr  2,x
+               ldab #1
+               stab 3,x                    ; Ergebnis Bit0 setzen (Counter)
+                                           ; 0,1,2,3 = Hilfsregister/Rest
+                                           ; 4,5,6,7 = Dividend
+                                           ; 8,9 = Return Adresse
+                                           ; 10,11,12,13 = Divisor
+                                           ; 14,15 = Zeiger auf Ergebnis
+div3232_loop
+               tsx
+               lsl  7,x                    ; dividendl+1 - MSB von Dividend
+               rol  6,x                    ; dividendl
+               rol  5,x                    ; dividendh+1
+               rol  4,x                    ; dividendh   - Dividend/2
+
+               rol  3,x                    ; Bit in
+               rol  2,x                    ; Hilfsregister/Rest
+               rol  1,x                    ; schieben
+               rol  0,x
+
+               bcs  div3232_sub            ; MSB des Hilfsregisters/Rest = 1 ?
+
+               ldd  2,x
+               subd 12,x                   ; Rest <= Divisor?
+               std  2,x
+
+               ldab 1,x
+               sbcb 11,x
+               stab 1,x
+
+               ldab 0,x
+               sbcb 10,x
+               stab 0,x
+
+               bcc  div3232_sec            ; ja, dann Divisor subtrahieren
+               ldd  2,x
+               addd 12,x
+               std  2,x
+
+               ldab 1,x
+               adcb 11,x
+               stab 1,x
+
+               ldab 0,x
+               adcb 10,x
+               stab 0,x                    ; Subtraktion rückgängig machen
+               clc                         ; Carryflag löschen
+               bra  div3232_cont
+div3232_sub
+                                            ; Divisor von Hilfsregister/Rest abziehen
+               ldd  2,x
+               subd 12,x
+               std  2,x
+
+               ldab 1,x
+               sbcb 11,x
+               stab 1,x
+
+               ldab 0,x
+               sbcb 10,x
+               stab 0,x                     ; neues Hilfsregister/neuen Rest speichern
+div3232_sec
+               sec                         ; Carryflag setzen
+div3232_cont
+               ldx  4+10,x
+               rol  3,x
+               rol  2,x
+               rol  1,x                    ; Carry ins Ergebnis
+               rol  0,x                    ; einfügen
+               bcc  div3232_loop           ; Loop bis '1' herausgeschoben wurde
+                                           ; insgesamt 32 Bits verarbeiten
+                                           ; Ergebnis auf Stack,
+                                           ; Rest in Hilfsregister
+               tsx
+               pula
+               pulb                        ; Rest holen
+               std  0+10,x                 ; und anstelle des Divisors
+               pula
+               pulb
+               std  2+10,x                 ; speichern
+
+               ldx  4+10,x
+               ldd  2,x                    ; LoWord des Ergebnis nach D
+               tsx
+               ldx  2+6,x                  ; LoWord vom Rest nach X
+               ins
+               ins
+               ins
+               ins                         ; Stack bereinigen
+               rts
 
 ;************************
 ; M U L T I P L Y
@@ -286,53 +493,123 @@ multiply_end
 ;           Stack Faktor (32Bit)
 ; Ergebnis:
 ;           X:D Produkt  (32Bit)
-;
+;           Stack Produkt(32Bit)
 ;
 ; changed Regs: A,B,X
 multiply32
+;        a4  a3  a2  a1 *b4  b3  b2  b1
+;   ------------------------------------
+;        8   7   6   5 | 4   3   2   1
+;                      |        b 1 a 1
+;                      |    b 1 a 2
+;                      |b 1 a 3
+;                   b 1|a 4
+;                      |    b 2 a 1
+;                      |b 2 a 2
+;                   b 2|a 3
+;                      |b 3 a 1
+;                   b 3|a 2
+;                   b 4|a 1
+;
+;
                pshb
                psha
                pshx                 ; save factor2
-               tsx
-               ldx  8,x             ; LoWord Faktor1
-                                    ; D = LoWord Faktor2
-               jsr  multiply        ; multiply
-               pshb
-               psha
-               pshx                 ; Store Result in temporary space
+;********
+               ldx  #0
+               pshx
+               pshx                 ; Platz für Produkt
 
-;               jmp  multiply32_end
+                                    ; 0,1,2,3 = Produkt
+                                    ; 4,5,6,7 = Faktor 2
+                                    ; 8,9 = Ret Adr
+                                    ; 10,11,12,13 = Faktor 1
+               tsx
+;--- b1
+               ldaa 13,x            ; LoWord/LoByte Faktor1 - a1
+                                    ; LoWord/LoByte Faktor2 - b1
+               mul                  ; (b1a1)
+               std  2,x
 
-               tsx
-               ldd   4,x            ; HiWord Faktor1
-               ldx  12,x            ; LoWord Faktor2
-               jsr  multiply
-               tsx
-               addd  0,x            ; add result up
-               std   0,x
-               ldd   6,x            ; LoWord Faktor1
-               ldx  10,x            ; HiWord Faktor2
-               jsr  multiply
-               tsx
-               addd  0,x            ; add result up
-               xgdx
+               ldaa 12,x            ; LoWord/HiByte Faktor1 - a2
+               ldab 7,x             ; LoWord/LoByte Faktor2 - b1
+               mul                  ; (b1a2)
+               addd 1,x             ; zum Zwischenergebnis addieren
+               std  1,x             ; und speichern
+;               rol  0,x             ; eventuellen Übertrag einfügen (beim ersten Mal tritt noch kein Überlauf auf)
+               ldaa 11,x            ; HiWord/LoByte Faktor1 - a3
+               ldab 7,x             ; LoWord/LoByte Faktor2 - b1
+               mul                  ; (b1a3)
+               addd 0,x
+               std  0,x
+
+               ldaa 10,x            ; HiWord/HiByte Faktor1 - a4
+               ldab 7,x             ; LoWord/LoByte Faktor2 - b1
+               mul                  ; (b1a4)
+               addb 0,x             ; Nur noch Low Byte speichern
+               stab 0,x
+;--- b2
+               ldaa 13,x            ; LoWord/LoByte Faktor1 - a1
+               ldab 6,x             ; LoWord/HiByte Faktor2 - b2
+               mul                  ; (b2a1)
+               addd 1,x             ; zum Zwischenergebnis addieren
+               std  1,x             ; und speichern
+               ldaa #0
+               adca 0,x             ; Übertrag
+               staa 0,x             ; berücksichtigen
+
+               ldaa 12,x            ; LoWord/LoByte Faktor1 - a2
+               ldab 6,x             ; LoWord/HiByte Faktor2 - b2
+               mul                  ; (b2a2)
+               addd 0,x             ; addiere Zwischenergebnis
+               std  0,x             ; speichern
+
+               ldaa 11,x            ; LoWord/LoByte Faktor1 - a3
+               ldab 6,x             ; HiWord/HiByte Faktor2 - b2
+               mul                  ; (b2a3)
+               addb 0,x             ; Nur noch Low Byte addieren
+               stab 0,x             ; und speichern
+
+;--- b3
+               ldaa 13,x            ; LoWord/HiByte Faktor1 - a1
+               ldab 5,x             ; LoWord/HiByte Faktor2 - b3
+               mul                  ; (b3a1)
+               addd 0,x             ; zum Zwischenergebnis addieren
+               std  0,x             ; und speichern
+
+               ldaa 12,x            ; LoWord/HiByte Faktor1 - a2
+               ldab 5,x             ; HiWord/LoByte Faktor2 - b3
+               mul                  ; (b3a2)
+               addb 0,x             ; Nur noch Low Byte addieren
+               stab 0,x             ; und speichern
+;--- b4
+               ldaa 13,x            ; LoWord/LoByte Faktor1 - a1
+               ldab 4,x             ; HiWord/HiByte Faktor2 - b4
+               mul                  ; (b2a3)
+               addb 0,x             ; Nur noch Low Byte addieren
+               stab 0,x             ; und speichern
 multiply32_end
-               ins
-               ins
+               tsx
                pula
-               pulb                 ; get result
+               pulb                 ; get result HiWord
+               std  10,x            ; write to Stack
+               pula
+               pulb                 ; get result / LoWord
+               std  12,x            ; write to Stack
+               ins                  ; clear temporary storage
                ins
                ins
                ins
-               ins
+               ldx  10,x            ; load result / HiWord to X
                rts
 
-
+exp10_9
+               .dw $3b9a,$ca00
 exp10          ; Tabelle um 10 zu potenzieren - 32Bit Einträge
-               .dw $05F5,$E100  ;10^8
+               .dw $05f5,$e100  ;10^8
                .dw $0098,$9680  ;10^7
                .dw $000F,$4240  ;10^6
-               .dw $0001,$86A0  ;10^5
+               .dw $0001,$86a0  ;10^5
                .dw     0,10000  ;10^4
                .dw     0,1000   ;10^3
                .dw     0,100    ;10^2
@@ -422,8 +699,8 @@ sig_inv32
                ldx  #0              ; 1 addieren
                jsr  add32
                pulx
-               pula
-               pulb                 ; Ergebnis holen
+               pula                 ; Ergebnis holen
+               pulb
 
                rts
 

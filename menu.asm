@@ -1,23 +1,9 @@
 ;****************************************************************************
 ;
-;    MC 70    v1.0.1 - Firmware for Motorola mc micro trunking radio
+;    MC 70    v1.0.6 - Firmware for Motorola mc micro trunking radio
 ;                      for use as an Amateur-Radio transceiver
 ;
-;    Copyright (C) 2004 - 2007  Felix Erckenbrecht, DG1YFE
-;
-;    This program is free software; you can redistribute it and/or modify
-;    it under the terms of the GNU General Public License as published by
-;    the Free Software Foundation; either version 2 of the License, or
-;    any later version.
-;
-;    This program is distributed in the hope that it will be useful,
-;    but WITHOUT ANY WARRANTY; without even the implied warranty of
-;    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-;    GNU General Public License for more details.
-;
-;    You should have received a copy of the GNU General Public License
-;    along with this program; if not, write to the Free Software
-;    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+;    Copyright (C) 2004 - 2010  Felix Erckenbrecht, DG1YFE
 ;
 ;
 ;****************************************************************************
@@ -45,8 +31,6 @@
 ; I N I T _ M E N U
 ;*****************************
 menu_init
-                pshb
-                psha
                 ldaa #IDLE
                 staa m_state         ; begin in IDLE state
                 clr  m_timer_en      ; disable menu timer
@@ -56,14 +40,11 @@ menu_init
 
                 clr  mem_bank
 
-                ldab #$40
-                stab sql_mode               ; Squelch mode
+                oim  #$20,sql_mode             ; Squelch aktiviert
                 ldab #2
                 ldaa #1
                 jsr  arrow_set
 
-                pula
-                pulb
                 rts
 ;
 ;*****************************
@@ -79,16 +60,12 @@ menu_init
 ;
 ; Ergebnis : none
 ;
-; changed Regs : none
+; changed Regs : A,B,X
 ;
 ;
 ;************************
 ;
 menu
-                pshb
-                psha
-                pshx
-
                 jsr  sci_rx_m
                 tsta
                 beq  m_keypressed
@@ -99,7 +76,7 @@ m_keypressed
                 ldaa 0,x                         ; Key übersetzen
                 psha                             ; Wert speichern
 
-		ldab m_state                     ; Status holen
+		        ldab m_state                     ; Status holen
                 aslb
                 ldx  #m_state_tab                ; Tabellenbasisadresse holen
                 abx
@@ -142,7 +119,7 @@ m_idle_tab
                 .dw m_prnt_rc         ; D4 - Control Task Schleifendurchläuft per sek. ausgeben
 ;                .dw m_prnt_tc         ; D4 - Taskswitches/s anzeigen
                 .dw m_tone            ; D5 - 1750 Hz Ton
-                .dw m_test            ; D6 -
+                .dw m_none            ; D6 -
                 .dw m_txshift         ; D7 - TX Shift ändern
                 .dw m_sel_mbank       ; D8 - Speicherbank wählen
                 .dw m_frq_store       ; #
@@ -157,14 +134,13 @@ m_none
 ;
 ;
 m_start_input
-                ldx  #dbuf2
                 jsr  save_dbuf        ; Displayinhalt in dbuf2 sichern
                 clra
                 jsr  lcd_clr          ; Display löschen
 m_print
                 jsr  m_reset_timer    ; Menü-Timer Reset (Timeout für Eingabe setzen)
                 ldaa #F_IN            ; Frequenzeingabe beginnt
-		staa m_state
+  		staa m_state
                 addb #$30             ; aus Taste/Nummer ASCII Char erzeugen
                 tba
                 ldab cpos             ; Position holen
@@ -188,6 +164,8 @@ m_backspace
                 ldx  #f_in_buf        ; und im Frequenzeingabepuffer löschen
                 abx
                 clr  0,x              ; String im Frequenzeingabe-Puffer terminieren
+		ldaa #F_IN            ; Mindestens 1 freier Platz im Display vorhanden, State anpassen
+		staa m_state
                 jmp  m_end            ; Zurück
 
 ;**********************************
@@ -272,48 +250,12 @@ m_set_freq
                 jsr  frq_calc_freq    ; Frequenz berechnen
 
                 tsx                   ; Zeiger auf Frequenz DWord nach X
-                xgdx                  ; Zeiger von X nach D
-
-                ldx  frequency+2      ; aktuell gesetzte Frequenz holen
-                pshx
-                ldx  frequency
-                pshx                  ; und sichern
-                xgdx                  ; Frequenzzeiger wieder nach X
-
                 jsr  frq_update       ; Control Task mitteilen, dass neue Frequenz gesetzt wurde
                 clra
                 jsr  lcd_clr          ; LCD löschen
                 ldab #IDLE
                 stab m_state          ; nächster State ist wieder IDLE
 
-;                bra  m_lock
-                ldab #200             ; Universaltimer auf 200ms setzen
-                stab gp_timer         ; solange hat die PLL maximal Zeit um eizurasten
-m_wait_lock
-                ldab pll_locked_flag  ; Ist die PLL eingerastet?
-                andb #$7F             ; 'changed' Bit ausblenden. No Lock -> B=0
-                bne  m_lock           ; PLL ist eingerastet -> loop beenden
-                ldab gp_timer         ; gp_timer!=0 ?
-                bne  m_wait_lock      ; dann loop
-
-m_no_lock
-                PRINTF(m_no_lock_str) ; Fehlermeldung ausgeben
-                WAIT(500)             ; 500ms warten
-                tsx
-                jsr  frq_update       ; Control Task mitteilen, dass neue Frequenz gesetzt wurde - alte Frequenz wiederholen
-                pulx
-                pulx
-                clra
-                jsr  lcd_clr
-                bra  m_frq_prnt
-
-                ldx  #0
-                stx  m_timer          ; Menü Timer auf 0 setzen
-                                      ; Displayinhalt am Routinenende wiederherstellen
-                bra  msf_end          ; zum Ende springen
-m_lock
-                pulx
-                pulx                  ; alte Frequenz vom Stack löschen
                 PRINTF(m_ok)          ; "OK" ausgeben - PLL ist eingerastet
                 WAIT(200)             ; 200ms warten
 m_frq_prnt
@@ -483,7 +425,6 @@ mtc_nosave
 m_frq_store
                 ldab m_timer_en
                 bne  mfs_nosave
-                ldx  #dbuf2
                 jsr  save_dbuf        ; Displayinhalt in dbuf2 sichern
 
 mfs_nosave
@@ -496,7 +437,6 @@ mfs_nosave
                 PRINTF(m_stored)         ; 'STORED' ausgeben
                 jsr  lcd_fill
                 WAIT(1000)               ; 1sek warten
-                ldx  #dbuf2
                 jsr  restore_dbuf        ; Displayinhalt wiederherstellen
                 jmp  m_end               ;
 mfs_fail
@@ -509,7 +449,6 @@ mfs_fail
                 ldaa #'x'
                 jsr  putchar             ; Fehlercode ausgeben
                 WAIT(1000)               ; 1s warten
-                ldx  #dbuf2
                 jsr  restore_dbuf        ; Displayinhalt wiederherstellen
                 jmp  m_end               ;
 
@@ -519,10 +458,9 @@ mfs_fail
 ; Anzeige der aktuellen TX Shift
 ;
 m_txshift
-                ldaa m_timer_en       ; Falls Roundcount noch angezeigt wird, Displayinhalt NICHT speichern
-                bne  mts_nosave       ; Sondern Zahl erneut ausgeben
+                ldaa m_timer_en       ; Falls TX Shift noch angezeigt wird, Displayinhalt NICHT speichern
+                bne  mts_nosave       ;
 
-                ldx  #dbuf2
                 jsr  save_dbuf        ; Displayinhalt in dbuf2 sichern
 mts_nosave
                 ldaa m_state
@@ -589,8 +527,9 @@ mts_switch
                 stx  m_timer
                 jmp  m_end
 mts_to_idle
-                ldx  #dbuf2
+                pshb
                 jsr  restore_dbuf     ; Displayinhalt wiederherstellen
+                pulb
                 jmp  m_idle           ; Mit Frequenzeingabe weitermachen
 mts_toggle
                 jsr  m_reset_timer    ; Menü-Timer Reset (Timeout für Eingabe setzen)
@@ -640,7 +579,6 @@ m_set_shift
                 ldx  #f_in_buf
                 abx
                 clr  0,x              ; Eingabe mit 0 terminieren
-
                 pshx                  ; 32 Bit Platz schaffen auf Stack
                 pshx                  ; für Ergebnis der Frequenzberechnung
 
@@ -649,6 +587,12 @@ m_set_shift
                 jsr  frq_calc_freq    ; Frequenz berechnen
                 ldd  #100             ; durch 100 teilen, da erste Ziffer der Eingabe als *10^8 (100 Mio) betrachtet wird
                 jsr  divide32
+                ldab cpos
+                cmpb #3               ; Eingabe bestand aus 3 Zeichen?
+                bne  msh_set_mhz      ; Nein, dann als vierstellige Eingabe in kHz interpretieren
+                ldd  #10              ; Sonst als 3 stellige Eingabe in kHz interpretieren
+                jsr  divide32
+msh_set_mhz
                 tsx
                 ldd  0,x
                 std  txshift
@@ -663,7 +607,6 @@ m_set_shift
                 std  m_timer          ; noch 800ms warten bevor wieder Frequenz angezeigt wird
                 jmp  mts_print
 
-
 ;**************************************
 ; M   T O N E
 ;
@@ -672,9 +615,12 @@ m_set_shift
 m_tone
                 ldab #1
                 stab ui_ptt_req        ; PTT drücken
+                ldab tone_timer
+                bne  mtn_reset_timer
+                jsr  tone_start
+mtn_reset_timer
                 ldab #6
                 stab tone_timer        ; 0,6 sek Ton ausgeben
-                jsr  tone_start
 
                 jmp  m_end
 ;**************************************
@@ -685,7 +631,6 @@ m_tone
 m_sel_mbank
                 ldab m_timer_en       ;
                 bne  msm_nosave       ;
-                ldx  #dbuf2
                 jsr  save_dbuf        ; Displayinhalt in dbuf2 sichern
 msm_nosave
                 jsr  m_reset_timer    ; Menü-Timer Reset (Timeout für Eingabe setzen)
@@ -796,26 +741,24 @@ m_end
                 ldx  m_timer      ; menu timer holen
                 bne  m_return     ; timer nicht abgelaufen, dann return
                 clr  m_timer_en   ; timer disable
-                ldx  #dbuf2
                 jsr  restore_dbuf ; Displayinhalt wiederherstellen
                 ldab #IDLE        ; Zurück zum Idle State
                 stab m_state      ; State speichern
 m_return
-                pulx
-                pula
-                pulb
                 rts
 ;**************************************
 ;
 m_reset_timer                         ; Eingabe Timeout zurücksetzen
-                pshx
                 pshb
-                ldx  #MENUTIMEOUT     ; Eingabe Timeout im 100ms
-                stx  m_timer
+                ldab #MENUTIMEOUT>>8
+                sei
+                stab m_timer
+                ldab #MENUTIMEOUT%256
+                stab m_timer+1
+                cli
                 ldab #1
                 stab m_timer_en       ; timer aktivieren
                 pulb
-                pulx
                 rts
 ;
 ;**************************************

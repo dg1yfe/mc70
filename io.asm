@@ -3,21 +3,7 @@
 ;    MC 70    v1.0.1 - Firmware for Motorola mc micro trunking radio
 ;                      for use as an Amateur-Radio transceiver
 ;
-;    Copyright (C) 2004 - 2007  Felix Erckenbrecht, DG1YFE
-;
-;    This program is free software; you can redistribute it and/or modify
-;    it under the terms of the GNU General Public License as published by
-;    the Free Software Foundation; either version 2 of the License, or
-;    any later version.
-;
-;    This program is distributed in the hope that it will be useful,
-;    but WITHOUT ANY WARRANTY; without even the implied warranty of
-;    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-;    GNU General Public License for more details.
-;
-;    You should have received a copy of the GNU General Public License
-;    along with this program; if not, write to the Free Software
-;    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+;    Copyright (C) 2004 - 2010  Felix Erckenbrecht, DG1YFE
 ;
 ;
 ;****************************************************************************
@@ -131,6 +117,36 @@ io_init
 
                 clr  ui_ptt_req             ;
                 rts
+;*****************************
+; I O   I N I T   S E C O N D
+;*****************************
+;
+; Sekundäre I/O Initialisierung (falls Gerät eingeschaltet):
+;
+;                     - Shift Reg ( S/R Latch = 0, S/R init)
+;
+; Parameter: keine
+;
+; Ergebnis : nix
+;
+; changed Regs: A,B
+; TODO : Einbauen in EVA5
+io_init_second
+                                               ; Rx Audio enable = 0
+                                               ; Mic enable = 0
+                                               ; Sel5 Att = 0
+                                               ; Ext Alarm = 0
+                                               ; Hi/Lo Power = 0 (Hi Power)
+                                               ; TX / #RX     = 0
+                                               ; STBY&9,6V    = 1
+                                               ; Audio PA enable = 0
+                ldab #%00000010
+                ldaa #%00000010
+                jsr  send2shift_reg
+                aim  #%00000000, Port5_Data    ; EEPROM on (/EEP Pwr Stb = 0)
+                rts
+
+
 ;****************************
 ; S E N D 2 S h i f t _ R e g
 ;****************************
@@ -138,10 +154,9 @@ io_init
 ; Parameter : B - OR-Value
 ;             A - AND-Value
 ;
-; changed Regs: A,B
+; changed Regs: A,B,X
 ;
 send2shift_reg
-                pshx
                 inc  irq_wd_reset                ; disable IRQ Watchdog Reset
                 inc  tasksw_en
 
@@ -150,14 +165,33 @@ send2shift_reg
                 orab SR_data_buf
                 stab SR_data_buf
 
-                jsr  i2c_tx
+;                jsr  i2c_tx
+
+                ldaa #8                 ; 8 Bit senden
+s2sr_loop
+                psha                    ; Bitcounter sichern
+                lslb                    ; MSB in Carryflag schieben
+                bcs  s2sr_bitset        ; Sprung, wenn Bit gesetzt
+                I2C_DL                  ; Bit gelöscht, also Datenleitung 0
+                I2C_CH
+                I2C_CL                  ; Clock Hi/Lo toggle
+                bra  s2sr_dec
+s2sr_bitset
+                I2C_DH                  ; Data Hi
+                I2C_CH
+                I2C_CL                  ; Clock Hi/Lo toggle
+s2sr_dec
+                pula
+                deca                    ; A--
+                bne  s2sr_loop
+                I2C_DI                  ; Data auf Input & Hi
+
 
                 oim  #$80, Port2_Data
                 aim  #$7F, Port2_Data            ;Shift Reg Latch toggeln - Daten übernehmen
 
                 dec  irq_wd_reset                ; disable IRQ Watchdog Reset
                 dec  tasksw_en
-                pulx
                 rts
 ;****************
 ; S E N D 2 P L L
@@ -171,12 +205,9 @@ send2shift_reg
 ;                               A: 0-127
 ;                               R: 3-16383
 ;
-; changed Regs: none
+; changed Regs: A,B,X
 ;
 send2pll
-                pshb
-                psha
-                pshx
                 inc  irq_wd_reset                ; disable IRQ Watchdog Reset
                 inc  tasksw_en
                 tsta
@@ -230,9 +261,6 @@ pll_nextbit
                 aim  #%11110111, Port6_Data      ; PLL Syn Latch auf Lo
                 dec  irq_wd_reset                ; re-enable Watchdog Reset
                 dec  tasksw_en
-                pulx
-                pula
-                pulb
                 rts
 ;
 ;
@@ -396,10 +424,7 @@ irx_shift
 ; I N I T _ S C I
 ;***********************
 sci_init
-                pshb
-                psha
-
-                ldab #51
+                ldab #51						; TODO: MACRO
                 stab TCONR                      ; Counter für 1200 bps
 
                 ldab #%10000
@@ -414,8 +439,6 @@ sci_init
                 ldab #%1010
                 stab TRCSR1                     ; TX & RX enabled, no Int
 
-                pula
-                pulb
                 rts
 
 ;************************
@@ -442,6 +465,29 @@ src_no_data
                 ldaa #3
                 clrb
                 rts
+;************************
+; S C I   R E A D
+;************************
+sci_read
+                ;B : rxd Byte
+                ;changed Regs: A, B
+;                bsr  sci_rx
+;                tsta
+
+;                bsr  sci_rx
+                ldab io_inbuf_r           ; Zeiger auf Leseposition holen
+                cmpb io_inbuf_w           ; mit Schreibposition vergleichen
+                beq  sci_read             ; Wenn gleich sind keine Daten gekommen -> warten
+                ldx  #io_inbuf            ; Basisadresse holen
+                abx                       ; Zeiger addieren, Leseadresse berechnen
+                ldaa 0,x                  ; Datenbyte aus Puffer lesen
+                incb                      ; Zeiger++
+                andb #$io_inbuf_mask      ; Im gültigen Bereich bleiben
+                stab io_inbuf_r           ; neue Zeigerposition speichern
+                tab                       ; Datenbyte nach B
+                clra                      ; A = 0
+                rts
+
 ;************************
 ; S C I   R X   M
 ;************************
@@ -471,20 +517,7 @@ srm_no_data
                 rts
 
 ;************************
-; S C I   R E A D
-;************************
-sci_read
-                ;B : rxd Byte
-                ;changed Regs: A, B
-;                bsr  sci_rx
-;                tsta
-
-                bsr  sci_rx
-                cmpa #3
-                beq  sci_read
-		rts
-;************************
-; S C I   R E A D E
+; S C I   R E A D   M
 ;************************
 sci_read_m
                 ;B : rxd Byte
@@ -492,13 +525,29 @@ sci_read_m
 ;                bsr  sci_rx
 ;                tsta
 
-                bsr  sci_rx_m
-                tsta
-                bne  srdm_end
-                swi                ; Taskswitch durchführen wenn gewartet werden muß
-                bra  sci_read_m
-srdm_end
+;                bsr  sci_rx_m
+;                tsta
+;                bne  srdm_end
+;                swi                ; Taskswitch durchführen wenn gewartet werden muß
+;                bra  sci_read_m
+;srdm_end
+;                rts
+                ldab io_menubuf_r         ; Zeiger auf Leseposition holen
+                cmpb io_menubuf_w         ; mit Schreibposition vergleichen
+                bne  srdm_cont            ; Wenn nicht gleich sind Daten gekommen -> weitermachen
+                swi                       ; sonst Taskswitch
+                bra  sci_read_m           ; und warten
+srdm_cont
+                ldx  #io_menubuf          ; Basisadresse holen
+                abx                       ; Zeiger addieren, Leseadresse berechnen
+                ldaa 0,x                  ; Datenbyte aus Puffer lesen
+                incb                      ; Zeiger++
+                andb #io_menubuf_mask     ; Im Bereich 0-7 bleiben
+                stab io_menubuf_r         ; neue Zeigerposition speichern
+                tab                       ; Datenbyte nach B
+                clra                      ; A = 0
                 rts
+
 ;************************
 ; S C I   T X   B U F
 ;************************
@@ -508,7 +557,7 @@ sci_tx_buf
                 tab
                 ldab io_outbuf_w          ; Zeiger auf Schreibposition holen
                 incb                      ; erhöhen
-                andb #$0f                 ; Im Bereich 0-15 bleiben
+                andb #io_outbuf_mask      ; Im Bereich 0-(size-1) bleiben
                 cmpb io_outbuf_r          ; mit Leseposition vergleichen
                 beq  stb_full             ; Wenn gleich, ist Puffer voll
 
@@ -517,7 +566,7 @@ sci_tx_buf
                 abx                       ; Zeiger addieren, Schreibadresse berechnen
                 staa 0,x                  ; Datenbyte aus Puffer lesen
                 incb                      ; Zeiger++
-                andb #$0f                 ; Im Bereich 0-15 bleiben
+                andb #io_outbuf_mask      ; Im Bereich 0-(size-1) bleiben
                 stab io_outbuf_w          ; neue Zeigerposition speichern
                 clra                      ; A = 0
                 rts
@@ -531,18 +580,16 @@ sci_tx
                 ;B : TX Byte
                 ;changed Regs: none
                 psha
-                pshx                       ; x sichern
-;stx_wait_tdr_empty1
-;                ldaa TRCSR1
-;                anda #%00100000
-;                beq  stx_wait_tdr_empty1   ; sicher gehen dass TX Register leer ist
+stx_wait_tdr_empty1
+                ldaa TRCSR1
+                anda #%00100000
+                beq  stx_wait_tdr_empty1   ; sicher gehen dass TX Register leer ist
 stx_writereg
                 stab TDR                   ; Byte in Senderegister
 stx_wait_tdr_empty2
-                ldaa TRCSR1
-                anda #%00100000
-                beq  stx_wait_tdr_empty2   ; Warten bis es gesendet wurde
-                pulx
+;                ldaa TRCSR1
+;                anda #%00100000
+;                beq  stx_wait_tdr_empty2   ; Warten bis es gesendet wurde
                 pula
                 rts
 ;
@@ -565,16 +612,20 @@ sci_tx_w
                 pshx                       ; x sichern
 stw_chk_lcd_timer
                 ldx  lcd_timer             ; lcd_timer holen
-                beq  stw_writereg          ; warten falls dieser >0 (LCD ist noch nicht bereit)
-                swi                        ; Taskswitch
+                beq  stw_wait_tdr_empty1   ; warten falls dieser >0 (LCD ist noch nicht bereit)
+                swi                       ; Taskswitch
                 bra  stw_chk_lcd_timer
+stw_wait_tdr_empty1
+                ldaa TRCSR1
+                anda #%00100000
+                beq  stw_wait_tdr_empty1
 stw_writereg
                 stab TDR
-stw_wait_tdr_empty
+stw_wait_tdr_empty2
                 ldaa TRCSR1
                 anda #%00100000
                 swi
-                beq  stw_wait_tdr_empty
+                beq  stw_wait_tdr_empty2
 
                 tba
                 oraa #$10
@@ -771,308 +822,6 @@ mbw_end
                 pulb
                 rts
 
-;****************
-; S E T   L E D
-;****************
-;
-; Setzt Bits in LED Buffer entsprechend Parameter
-; Der Buffer wird zyklisch im UI Task abgefragt und eine Änderung
-; an das Display ausgegeben.
-; Achtung: Durch die langsame Kommunikation mit dem Display kann es
-;          vorkommen, dass schnelle Änderungen nicht oder unvollständig
-;          dargestellt werden
-;
-;
-; Parameter : B - LED + Status (RED_LED/YEL_LED/GRN_LED + OFF/ON/BLINK/INVERT)
-;
-;                 RED_LED $33 - 00110011
-;                 YEL_LED $31 - 00110001
-;                 GRN_LED $32 - 00110010
-;                 OFF       0 - 00000000
-;                 ON        4 - 00000100
-;                 BLINK     8 - 00001000
-;                 INVERT  128 - 10000000
-;
-;
-; Returns : nothing
-;
-;
-led_set
-                pshb
-                psha
-                pshx
-
-                tba
-                anda #%00110011                   ; LED Bits isolieren
-                cmpa #RED_LED                     ; Rot?
-                beq  lds_red
-                cmpa #GRN_LED                     ; Grün?
-                beq  lds_grn
-lds_yel
-                ldaa #1                           ; Gelb = 1 - 00000001
-                bra  lds_cont
-lds_grn
-                ldaa #4                           ; Grün = 4 - 00000100
-                bra  lds_cont
-lds_red
-                ldaa #16                          ; Rot = 16 - 00010000
-lds_cont
-                psha
-                lsla
-                psha                              ; 2 Status Bits auf Stack
-                tsx                               ; Stackpointer nach X
-                ldaa led_buf                      ; LED Buffer lesen
-
-                tstb                              ; Status = Invert ?
-                bmi  lds_invert                   ; Ja, dann verzweigen
-                andb #%1100                       ; Status = Blink oder On ?
-                beq  lds_off                      ; Ja, dann verzweigen
-                andb #%1000                       ; Status = Blink?
-                bne  lds_blink
-                                                  ; Status = On
-                com  0,x                          ; Maske erzeugen,
-                anda 0,x                          ; BLINK Bit löschen
-                oraa 1,x                          ; ON Bit setzen
-                bra  lds_store
-lds_off
-                com  0,x                          ; Maske erzeugen
-                com  1,x                          ; um beide Bits
-                anda 0,x                          ; zu
-                anda 1,x                          ; löschen
-                bra  lds_store
-lds_blink
-                oraa 0,x                          ; Blink Bit setzen
-                oraa 1,x                          ; ON Bit setzen
-                bra  lds_store
-lds_invert
-                eora 1,x                          ; On Bit invertieren
-lds_store
-                ldab led_dbuf
-                cba                               ; anzuzeigende LEDs und dargestellte gleich?
-                beq  lds_end
-                oraa #$80                         ; Nein? Dann changed Bit setzen
-lds_end
-                staa led_buf
-                ins
-                ins                               ; Stackspeicher freigeben
-
-                pulx
-                pula
-                pulb
-                rts
-
-;**********************
-; L E D   U P D A T E
-;**********************
-;
-; Prüft LED Buffer auf Veränderung, steuert ggf. LEDs an
-;
-; Parameter : none
-;
-; Returns : nothing
-;
-;
-led_update
-                pshb
-                psha
-                pshx
-
-                clra
-                inc  tasksw_en              ; keinen erzwungenen Taskswitch durchführen
-                ldab led_buf                ; LED Buffer lesen
-                lslb                        ; MSB ins Carryflag schieben (Change Bit)
-                rola                        ; Bit in A übernehmen
-                lsrb                        ; B nach rechts schieben, MSB = 0 setzen
-                stab led_buf                ; Puffer speichern
-                dec  tasksw_en              ; Taskswitches per Interrupt wieder zulassen
-                tsta
-                beq  ldu_end                ; Change Bit nicht gesetzt -> Ende
-
-                pshb                        ; Wert aus LED_BUF sichern
-                eorb led_dbuf               ; Unterschied zu aktuellem Status durch XOR bestimmen
-                ldaa #3
-ldu_loop
-                lsrb                        ; 'On' Bit ins Carryflag
-                bcc  ldu_nochg              ; Bit nicht geändert, Blink Bit testen
-                bsr  ldu_chg                ; Wenn es sich geändert hat, die Änderung ans Display senden
-                bra  ldu_lsr                ; Änderung des Blink Bit muß nicht geprüft werden
-ldu_nochg
-                lsrb                        ; 'On' Bit hat sich nicht geändert, Blink Bit testen
-                bcc  ldu_dec                ; Blink Bit hat sich auch nicht geändert, weiter mit nächster Farbe
-                bsr  ldu_chg                ; Blink Bit hat sich geändert (Übergang ON -> Blink)
-                bra  ldu_dec                ; Weitermachen mit nächster Farbe
-ldu_lsr
-                lsrb                        ; 'ON' Bit hat sich geändert, Blink Bit Änderung nicht beachten
-ldu_dec
-                deca                        ; Zu nächster Farbe
-                bne  ldu_loop               ; 0=Exit
-
-                pulb                        ; Wert vom LED Buffer holen
-                andb #$7F                   ; Change Bit ausblenden
-                stab led_dbuf               ; Neuen Status der Display LEDs speichern
-ldu_end
-                pulx
-                pula
-                pulb
-                rts
-;-------
-ldu_chg
-                pshb
-                psha
-                tab                         ; Zähler (Farbe) nach B
-
-                tsx
-                ldaa 4,x                    ; LED Buffer holen
-
-                cmpb #3                     ; 3= gelbe LED
-                beq  ldu_yel
-                cmpb #2                     ; 2= grüne LED
-                beq  ldu_grn
-ldu_red
-                ldab #RED_LED               ; Kommando für rote LED nach B
-                anda #%110000               ; Status Bits für rote LED isolieren
-                lsra
-                lsra
-                lsra
-                lsra                        ; und nach rechts schieben
-                bra  ldu_set
-ldu_yel
-                ldab #YEL_LED               ; Status Bits für gelbe LED isolieren
-                anda #%11
-                bra  ldu_set
-ldu_grn
-                ldab #GRN_LED               ; Status Bits für  LED isolieren
-                anda #%1100
-                lsra
-                lsra
-ldu_set
-                lsra                        ; 'ON' Bit gesetzt?
-                bcc  ldu_send               ; Nein? Dann LED deaktivieren
-                orab #$04                   ; Andernfalls ON Bit setzen
-                lsra                        ; Blink Bit gesetzt?
-                bcc  ldu_send               ; Nein, dann LED nur einschalten
-                andb #%11111011             ; ON Bit löschen
-                orab #$08                   ; Blink Bit setzen
-ldu_send
-                ldaa #'p'
-                jsr  putchar                ; LED Kommando senden
-
-                pula
-                pulb
-                rts
-;
-;********************
-; A R R O W   S E T
-;********************
-;
-; Parameter : B - Nummer    (0-7)
-;             A - Reset/Set/Blink
-;                 0 = Reset,
-;                 1 = Set
-;                 2 = Blink
-;                 3 = Invert (off->on->off, blink->off->blink, on->off->on)
-;
-; Returns : nothing
-;
-arrow_set
-                pshx
-                psha
-                pshb
-
-                jsr  raise                  ; Nummer in Bit Position konvertieren (2^B)
-                pshb
-                tsx
-
-                cmpa #3                     ; Modus testen
-                beq  aws_invert_chk
-                cmpa #2
-                beq  aws_blnk_chk
-                cmpa #1
-                beq  aws_on_chk
-aws_off_chk
-                ldaa arrow_buf
-                tab
-                anda 0,x                    ; ON Bit isolieren
-                beq  aws_end                ; Arrow ist schon aus -> Ende
-aws_off
-                com  0,x                    ; Maske zum ausblenden erzeugen
-                andb 0,x                    ; On Bit löschen
-                stab arrow_buf              ; Status speichern
-                ldab #A_OFF                 ; Kommando für 'aus' holen
-                bra  aws_send
-aws_on_chk
-                ldaa arrow_buf
-                tab
-                anda 0,x                    ; Arrow schon aktiviert?
-                beq  aws_on                 ; Nein -> aktivieren
-                ldaa arrow_buf+1
-                tab
-                anda 0,x                    ; blinkt er?
-                beq  aws_end                ; Nein, dann Ende
-                com  0,x                    ; Ansonsten
-                andb 0,x                    ; Blink Bit löschen
-                stab arrow_buf+1            ; Status speichern
-                ldab arrow_buf
-                com  0,x
-aws_on
-                orab 0,x                    ; ON Bit setzen
-                stab arrow_buf
-                ldab arrow_buf+1
-                com  0,x
-                andb 0,x
-                stab arrow_buf+1            ; Blink Bit löschen
-                ldab #A_ON                  ; Kommando für an holen
-                bra  aws_send
-aws_blnk_chk
-                ldaa arrow_buf+1
-                tab
-                anda 0,x                    ; Blink Bit isolieren
-                beq  aws_blink              ; Wenn nicht gesetzt -> aktivieren
-                ldaa arrow_buf
-                tab
-                anda 0,x                    ; aktiviert?
-                bne  aws_end                ; Ja, dann Ende
-                ldab arrow_buf+1            ; Blink Status holen
-aws_blink
-                orab 0,x                    ; Blink Bit setzen
-                stab arrow_buf+1            ; Status speichern
-                ldab arrow_buf
-                orab 0,x                    ; On Bit setzen
-                stab arrow_buf              ; Status speichern
-                ldab #A_BLINK               ; Blink Kommando laden
-                bra  aws_send
-aws_invert_chk
-                ldaa arrow_buf
-                tab
-                anda 0,x                    ; Arrow schon an?
-                bne  aws_off                ; Ja -> deaktivieren
-                ldaa arrow_buf+1
-                tab
-                anda 0,x                    ; blinken?
-                bne  aws_blink              ; Ja, dann blinken
-                ldab arrow_buf
-                bra  aws_on                 ; Ansonsten normal einschalten
-aws_send
-                ldaa cpos
-                psha
-                pshb
-                ldaa #'p'
-                ldab 1,x
-                jsr  lcd_cpos               ; Cursor setzen
-                pulb
-                addb #ARROW
-                ldaa #'p'
-                jsr  putchar                ; Arrow setzen
-                pulb
-                jsr  lcd_cpos
-aws_end
-                ins
-
-                pulb
-                pula
-                pulx
-                rts
-
 ;
 ;************************************************
 ;
@@ -1098,17 +847,14 @@ aws_end
 ;
 ; Ergebnis :    nothing
 ;
-; changed Regs: none
+; changed Regs: A,B,X
 ;
 ; changed Mem : CPOS,
-;               DBUF
+;               DBUF,
+;               Stack (longint)
 ;
 ;
 putchar
-               pshb
-               psha
-               pshx
-
                cmpa #'u'
                bne  pc_testlong
                jsr  uintdec
@@ -1116,7 +862,7 @@ putchar
 pc_testlong
                cmpa #'l'
                bne  pc_testhex
-               jsr  ulongout
+               jsr  ulongout2
                jmp  pc_end
 pc_testhex
                cmpa #'x'
@@ -1133,9 +879,9 @@ pc_testchar
 pc_testplain
                cmpa #'p'
                bne  pc_to_end
-               ldx  plain_vector
-               jmp  0,x
-;               pc_ext_send2    ; Plain - sende Bytevalue wie erhalten
+;               ldx  plain_vector
+;               jmp  0,x
+               pc_ext_send2    ; Plain - sende Bytevalue wie erhalten
 pc_to_end
                jmp  pc_end          ; unsupported mode, abort/ignore
 
@@ -1170,7 +916,6 @@ pc_double
                bne  pc_double         ; Wenn nicht, nochmal senden
                tsx
                ldab 1,x               ; Tabelleneintrag holen
-
 pc_single                             ; Ausgabe von Zeichencodes mit 1 Byte
                jsr  sci_tx_w          ; send 2nd char
                jsr  sci_ack           ; Auf Quittung warten
@@ -1185,7 +930,8 @@ pc_single                             ; Ausgabe von Zeichencodes mit 1 Byte
                bra  pc_end
 pc_extended
                clra
-               ldx  #e_char_convert
+;OBFUSCATION
+               ldx  #e_char_convert-$10
                pulb
                abx
                ldab 0,x               ; extended character holen
@@ -1204,9 +950,6 @@ pc_ext_send2
                tsta                   ; bei Fehler
                bne  pc_ext_send2      ; wiederholen
 pc_end
-               pulx
-               pula
-               pulb
                rts
 
 pc_terminal
@@ -1360,71 +1103,6 @@ einer
 
                rts
 ;******************
-; U L O N G   O U T
-;
-; Putchar Subroutine
-;
-; Formatiert einen 32 Bit Integer für Dezimale Darstellung um und gibt ihn aus
-;
-; Parameter : B - Anzahl der vom Ende der Zahl abzuschneidenden Ziffern
-;
-;             Stack - 32 Bit Integer
-;
-; Ergebnis : none
-;
-; changed Regs : A,B,X
-;
-;
-;11 Long LoWord,LoByte
-;10 Long LoWord,HiByte
-; 9 Long HiWord,LoByte
-; 8 Long HiWord,HiByte
-; 7 B
-; 6 A
-; 5 XL
-; 4 XH
-; 3 R-Adresse2 lo
-; 2 R-Adresse2 hi
-; 1 R-Adresse1 lo
-; 0 R-Adresse1 hi
-;
-ulongout
-               pshb                   ; B = nr of digits to cut off from end - push onto stack
-               tsx
-               ldd  11,x              ; get Longint/LoWord
-               tst  0,x               ; cut something?
-               beq  ulongout_divend   ; if not -> print longint directly
-ulongout_divloop
-               pshb
-               psha                   ; push Longint/LoWord on Stack
-               tsx
-               ldx  11,x              ; get Longint/HiWord
-               pshx                   ; store on Stack
-               ldd  #10               ; get Divisor
-               jsr  divide32          ; divide longint by 10 (to cut off one digit)
-               pula
-               pulb
-               tsx
-               std  11,x              ; store new longint / HiWord
-               pula
-               pulb
-               std  13,x               ; store new longint / LoWord
-               dec  2,x                ; cut off another digit?
-               bne  ulongout_divloop   ; yes? then repeat the division
-               tsx
-ulongout_divend
-               ldx  9,x                ; get longint HiWord
-               pshb
-               psha                    ; push LoWord onto stack
-               pshx                    ; push HiWord onto stack as parameter for "ulongdec"
-               jsr  ulongdec           ; output everything
-               pulx
-               pulx                    ; remove Parameters from stack
-               ins                     ; remove "cut-off" counter from stack
-
-               rts
-
-;******************
 ; U L O N G   D E C
 ;
 ; Putchar Subroutine für dezimale Ausgabe
@@ -1468,6 +1146,83 @@ uld_end
                pulx
                rts
 
+;******************
+; U L O N G   O U T
+;
+; Putchar Subroutine
+;
+; Formatiert einen 32 Bit Integer für Dezimale Darstellung um und gibt ihn aus
+;
+; Parameter : B - Anzahl der vom Ende der Zahl abzuschneidenden Ziffern
+;
+;             Stack - 32 Bit Integer
+;
+; Ergebnis : none
+;
+; changed Regs : A,B,X
+;
+;
+; 7 Long LoWord,LoByte
+; 6 Long LoWord,HiByte
+; 5 Long HiWord,LoByte
+; 4 Long HiWord,HiByte
+; 3 R-Adresse2 lo
+; 2 R-Adresse2 hi
+; 1 R-Adresse1 lo
+; 0 R-Adresse1 hi
+;
+ulongout2
+               tsx
+               inx
+               inx
+               inx
+               inx
+               pshx                    ; Zeiger auf Longint auf Stack
+               andb #7                 ; max. 7 Stellen abschneiden
+               pshb                    ; Exponent auf stack
+               tsx
+               ldab #9                 ; index für 10^x Tabelle berechnen
+               sbcb 0,x
+               ins                     ; Exponent vom Stack löschen
+; TODO Überprüfung auf b>9
+               lslb
+               lslb                    ; Index *4 (DWords werden adressiert)
+               ldx  #exp10_9
+               abx                     ; 10er Potenz Tabelle adressieren
+               ldd  2,x                ; LoWord lesen
+               pshb
+               psha
+               ldx  0,x                ; HiWord lesen und beides
+               pshx                    ; als Divisor auf Stack
+               jsr  divide3232         ; 32 Bit Division durchführen
+               pulx
+               pulx                    ; Rest löschen
+               pulx                    ; Zeiger holen
+               ldab #$ff
+               pshb
+ulo2_divloop
+               pshx                    ; Zeiger auf Longint Kopie auf Stack legen (Dividend)
+               ldd  #10
+               jsr  divide32s          ; Longint durch 10 dividieren
+               xgdx                    ; Rest (0-9) nach D
+               pulx                    ; Zeiger auf Quotient holen
+               pshb                    ; Rest auf Stack
+               ldd  2,x
+               orab 1,x
+               orab 0,x
+               subd #0                 ; Prüfen ob Quotient = 0
+               bne  ulo2_divloop       ; Wenn nicht, dann erneut teilen
+ulo2_prntloop
+               pulb
+               cmpb #$ff               ; Prüfen ob alle Ergebniswerte vom Stack gelesen wurden
+               beq  ulo2_end           ; Ja, dann Ende
+               addb #$30               ; $30 addieren
+               ldaa #'c'
+               jsr  putchar            ; Zeichen ausgeben
+               bra  ulo2_prntloop      ;
+ulo2_end
+               rts
+
 ;**********************
 ; S T O R E   D B U F
 ;
@@ -1494,6 +1249,7 @@ store_dbuf_end
                pula
                pulb
                rts
+
 ;
 ;************************************
 ; P R I N T F
@@ -1527,7 +1283,28 @@ end_printf
                rts
 print_special
                ldab 0,x
-               bra  print_char
+               inx
+               subb #$30
+               lsla
+               lsla
+               lsla
+               lsla
+               bcc  print_hinib
+               subb #7
+print_hinib
+               ldaa 0,x
+               inx
+               suba #$30
+               cmpa #$10
+               bne  print_addval
+               suba #7
+print_addval
+               aba
+               clrb
+               jsr  store_dbuf
+               tab
+               ldaa #'p'
+               bra  print_put
 print_num
                ldaa 0,x
                bra  print_put

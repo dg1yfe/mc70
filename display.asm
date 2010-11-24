@@ -1,23 +1,10 @@
 ;****************************************************************************
 ;
-;    MC 70    v1.0.1 - Firmware for Motorola mc micro trunking radio
+;    MC2_E9   v1.0   - Firmware for Motorola mc micro trunking radio
 ;                      for use as an Amateur-Radio transceiver
 ;
-;    Copyright (C) 2004 - 2007  Felix Erckenbrecht, DG1YFE
+;    Copyright (C) 2004 - 2009  Felix Erckenbrecht, DG1YFE
 ;
-;    This program is free software; you can redistribute it and/or modify
-;    it under the terms of the GNU General Public License as published by
-;    the Free Software Foundation; either version 2 of the License, or
-;    any later version.
-;
-;    This program is distributed in the hope that it will be useful,
-;    but WITHOUT ANY WARRANTY; without even the implied warranty of
-;    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-;    GNU General Public License for more details.
-;
-;    You should have received a copy of the GNU General Public License
-;    along with this program; if not, write to the Free Software
-;    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 ;
 ;
 ;****************************************************************************
@@ -35,68 +22,6 @@
 ;
 ;
 ;
-;***********************
-; L C D _ H _ R E S E T
-;***********************
-;
-lcd_reset
-                pshb
-                psha
-                pshx
-                jsr  lcd_h_reset       ; Hardware Reset durchführen
-
-                ldx  #pc_char_out
-                stx  char_vector
-
-                ldx  #pc_ext_send2
-                stx  plain_vector
-
-                ldd  #2000             ; 2 sek auf Display warten
-                std  lcd_timer
-
-lcr_empty_buf
-                jsr  sci_rx
-                tsta
-                bne  lcs_empty_buf
-
-lcr_wait_res
-                ldd  lcd_timer
-                beq  lcr_no_lcd         ; Falls 2 Sekunden vergangen, abbrechen
-                jsr  sci_rx
-                tsta
-                beq  lcr_wait_res
-                cmpb #$7E               ; Reset Poll Char?
-                bne  lcs_wait_res       ; Nein, dann nochmal
-
-                sei
-                ldab io_inbuf_w
-                stab io_inbuf_r
-                cli
-
-                ldab #$7E
-                jsr  sci_tx
-
-                sei
-                ldab io_inbuf_w
-                stab io_inbuf_r
-                cli
-
-                ldaa #1
-;               jsr  lcd_clr            ; LEDs, LCD und Display Buffer löschen
-
-                clr  cpos               ; Reset CPOS (Cursor auf Pos. 0 setzen)
-                ldx  #dbuf
-                ldd  #$2020
-                std  0,x
-                std  2,x
-                std  4,x
-                std  6,x                ; clear Display Buffer (fill with "Space")
-
-                pulx
-                pula
-                pulb
-                rts
-lcr_no_lcd
 
 ;***********************
 ; L C D _ H _ R E S E T
@@ -127,59 +52,45 @@ lcd_h_reset
 ;
 ; LCD Warmstart - Reset Kommando an LCD Controller senden
 ;
+; Returns: A - 0 = Display Reset
+;              1 = Timeout / No Display detected
+;
 lcd_s_reset
-                pshb
-                psha
-                pshx
-
-                ldd  #0
-                std  lcd_timer
-
-                ldx  #pc_char_out
-                stx  char_vector
-
-                ldx  #pc_ext_send2
-                stx  plain_vector
-
-lcs_empty_buf
-                jsr  sci_rx
-                tsta
-                bne  lcs_empty_buf
-
+               ldd  #0
+               std  lcd_timer
+               ldd  tick_hms
+               addd #20              ; 2 Sek Timeout
+               xgdx
 lcs_wait_res
-               jsr  sci_read
-               cmpb #$7E               ; Reset Poll Char?
-               bne  lcs_wait_res       ; Nein, dann nochmal
-
-               sei
-               ldab io_inbuf_w
-               stab io_inbuf_r
-               cli
-
-               ldab #$7E
-               jsr  sci_tx
-;               WAIT(50)
-
-               sei
-               ldab io_inbuf_w
-               stab io_inbuf_r
-               cli
-
-               ldaa #1
-;               jsr  lcd_clr            ; LEDs, LCD und Display Buffer löschen
-
-               clr  cpos               ; Reset CPOS (Cursor auf Pos. 0 setzen)
-               ldx  #dbuf
-               ldd  #$2020
-               std  0,x
-               std  2,x
-               std  4,x
-               std  6,x                ; clear Display Buffer (fill with "Space")
-
-
+               pshx
+               jsr  sci_rx
                pulx
+               tsta
+               bne  lcs_wait_count
+               cmpb #$7E               ; Reset Poll Char?
+               beq  lcs_disp_resp      ;
+lcs_wait_count
+               cpx  tick_hms
+               bne  lcs_wait_res       ; Nein, dann nochmal
+               ldab #1                 ; Display antwortet nicht innerhalb ca 1 s
+               bra  lcs_nodisp         ; Annehmen, dass kein Display vorhanden ist (nur loopback)
+lcs_disp_resp
+               ldab #$7E               ; respond to reset message
+               jsr  sci_tx             ; by sending it back
+               clrb
+lcs_nodisp
+               pshb
+               sei
+               ldab io_inbuf_w
+               stab io_inbuf_r
+               cli
+
+               ldx  #LCDDELAY*4
+               stx  lcd_timer
+               ldaa #1
+               jsr  lcd_clr            ; LEDs, LCD und Display Buffer löschen
+
                pula
-               pulb
                rts
 
 ;*******************
@@ -263,23 +174,18 @@ lcd_no_dec
 ; S A V E _ D B U F
 ;*******************
 ;
-; Parameter : X - Zieladresse
 ;
 save_dbuf
-                pshb
-                psha
-                pshx
-
-                xgdx                ; Zieladresse nach D
-                ldx  #9             ; 9 Byte kopieren ( 1* CPOS, 8*Char )
-                pshx                ; -> Bytecount auf Stack
-                ldx  #dbuf          ; Quelladresse = Displaybuffer nach X
-                jsr  mem_trans      ; Speicherbereich von (X) nach (D) kopieren
-                pulx
-
-                pulx
-                pula
-                pulb
+                ldx  dbuf
+                stx  dbuf2
+                ldx  dbuf+2
+                stx  dbuf2+2
+                ldx  dbuf+4
+                stx  dbuf2+4
+                ldx  dbuf+6
+                stx  dbuf2+6
+                ldx  dbuf+7
+                stx  dbuf2+7
                 rts
 
 
@@ -287,13 +193,14 @@ save_dbuf
 ; R E S T O R E _ D B U F
 ;*************************
 ;
-; Parameter : X - Quelladresse
+; Parameter    : none
+;
+; Ergebnis     : none
+;
+; changed Regs : A, B, X
 ;
 restore_dbuf
-                pshb
-                psha
-                pshx
-
+                ldx  #dbuf2		; TODO: BUG???
                 clrb
                 jsr  lcd_cpos    ; Position 0
 restore_loop
@@ -309,10 +216,6 @@ restore_loop
 
                 ldab 0,x         ; CPOS holen
                 jsr  lcd_cpos
-
-                pulx
-                pula
-                pulb
                 rts
 
 ;*****************
@@ -414,8 +317,300 @@ lcf_end
                 pula
                 pulb
                 rts
+;****************
+; L E D   S E T
+;****************
+;
+; Setzt Bits in LED Buffer entsprechend Parameter
+; Der Buffer wird zyklisch im UI Task abgefragt und eine Änderung
+; an das Display ausgegeben.
+; Achtung: Durch die langsame Kommunikation mit dem Display kann es
+;          vorkommen, dass schnelle Änderungen nicht oder unvollständig
+;          dargestellt werden
+;
+;
+; Parameter : B - LED + Status (RED_LED/YEL_LED/GRN_LED + OFF/ON/BLINK/INVERT)
+;
+;                 RED_LED $33 - 00110011
+;                 YEL_LED $31 - 00110001
+;                 GRN_LED $32 - 00110010
+;                 OFF       0 - 00000000
+;                 ON        4 - 00000100
+;                 BLINK     8 - 00001000
+;                 INVERT  128 - 10000000
+;
+;
+; Returns : nothing
+;
+; changed Regs: A,B,X
+;
+led_set
 
+                tba
+                anda #%00110011                   ; LED Bits isolieren
+                cmpa #RED_LED                     ; Rot?
+                beq  lds_red
+                cmpa #GRN_LED                     ; Grün?
+                beq  lds_grn
+lds_yel
+                ldaa #1                           ; Gelb = 1 - 00000001
+                bra  lds_cont
+lds_grn
+                ldaa #4                           ; Grün = 4 - 00000100
+                bra  lds_cont
+lds_red
+                ldaa #16                          ; Rot = 16 - 00010000
+lds_cont
+                psha
+                lsla
+                psha                              ; 2 Status Bits auf Stack
+                tsx                               ; Stackpointer nach X
+                ldaa led_buf                      ; LED Buffer lesen
 
+                tstb                              ; Status = Invert ?
+                bmi  lds_invert                   ; Ja, dann verzweigen
+                andb #%1100                       ; Status = Blink oder On ?
+                beq  lds_off                      ; Ja, dann verzweigen
+                andb #%1000                       ; Status = Blink?
+                bne  lds_blink
+                                                  ; Status = On
+                com  0,x                          ; Maske erzeugen,
+                anda 0,x                          ; BLINK Bit löschen
+                oraa 1,x                          ; ON Bit setzen
+                bra  lds_store
+lds_off
+                com  0,x                          ; Maske erzeugen
+                com  1,x                          ; um beide Bits
+                anda 0,x                          ; zu
+                anda 1,x                          ; löschen
+                bra  lds_store
+lds_blink
+                oraa 0,x                          ; Blink Bit setzen
+                oraa 1,x                          ; ON Bit setzen
+                bra  lds_store
+lds_invert
+                eora 1,x                          ; On Bit invertieren
+lds_store
+                ldab led_dbuf
+                cba                               ; anzuzeigende LEDs und dargestellte gleich?
+                beq  lds_end
+                oraa #$80                         ; Nein? Dann changed Bit setzen
+lds_end
+                staa led_buf
+                ins
+                ins                               ; Stackspeicher freigeben
+                rts
 
-;++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+;**********************
+; L E D   U P D A T E
+;**********************
+;
+; Prüft LED Buffer auf Veränderung, steuert ggf. LEDs an
+;
+; Parameter : none
+;
+; Returns : nothing
+;
+;
+led_update
+                pshb
+                psha
+                pshx
+
+                clra
+                inc  tasksw_en              ; keinen erzwungenen Taskswitch durchführen
+                ldab led_buf                ; LED Buffer lesen
+                lslb                        ; MSB ins Carryflag schieben (Change Bit)
+                rola                        ; Bit in A übernehmen
+                lsrb                        ; B nach rechts schieben, MSB = 0 setzen
+                stab led_buf                ; Puffer speichern
+                dec  tasksw_en              ; Taskswitches per Interrupt wieder zulassen
+                tsta
+                beq  ldu_end                ; Change Bit nicht gesetzt -> Ende
+
+                pshb                        ; Wert aus LED_BUF sichern
+                eorb led_dbuf               ; Unterschied zu aktuellem Status durch XOR bestimmen
+                ldaa #3
+ldu_loop
+                lsrb                        ; 'On' Bit ins Carryflag
+                bcc  ldu_nochg              ; Bit nicht geändert, Blink Bit testen
+                bsr  ldu_chg                ; Wenn es sich geändert hat, die Änderung ans Display senden
+                bra  ldu_lsr                ; Änderung des Blink Bit muß nicht geprüft werden
+ldu_nochg
+                lsrb                        ; 'On' Bit hat sich nicht geändert, Blink Bit testen
+                bcc  ldu_dec                ; Blink Bit hat sich auch nicht geändert, weiter mit nächster Farbe
+                bsr  ldu_chg                ; Blink Bit hat sich geändert (Übergang ON -> Blink)
+                bra  ldu_dec                ; Weitermachen mit nächster Farbe
+ldu_lsr
+                lsrb                        ; 'ON' Bit hat sich geändert, Blink Bit Änderung nicht beachten
+ldu_dec
+                deca                        ; Zu nächster Farbe
+                bne  ldu_loop               ; 0=Exit
+
+                pulb                        ; Wert vom LED Buffer holen
+                andb #$7F                   ; Change Bit ausblenden
+                stab led_dbuf               ; Neuen Status der Display LEDs speichern
+ldu_end
+                pulx
+                pula
+                pulb
+                rts
+;-------
+ldu_chg
+                pshb
+                psha
+                tab                         ; Zähler (Farbe) nach B
+
+                tsx
+                ldaa 4,x                    ; LED Buffer holen
+
+                cmpb #3                     ; 3= gelbe LED
+                beq  ldu_yel
+                cmpb #2                     ; 2= grüne LED
+                beq  ldu_grn
+ldu_red
+                ldab #RED_LED               ; Kommando für rote LED nach B
+                anda #%110000               ; Status Bits für rote LED isolieren
+                lsra
+                lsra
+                lsra
+                lsra                        ; und nach rechts schieben
+                bra  ldu_set
+ldu_yel
+                ldab #YEL_LED               ; Status Bits für gelbe LED isolieren
+                anda #%11
+                bra  ldu_set
+ldu_grn
+                ldab #GRN_LED               ; Status Bits für  LED isolieren
+                anda #%1100
+                lsra
+                lsra
+ldu_set
+                lsra                        ; 'ON' Bit gesetzt?
+                bcc  ldu_send               ; Nein? Dann LED deaktivieren
+                orab #$04                   ; Andernfalls ON Bit setzen
+                lsra                        ; Blink Bit gesetzt?
+                bcc  ldu_send               ; Nein, dann LED nur einschalten
+                andb #%11111011             ; ON Bit löschen
+                orab #$08                   ; Blink Bit setzen
+ldu_send
+                ldaa #'p'
+                jsr  putchar                ; LED Kommando senden
+
+                pula
+                pulb
+                rts
+;
+;********************
+; A R R O W   S E T
+;********************
+;
+; Parameter : B - Nummer    (0-7)
+;             A - Reset/Set/Blink
+;                 0 = Reset,
+;                 1 = Set
+;                 2 = Blink
+;                 3 = Invert (off->on->off, blink->off->blink, on->off->on)
+;
+; Returns : nothing
+;
+arrow_set
+                pshx
+                psha
+                pshb
+
+                jsr  raise                  ; Nummer in Bit Position konvertieren (2^B)
+                pshb
+                tsx
+
+                cmpa #3                     ; Modus testen
+                beq  aws_invert_chk
+                cmpa #2
+                beq  aws_blnk_chk
+                cmpa #1
+                beq  aws_on_chk
+aws_off_chk
+                ldaa arrow_buf
+                tab
+                anda 0,x                    ; ON Bit isolieren
+                beq  aws_end                ; Arrow ist schon aus -> Ende
+aws_off
+                com  0,x                    ; Maske zum ausblenden erzeugen
+                andb 0,x                    ; On Bit löschen
+                stab arrow_buf              ; Status speichern
+                ldab #A_OFF                 ; Kommando für 'aus' holen
+                bra  aws_send
+aws_on_chk
+                ldaa arrow_buf
+                tab
+                anda 0,x                    ; Arrow schon aktiviert?
+                beq  aws_on                 ; Nein -> aktivieren
+                ldaa arrow_buf+1
+                tab
+                anda 0,x                    ; blinkt er?
+                beq  aws_end                ; Nein, dann Ende
+                com  0,x                    ; Ansonsten
+                andb 0,x                    ; Blink Bit löschen
+                stab arrow_buf+1            ; Status speichern
+                ldab arrow_buf
+                com  0,x
+aws_on
+                orab 0,x                    ; ON Bit setzen
+                stab arrow_buf
+                ldab arrow_buf+1
+                com  0,x
+                andb 0,x
+                stab arrow_buf+1            ; Blink Bit löschen
+                ldab #A_ON                  ; Kommando für an holen
+                bra  aws_send
+aws_blnk_chk
+                ldaa arrow_buf+1
+                tab
+                anda 0,x                    ; Blink Bit isolieren
+                beq  aws_blink              ; Wenn nicht gesetzt -> aktivieren
+                ldaa arrow_buf
+                tab
+                anda 0,x                    ; aktiviert?
+                bne  aws_end                ; Ja, dann Ende
+                ldab arrow_buf+1            ; Blink Status holen
+aws_blink
+                orab 0,x                    ; Blink Bit setzen
+                stab arrow_buf+1            ; Status speichern
+                ldab arrow_buf
+                orab 0,x                    ; On Bit setzen
+                stab arrow_buf              ; Status speichern
+                ldab #A_BLINK               ; Blink Kommando laden
+                bra  aws_send
+aws_invert_chk
+                ldaa arrow_buf
+                tab
+                anda 0,x                    ; Arrow schon an?
+                bne  aws_off                ; Ja -> deaktivieren
+                ldaa arrow_buf+1
+                tab
+                anda 0,x                    ; blinken?
+                bne  aws_blink              ; Ja, dann blinken
+                ldab arrow_buf
+                bra  aws_on                 ; Ansonsten normal einschalten
+aws_send
+                ldaa cpos
+                psha
+                pshb
+                ldaa #'p'
+                ldab 1,x
+                jsr  lcd_cpos               ; Cursor setzen
+                pulb
+                addb #ARROW
+                ldaa #'p'
+                jsr  putchar                ; Arrow setzen
+                pulb
+                jsr  lcd_cpos
+aws_end
+                ins
+
+                pulb
+                pula
+                pulx
+                rts
+
 

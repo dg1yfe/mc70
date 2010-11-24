@@ -1,9 +1,9 @@
 ;****************************************************************************
 ;
-;    MC 70    v1.0.1 - Firmware for Motorola mc micro trunking radio
+;    MC 70    v1.6   - Firmware for Motorola mc micro trunking radio
 ;                      for use as an Amateur-Radio transceiver
 ;
-;    Copyright (C) 2004 - 2007  Felix Erckenbrecht, DG1YFE
+;    Copyright (C) 2004 - 2010  Felix Erckenbrecht, DG1YFE
 ;
 ;
 ;****************************************************************************
@@ -28,20 +28,13 @@
 ;             ( A - Dev.&Page Adresse (3 LSBs), B - Datenadresse im EEPROM, Stack - Datenbyte |
 ;               A - Status (0=OK) )
 ;
-; eep_write_seq - Schreibt sequentiell ins EEPROM
-;             ( STACK(4) - Datenadresse im Speicher
-;               STACK(3) - Datenadresse im EEPROM (Byte Adresse)
-;               STACK(2) - Device&Page Adresse (3 Bit, LSB)
-;               STACK(0) - Bytecount)
-;
-; Ergebnis : A - Status: 0 - OK
-;
 ; eep_get_size - Prüft die Größe des EEPROMs ( nix | D - EEPROM Größe )
 ;
 ;
 ; eep_chk_crc - Bildet CRC über den Config Bereich ( nix | A - Status, X - CRC )
 ;
 ; eep_write_crc - CRC16 über Config Block bilden und schreiben ( nix | X - CRC, A - Status )
+;
 ;
 ;
 ;

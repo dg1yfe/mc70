@@ -3,21 +3,8 @@
 ;    MC 70    v1.0.1 - Firmware for Motorola mc micro trunking radio
 ;                      for use as an Amateur-Radio transceiver
 ;
-;    Copyright (C) 2004 - 2007  Felix Erckenbrecht, DG1YFE
+;    Copyright (C) 2004 - 2009  Felix Erckenbrecht, DG1YFE
 ;
-;    This program is free software; you can redistribute it and/or modify
-;    it under the terms of the GNU General Public License as published by
-;    the Free Software Foundation; either version 2 of the License, or
-;    any later version.
-;
-;    This program is distributed in the hope that it will be useful,
-;    but WITHOUT ANY WARRANTY; without even the implied warranty of
-;    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-;    GNU General Public License for more details.
-;
-;    You should have received a copy of the GNU General Public License
-;    along with this program; if not, write to the Free Software
-;    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 ;
 ;
 ;****************************************************************************
@@ -160,6 +147,9 @@ tasksw          .db
 last_tasksw     .db
 tasksw_en       .db
 start_task      .dw
+
+pcc_cdiff_flag  .db                                    ; Flag
+
 led_buf         .db                        ; Bit 0 (1)  - gelb
                                            ; Bit 1 (2)  - gelb blink
                                            ; Bit 2 (4)  - grün
@@ -198,32 +188,24 @@ next_hms        .dw
 lcd_timer       .dw                                  ; 1ms
 
 irq_wd_reset    .db
-irq_wd_flag     .db
 
-frequency       .dw
-                .dw
-
-vco             .dw
+frequency       .dw                                  ; aktuelle Frequenz
                 .dw
 
-freq_shift      .dw
+offset          .dw                                  ; Für RX/TX verwendete Shift (0/+TXS/-TXS)
                 .dw
-offset          .dw                                  ; TS Shift
+txshift         .dw                                  ;
                 .dw
-txshift         .dw
+channel         .dw                                  ; aktuell in der PLL gesetzter Kanal
                 .dw
-channel         .dw                                   ; aktuell in der PLL gesetzter Kanal
+ui_frequency    .dw                                    ; Über UI eingegebene Frequenz wird hier gespeichert
                 .dw
-
-chnl_shift      .dw                                   ; 32 Bit (18) für Kanal
+ui_txshift      .dw                                    ; Über UI eingegebene Frequenz wird hier gespeichert
+                .dw
 
 rxtx_state      .db                                   ; 0=RX
 ptt_debounce    .db
 ui_ptt_req      .db                                   ;
-
-pll_locked_flag .db                                   ; Bit 0 - PLL not locked
-pll_timer       .db
-uld_count       .db
 
 m_state		.db
 m_menu          .db                                   ; Speicher für Untermenu
@@ -241,18 +223,11 @@ sql_flag        .db
 sql_timer       .db
 sql_mode        .db                                   ; Mode ($80 = Carrier, $40 = RSSI, 0 = off)
 
-roundcount      .dw
-rc_last_sec     .dw
-rc_timer        .db
+msg_mode        .db
+mem_bank        .db                                    ; aktuelle Bank / Frequenzspeicherplätze
 
-ts_count        .dw
-ts_last_s       .dw
-
-ui_frequency    .dw                                    ; Über UI eingegebene Frequenz wird hier gespeichert
-                .dw
-ui_txshift      .dw                                    ; Über UI eingegebene Frequenz wird hier gespeichert
-                .dw
-pcc_cdiff_flag  .db                                    ; Flag
+pll_locked_flag .db                                   ; Bit 0 - PLL not locked
+pll_timer       .db
 
 tone_timer      .db
 tone_index      .db
@@ -264,32 +239,14 @@ bank1           .block 4                              ; Platz für Routinen zur B
 
 
 ;*****************************
-; E X T E R N A L   R A M
-;*****************************
-ext_ram         .ORG $0200                            ; externes RAM wird ab 0x0140 vom uC angesprochen, durch die
-ep_f_step       .dw                                   ; Kanalraster in Hz
-ep_f_base       .dw
-                .dw                                   ; unterste programmierbare Frequenz
-                                                      ; Beschaltung wird der RAM IC aber erst ab 0x0200 aktiviert
-ep_m_base       .dw                                   ; Basisadresse für gespeicherte Kanäle im EEPROM
-
-;*********
-; EEPROM
-;*********
-;
-;
-;
-;
-;
-;*****************************
 ; I O   R I N G B U F F E R
 ;*****************************
-#DEFINE io_outbuf_size  8
-#DEFINE io_outbuf_mask  io_outbuf_size-1
-io_outbuf       .block  io_outbuf_size                ; Output Ringbuffer - 16 Byte
-io_outbuf_w     .db                                   ; Write-Pointer (zu Basisadresse addieren)
-io_outbuf_r     .db                                   ; Read-Pointer (zu Basisadresse addieren)
-io_outbuf_er    .db                                   ; Overflow Error
+#DEFINE io_menubuf_size   4
+#DEFINE io_menubuf_mask io_menubuf_size-1
+io_menubuf      .block  io_menubuf_size               ; Menü Ringbuffer - 8 Byte
+io_menubuf_w    .db                                   ; Write-Pointer (zu Basisadresse addieren)
+io_menubuf_r    .db                                   ; Read-Pointer (zu Basisadresse addieren)
+io_menubuf_e    .db                                   ; Overflow Error
 
 #DEFINE io_inbuf_size   4
 #DEFINE io_inbuf_mask   io_inbuf_size-1
@@ -298,13 +255,14 @@ io_inbuf_w      .db                                   ; Write-Pointer (zu Basisa
 io_inbuf_r      .db                                   ; Read-Pointer (zu Basisadresse addieren)
 io_inbuf_er     .db                                   ; Overflow Error
 
-#DEFINE io_menubuf_size   8
-#DEFINE io_menubuf_mask io_menubuf_size-1
-io_menubuf      .block  io_menubuf_size               ; Menü Ringbuffer - 8 Byte
-io_menubuf_w    .db                                   ; Write-Pointer (zu Basisadresse addieren)
-io_menubuf_r    .db                                   ; Read-Pointer (zu Basisadresse addieren)
-io_menubuf_e    .db                                   ; Overflow Error
+f_in_buf        .block 9
 
+#DEFINE io_outbuf_size  4
+#DEFINE io_outbuf_mask  io_outbuf_size-1
+io_outbuf_w     .db                                   ; Write-Pointer (zu Basisadresse addieren)
+io_outbuf_r     .db                                   ; Read-Pointer (zu Basisadresse addieren)
+io_outbuf_er    .db                                   ; Overflow Error
+io_outbuf       .block  io_outbuf_size                ; Output Ringbuffer - 16 Byte
 
 ;##############################
 ; S T A R T   V E K T O R E N
