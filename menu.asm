@@ -116,7 +116,8 @@ m_idle_tab
                 .dw m_frq_up          ; D1 - Kanal+
                 .dw m_frq_down        ; D2 - Kanal-
                 .dw m_sql_switch      ; D3 - Squelch ein/aus
-                .dw m_prnt_rc         ; D4 - Control Task Schleifendurchläuft per sek. ausgeben
+                .dw m_none            ; D4 - none
+;                .dw m_prnt_rc         ; D4 - Control Task Schleifendurchläuft per sek. ausgeben
 ;                .dw m_prnt_tc         ; D4 - Taskswitches/s anzeigen
                 .dw m_tone            ; D5 - 1750 Hz Ton
                 .dw m_none            ; D6 -
@@ -369,7 +370,7 @@ mpr_nosave
                 jsr  m_reset_timer    ; Menü-Timer Reset (Timeout für Eingabe setzen)
                 clrb
                 jsr  lcd_cpos         ; Cursor Home
-                ldx  rc_last_sec      ; Rundenzähler holen
+;                ldx  rc_last_sec      ; Rundenzähler holen
 
                 clrb
                 pshx
@@ -405,7 +406,7 @@ mtc_nosave
                 jsr  m_reset_timer    ; Menü-Timer Reset (Timeout für Eingabe setzen)
                 clrb
                 jsr  lcd_cpos         ; Cursor Home
-                ldx  ts_last_s        ; Rundenzähler holen
+                ldx  ts_count        ; Rundenzähler holen
                 clrb
                 pshx
                 pshb

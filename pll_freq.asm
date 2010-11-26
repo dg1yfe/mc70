@@ -364,9 +364,6 @@ set_rx_freq
 
                 jsr  frq_get_freq           ; eingestellte Frequenz (entsprechend Kanalraster) holen
 
-                std  vco+2                  ; speichern
-                stx  vco
-
                 pshb
                 psha
                 pshx
@@ -414,9 +411,6 @@ stf_set
                 pulx                        ; TX VCO Frequenz vom Stack löschen
 
                 jsr  frq_get_freq           ; eingestellte Frequenz (entsprechend Kanalraster) holen
-
-                std  vco+2
-                stx  vco
                 pshb
                 psha
                 pshx

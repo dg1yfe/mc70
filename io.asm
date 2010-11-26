@@ -881,7 +881,7 @@ pc_testplain
                bne  pc_to_end
 ;               ldx  plain_vector
 ;               jmp  0,x
-               pc_ext_send2    ; Plain - sende Bytevalue wie erhalten
+               jmp  pc_ext_send2    ; Plain - sende Bytevalue wie erhalten
 pc_to_end
                jmp  pc_end          ; unsupported mode, abort/ignore
 

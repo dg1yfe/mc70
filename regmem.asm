@@ -207,7 +207,7 @@ rxtx_state      .db                                   ; 0=RX
 ptt_debounce    .db
 ui_ptt_req      .db                                   ;
 
-m_state		.db
+m_state	        .db
 m_menu          .db                                   ; Speicher für Untermenu
 m_timer         .dw                                   ; 100ms
 m_timer_en      .db    $00
@@ -232,7 +232,8 @@ pll_timer       .db
 tone_timer      .db
 tone_index      .db
 oci_ctr         .db
-mem_bank        .db                                    ; aktuelle Bank / Frequenzspeicherplätze
+
+ts_count        .dw
 
 bank0           .block 4
 bank1           .block 4                              ; Platz für Routinen zur Bankumschaltung im ROM (Flash)
@@ -254,8 +255,6 @@ io_inbuf        .block  io_inbuf_size                 ; Input Ringbuffer - 4 Byt
 io_inbuf_w      .db                                   ; Write-Pointer (zu Basisadresse addieren)
 io_inbuf_r      .db                                   ; Read-Pointer (zu Basisadresse addieren)
 io_inbuf_er     .db                                   ; Overflow Error
-
-f_in_buf        .block 9
 
 #DEFINE io_outbuf_size  4
 #DEFINE io_outbuf_mask  io_outbuf_size-1

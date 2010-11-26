@@ -387,9 +387,9 @@ chk_isu
 cki_end
                 pulb
                 rts
-;****************
-; C H K   I S U
-;****************
+;*******************
+; C H K   D E B U G
+;*******************
 ;
 ; Prüft gebrückten "TEST" Eingang und gibt die Kontrolle ggf. an das Update Modul weiter
 ;
@@ -398,17 +398,17 @@ cki_end
 ; Ergebnis : none
 ;
 ;
-chk_debug
-                pshb
-                ldab Port6_Data      ; TEST Pins gebrückt?
-                andb #%00010000      ; (P64 gegen Masse)
-                bne  ckd_end         ; Nein, dann zurück
-
-                jmp  debug_loader
-ckd_end
-                pulb
-                rts
-
+;chk_debug
+;                pshb
+;                ldab Port6_Data      ; TEST Pins gebrückt?
+;                andb #%00010000      ; (P64 gegen Masse)
+;                bne  ckd_end         ; Nein, dann zurück
+; 
+;                 jmp  debug_loader
+; ckd_end
+;                 pulb
+;                 rts
+; 
 ;***********************
 ; B A N K   S W I T C H
 ;***********************

@@ -119,5 +119,5 @@ ml_sql_end
 #INCLUDE       "io.asm"                    ; all I/O
 #INCLUDE       "int.asm"                   ; Interrupt Service Routines
 ;#INCLUDE       "debug.asm"                 ; Debugmodul
-;#INCLUDE       "isu.asm"                   ; In System Update Modul
+#INCLUDE       "isu.asm"                   ; In System Update Modul
                .end
