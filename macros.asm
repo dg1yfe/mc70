@@ -1,9 +1,9 @@
 ;****************************************************************************
 ;
-;    MC2_E9   v1.0   - Firmware for Motorola mc micro trunking radio
+;    MC70     v1.0   - Firmware for Motorola mc micro trunking radio
 ;                      for use as an Amateur-Radio transceiver
 ;
-;    Copyright (C) 2004 - 2009  Felix Erckenbrecht, DG1YFE
+;    Copyright (C) 2004 - 2010  Felix Erckenbrecht, DG1YFE
 ;
 ;
 ;
@@ -17,6 +17,10 @@
 #DEFINE STACK2  $1EFF
 ;************************
 ; Timing
+; Frequency of crystal
+#DEFINE XTAL 7977600
+; System clock ("E") is 1/4th of that
+#DEFINE SYSCLK XTAL/4
 ;
 #DEFINE MENUTIMEOUT   40  ; 4 sek Eingabetimeout
 #DEFINE PLLCHKTIMEOUT 2   ; 200ms Timeout für PLL Check
@@ -25,7 +29,7 @@
 #DEFINE RX_TO_TX_TIME 5  ; 5 ms RX -> TX Umschaltung
 ;
 ;************************
-#DEFINE TONE_DPHASE 352  ; Tone Phase Delta (Xtal/4/2 /Tone -1)
+#DEFINE TONE_DPHASE SYSCLK/(2*1750)-1  ; Tone Phase Delta (Xtal/4/2 /Tone -1)
 ;
 ;
 ;************************

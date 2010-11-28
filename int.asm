@@ -17,8 +17,7 @@
 init_OCI
                 clr   irq_wd_reset                ; IRQ Routine darf Watchdog zurücksetzen
                 ldd   FRC
-;                addd  #1994                       ; etwa alle 1ms einen Int auslösen
-                addd  #1230                       ; etwa alle 1ms einen Int auslösen
+                addd  #SYSCLK/1000                ; Interrupt every millisecond
                 std   OCR1
                 ldab  #%1000
                 stab  TCSR1                       ; enable Output Compare Interrupt
@@ -106,7 +105,7 @@ ocf1_test
 OCI1_SR
                 ldab TCSR1                 ; Interruptflag zurücksetzen
                 ldd  OCR1H
-                addd #1994				   ; TODO: MACRO einfŸhren!
+                addd #SYSCLK/1000          ; 
                 std  OCR1H                 ; in 1ms wieder einen Int ausführen
 
                 tst  irq_wd_reset          ; währen I2C Zugriff,

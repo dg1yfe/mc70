@@ -85,8 +85,6 @@ ui
                 clrb
                 jsr  lcd_cpos
                 WAIT(150)
-no_intro
-				bra  no_intro
                 ldx  #frequency
                 jsr  freq_print             ; Frequenz anzeigen
 
@@ -112,7 +110,7 @@ dg1yfe_str
 mc70_str
                 .db "MC 70",0
 ver_str
-                .db "10006",0
+                .db "1_0_6",0
 rom_init_str
                 .db "ROM INIT",0
 ram_err_str

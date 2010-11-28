@@ -72,7 +72,6 @@ Start
 
 ;***************
 start_over
-	  		bra  start_over
                 jsr  receive                ; Empfänger aktivieren
                 ldab #1                     ; in 300 ms
                 stab pll_timer              ; den PLL Status prüfen

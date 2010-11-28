@@ -637,7 +637,6 @@ fcf_end
 ; changed Regs : None
 ;
 frq_update
-                pshx
                 pshb
                 psha
                 ldd  2,x                      ; Frequenz holen
@@ -647,7 +646,6 @@ frq_update
                 swi                           ; Taskswitch durchführen
                 pula
                 pulb
-                pulx
                 rts
 
 ;********************
