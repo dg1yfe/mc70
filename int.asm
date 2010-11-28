@@ -25,7 +25,7 @@ init_OCI
                 ldd   #0
                 std   tick_ms
                 std   tick_hms
-                addd  #10
+                addd  #100
                 std   next_hms
 
                 rts

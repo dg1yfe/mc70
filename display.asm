@@ -34,12 +34,12 @@ lcd_h_reset
                 pshb
                 psha
 
-                ldaa  #%11111111
-                ldab  #%100
+                clra
+                ldab  #%00000100
                 jsr   send2shift_reg ; LCD Reset Leitung auf High (=Reset)
-
+                WAIT(1)
                 ldaa  #%11111011
-                ldab  #0
+                clrb
                 jsr   send2shift_reg ; und wieder low
 
                 pula
@@ -58,39 +58,53 @@ lcd_h_reset
 lcd_s_reset
                ldd  #0
                std  lcd_timer
+
+               clrb
+               jsr  sci_tx
+
+               sei
+               clr  io_inbuf_w
+               clr  io_inbuf_r
+               cli
+
+               WAIT(80)
+
                ldd  tick_hms
-               addd #20              ; 2 Sek Timeout
+               addd #20               ; 2 Sek Timeout
                xgdx
 lcs_wait_res
-               pshx
-               jsr  sci_rx
-               pulx
+			   pshx
+               jsr  check_inbuf        ; get number of bytes in inbuf
                tsta
-               bne  lcs_wait_count
-               cmpb #$7E               ; Reset Poll Char?
-               beq  lcs_disp_resp      ;
+			   beq  lcs_wait_count     ; if zero, loop until time's up
+               psha
+               jsr  sci_read           ; read char from inbuf
+               pula
+               pulx
+			   deca
+			   beq  lcs_chk            ; if there was only one byte left, respond
+               bra  lcs_wait_count     ; loop until time is up
+lcs_chk
+               cmpb #$7E               ; Reset Poll Char received?
+               beq  lcs_disp_resp      ; Yes - then respond
 lcs_wait_count
-               cpx  tick_hms
-               bne  lcs_wait_res       ; Nein, dann nochmal
-               ldab #1                 ; Display antwortet nicht innerhalb ca 1 s
-               bra  lcs_nodisp         ; Annehmen, dass kein Display vorhanden ist (nur loopback)
+               cpx  tick_hms           ; check if time is up?
+               bne  lcs_wait_res       ; if not, loop another time
+               ldaa #1                 ; Display antwortet nicht innerhalb des Timeouts
+               ldab #$7F
+               jsr  sci_tx
+               rts                     ; Annehmen, dass kein Display vorhanden ist (nur loopback)
 lcs_disp_resp
                ldab #$7E               ; respond to reset message
                jsr  sci_tx             ; by sending it back
-               clrb
-lcs_nodisp
-               pshb
-               sei
-               ldab io_inbuf_w
-               stab io_inbuf_r
-               cli
 
+               WAIT(100)
                ldx  #LCDDELAY*4
                stx  lcd_timer
                ldaa #1
                jsr  lcd_clr            ; LEDs, LCD und Display Buffer löschen
 
-               pula
+               clra
                rts
 
 ;*******************

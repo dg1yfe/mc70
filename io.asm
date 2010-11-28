@@ -117,39 +117,13 @@ io_init
 
                 clr  ui_ptt_req             ;
                 rts
-;*****************************
-; I O   I N I T   S E C O N D
-;*****************************
-;
-; Sekundäre I/O Initialisierung (falls Gerät eingeschaltet):
-;
-;                     - Shift Reg ( S/R Latch = 0, S/R init)
-;
-; Parameter: keine
-;
-; Ergebnis : nix
-;
-; changed Regs: A,B
-; TODO : Einbauen in EVA5
-io_init_second
-                                               ; Rx Audio enable = 0
-                                               ; Mic enable = 0
-                                               ; Sel5 Att = 0
-                                               ; Ext Alarm = 0
-                                               ; Hi/Lo Power = 0 (Hi Power)
-                                               ; TX / #RX     = 0
-                                               ; STBY&9,6V    = 1
-                                               ; Audio PA enable = 0
-                ldab #%00000010
-                ldaa #%00000010
-                jsr  send2shift_reg
-                aim  #%00000000, Port5_Data    ; EEPROM on (/EEP Pwr Stb = 0)
-                rts
 
 
 ;****************************
 ; S E N D 2 S h i f t _ R e g
 ;****************************
+;
+; AND before OR !
 ;
 ; Parameter : B - OR-Value
 ;             A - AND-Value
@@ -446,7 +420,7 @@ sci_init
 ;************************
 ;                        A : Status (0=RX ok, 3=no RX)
 ;                        B : rxd Byte
-;             changed Regs : A, B
+;             changed Regs : A, B, X
 ;
 sci_rx
                 ldab io_inbuf_r           ; Zeiger auf Leseposition holen
@@ -468,13 +442,13 @@ src_no_data
 ;************************
 ; S C I   R E A D
 ;************************
+;
+; Zeichen vom serieller Schnittstelle lesen (blocking)
+;
+;                         B : rxd Byte
+;              changed Regs : A, B, X
+;
 sci_read
-                ;B : rxd Byte
-                ;changed Regs: A, B
-;                bsr  sci_rx
-;                tsta
-
-;                bsr  sci_rx
                 ldab io_inbuf_r           ; Zeiger auf Leseposition holen
                 cmpb io_inbuf_w           ; mit Schreibposition vergleichen
                 beq  sci_read             ; Wenn gleich sind keine Daten gekommen -> warten
@@ -657,8 +631,8 @@ stw_end
 ; Result    : A - Bytes in Buffer
 ;
 check_inbuf
-                ldaa io_inbuf_r
-                suba io_inbuf_w
+                ldaa io_inbuf_w
+                suba io_inbuf_r
                 anda #io_inbuf_mask
                 rts
 ;

@@ -27,9 +27,7 @@ reset
                 lds  #STACK1               ; Stackpointer 1 setzen
                 jsr  io_init               ; I/O initialisieren (Ports, I2C, etc...)
 ;                jsr  chk_debug             ; Debugmodus ?
-                jsr  chk_isu               ; In System Update? ?
-
-                jsr  io_init               ; I/O initialisieren (Ports, I2C, etc...)
+;                jsr  chk_isu               ; In System Update? ?
                 ldab #1                    ; Frequenz etc noch NICHT speichern
                 jsr  pwr_sw_chk            ; Power switch checken - wenn Gerät ausgeschaltet ist,
                                            ; nicht weitermachen
@@ -37,17 +35,18 @@ reset
 ;************************************
 ;************************************
 Start
+                jsr  ui_init               ; 2. Task initialisieren (2. Stack)
+                                           ; ab hier können I/O Funktionen verwendet werden
                 jsr  sci_init              ; serielle Schnittstelle aktivieren
-                jsr  init_SIO              ; SIO Interrupt konfigurieren
+				jsr  init_SIO              ; SIO Interrupt konfigurieren
                 jsr  init_OCI              ; Timer Interrupt starten
-                jsr  io_init_second        ; Restliche I/Os initialisieren (Shift Register, etc)
                 ldd  #FSTEP                ; Kanalraster holen
                 jsr  pll_init              ; PLL mit Kanalraster initialisieren
 
                 cli
 ;                jsr  lcd_reset
                 jsr  lcd_h_reset           ; LCD Hardware Reset
-                jsr  lcd_s_reset           ; LCD Software Reset + Init
+				jsr  lcd_s_reset           ; LCD Software Reset + Init
 
                 clr  irq_wd_reset          ; Watchodog Reset durch Timer Interrupt zulassen
 
@@ -61,7 +60,6 @@ Start
                 ldab #1                     ; Squelch startet in "Carrier Detect" Mode
                 stab sql_flag               ; Squelch Input auf jeden Fall prüfen und neu setzen
 
-
                 jsr  ui_start               ; UI Task starten
 
                 clr  tasksw_en              ; Taskswitch spätestens jede Millisekunde
@@ -74,6 +72,7 @@ Start
 
 ;***************
 start_over
+	  		bra  start_over
                 jsr  receive                ; Empfänger aktivieren
                 ldab #1                     ; in 300 ms
                 stab pll_timer              ; den PLL Status prüfen
