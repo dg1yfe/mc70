@@ -76,8 +76,8 @@ wms_loop2
 ptt_get_status
                 ldaa rxtx_state             ; Alten Status holen
 
-                ldab Port6_Data             ; Port6 Data lesen 				  - TODO: PTTPORT Macro einführen 
-                andb #%10000000             ; alles ausser PTT Bit ausblenden - TODO: PTTBIT Macro einführen
+                ldab PTTPORT                ; Port6 Data lesen 				  - TODO: PTTPORT Macro einführen
+                andb #(1<<PTTBIT)           ; alles ausser PTT Bit ausblenden - TODO: PTTBIT Macro einführen
                 bne  ptc_on                 ;
                 clrb
                 bra  ptc_end
@@ -218,15 +218,14 @@ squelch
                 orab rxtx_state            ; Im Sendefall Squelch nicht pr¸fen
                 bne  cql_end
 
-                ldab #150                  ; alle 150ms checken
+                ldab #50                  ; alle 110ms checken
                 stab sql_timer
 
                 ldab sql_mode              ; Squelch aktiviert?
-                cmpb #$20
+                cmpb #SQM_OFF
                 beq  sq_audio_on
 
-                ldab Port5_Data            ; Squelch Input auslesen
-;                andb #%01000000
+                ldab SQPORT                ; Squelch Input auslesen
                 andb sql_mode              ; Carrier Squelch oder RSSI Input w‰hlen
                 cmpb sql_flag              ; mit gespeicherten Werten vergleichen
                 beq  cql_end               ; Keine ƒnderung -> nichts machen
@@ -234,17 +233,21 @@ squelch
                 beq  sql_no_sig            ; Wenn nicht, dann springen
 sq_audio_on
                 stab sql_flag
-                aim  #%11110111, Port5_Data; "Ext Alarm" auf 0
-                ldaa #%01111111
-                ldab #%10000000
+                aim  #~(1<<SQEXTBIT), SQEXTPORT ; "Ext Alarm" auf 0
+                ldaa #-1
+                ldab #(1<<SR_RXAUDIO)
                 jsr  send2shift_reg        ; RX Audio an
+                ldab #YEL_LED+ON
+                jsr  led_set
                 bra  cql_end
 sql_no_sig
                 stab sql_flag
-                oim  #%00001000, Port5_Data; "Ext Alarm" auf 1
-                ldaa #%01111111
-                ldab #%00000000
+                oim  #(1<<SQEXTBIT), SQEXTPORT; "Ext Alarm" auf 1
+                ldaa #~(1<<SR_RXAUDIO)
+                ldab #0
                 jsr  send2shift_reg        ; RX Audio aus
+                ldab #YEL_LED+OFF
+                jsr  led_set
 cql_end
                 rts
 

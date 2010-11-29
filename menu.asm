@@ -40,7 +40,7 @@ menu_init
 
                 clr  mem_bank
 
-                oim  #$20,sql_mode             ; Squelch aktiviert
+                oim  #$SQM_CARRIER,sql_mode             ; Squelch aktiviert
                 ldab #2
                 ldaa #1
                 jsr  arrow_set
@@ -334,21 +334,21 @@ m_sql_switch
                 lslb
                 bmi  mss_rssi          ; Carrier -> RSSI
 mss_carrier                            ; Carrier Squelch Pin auswerten
-                ldab #$40
+                ldab #SQM_CARRIER
                 stab sql_mode
                 ldaa #1
                 ldab #2
                 jsr  arrow_set
                 bra  mss_end
 mss_rssi                               ; RSSI Pin auswerten
-                ldab #$80
+                ldab #SQM_RSSI
                 stab sql_mode
                 ldaa #2
                 ldab #2
                 jsr  arrow_set
                 bra  mss_end
 mss_none                               ; Raussperre deaktivieren
-                ldab #$20
+                ldab #SQM_OFF
                 stab sql_mode
                 ldaa #0
                 ldab #2

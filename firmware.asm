@@ -57,7 +57,7 @@ Start
                 jsr  ui_init               ; 2. Task initialisieren (2. Stack)
                 psha
 
-                ldab #1                     ; Squelch startet in "Carrier Detect" Mode
+                ldab #1                    ; Squelch startet in "Carrier Detect" Mode
                 stab sql_flag               ; Squelch Input auf jeden Fall prüfen und neu setzen
 
                 jsr  ui_start               ; UI Task starten
@@ -72,6 +72,10 @@ Start
 
 ;***************
 start_over
+                ldaa #~(1<<SR_RXAUDIO)
+                ldab #(1<<SR_AUDIOPA)
+                jsr  send2shift_reg         ; enable Audio PA
+
                 jsr  receive                ; Empfänger aktivieren
                 ldab #1                     ; in 300 ms
                 stab pll_timer              ; den PLL Status prüfen

@@ -8,6 +8,46 @@
 ;
 ;
 ;****************************************************************************
+;
+; Port Function Macros
+;
+#DEFINE PTTPORT       Port6_Data
+#DEFINE PTTBIT        7
+
+;VCO Select Output
+#DEFINE VCOPORT       Port2_Data
+#DEFINE VCOBIT        5
+
+;PLL Lock Input
+#define LOCKPORT      Port5_Data
+#define LOCKBIT       5
+;Squelch Input
+#define SQPORT        Port5_Data
+#define SQBIT         6
+#define SQEXTPORT     Port5_Data
+#define SQEXTBIT      3
+#define SQM_CARRIER   $40
+#define SQM_RSSI      $80
+#define SQM_OFF       $20
+
+; Interface to shift register
+#define SRCLKPORT     Port2_Data
+#define SRCLKDDR      Port2_DDR
+#define SRCLKBIT      2
+#define SRDATAPORT    Port2_Data
+#define SRDATADDR     Port2_DDR
+#define SRDATABIT     1
+
+; Shift register output
+#define SR_PRESTAGE   0
+#define SR_STDBY      1
+#define SR_LCDRESET   2
+#define SR_nCLKSHIFT  3
+#define SR_AUDIOPA    4
+#define SR_MIC        5
+#define SR_nTXPWR     6
+#define SR_RXAUDIO    7
+
 ;*******************
 ; R E G I S T E R S
 ;*******************
@@ -15,16 +55,16 @@ base
                 .MSFIRST                ; Motorola CPU -> MSB First
                 .ORG $0000
 Port1_DDR 	.db
-Port2_DDR 	.db                     ; 20 - Pin 9 - Signalling Decode
+Port2_DDR 	.db                         ; 20 - Pin 9 - Signalling Decode
                                         ; 21 - Pin10 - Data (PLL, EEPROM)
                                         ; 22 - Pin11 - Clock (PLL, EEPROM)
                                         ; 23 - Pin12 - SCI RX
                                         ; 24 - Pin13 - SCI TX
-                                        ; 25 - Pin14 - T/R Shift
+                                        ; 25 - Pin14 - T/R Shift (VCO Select, 0=TX, 1=RX)
                                         ; 26 - Pin15 - Alert Tone
                                         ; 27 - Pin16 - Shift Reg Latch
-Port1_Data      .db
-Port2_Data 	.db                     ; 20 - Pin 9 - Signalling Decode
+Port1_Data  .db
+Port2_Data 	.db                         ; 20 - Pin 9 - Signalling Decode
                                         ; 21 - Pin10 - Data (PLL, EEPROM)
                                         ; 22 - Pin11 - Clock (PLL, EEPROM)
                                         ; 23 - Pin12 - SCI RX
@@ -34,76 +74,80 @@ Port2_Data 	.db                     ; 20 - Pin 9 - Signalling Decode
                                         ; 27 - Pin16 - Shift Reg Latch
 Port3_DDR 	.db
 Port4_DDR 	.db
-Port3_Data      .db
+Port3_Data  .db
 Port4_Data 	.db
-TCSR1 		.db    			; Bit0 - OLVL Output Level 1 (P21)
-					; Bit1 - IEDG Input Edge (P20, 0 - falling, 1 -	rising)
+TCSR1 		.db    	; Bit0 - OLVL Output Level 1 (P21)
+                    ; Bit1 - IEDG Input Edge (P20, 0 - falling, 1 - rising)
 					; Bit2 - ETOI enable timer overflow interrupt
 					; Bit3 - EOCI enable output compare interrupt
 					; Bit4 - EICI enable input capture interrupt
 					; Bit5 - TOF timer overflow flag
 					; Bit6 - OCF1 output compare flag1
 					; Bit7 - ICF input capture flag
-FRC
+
+FRC                 ; Free Running Counter
 FRCH 		.db
 FRCL 		.db
+
 OCR1
 OCR1H 		.db
 OCR1L 		.db
+
 ICR
 ICRH 		.db
 ICRL 		.db
 TCSR2		.db    			; Bit0 - OE1 output enable1 (P21)
-                                        ; Bit1 - OE2 output enable2 (P25)
-                                        ; Bit2 - OLVL2 output level 2
-                                        ; Bit3 - EOCI enable output compare interrupt 2
-                                        ; Bit4 - unused
-                                        ; Bit5 - OCF2 output compare flag 2
-                                        ; Bit6 - OCF1 output compare flag 1
-                                        ; Bit7 - ICF input capture flag
+                            ; Bit1 - OE2 output enable2 (P25)
+                            ; Bit2 - OLVL2 output level 2
+                            ; Bit3 - EOCI enable output compare interrupt 2
+                            ; Bit4 - unused
+                            ; Bit5 - OCF2 output compare flag 2
+                            ; Bit6 - OCF1 output compare flag 1
+                            ; Bit7 - ICF input capture flag
                 .ORG $10
 RMCR 		.db     		;
-                                        ; Transmit Rate/Mode Control Register
-TRCSR1 		.db
-					; Bit0 - Wake Up
-					; Bit1 - Transmit Enable
-					; Bit2 - Transmit Interrupt Enable
-					; Bit3 - Receive Enable
-					; Bit4 - Receive Interrupt Enable
-					; Bit5 - Transmit Data Register	Empty
-					; Bit6 - Overrun Framing Error
-					; Bit7 - Receive Data Register Full
 
-RDR 		.db                     ; SCI Data Rx Register
+                    ; Transmit Rate/Mode Control Register
+TRCSR1 		.db
+        					; Bit0 - Wake Up
+        					; Bit1 - Transmit Enable
+        					; Bit2 - Transmit Interrupt Enable
+        					; Bit3 - Receive Enable
+        					; Bit4 - Receive Interrupt Enable
+        					; Bit5 - Transmit Data Register	Empty
+        					; Bit6 - Overrun Framing Error
+        					; Bit7 - Receive Data Register Full
+
+RDR 		.db             ; SCI Data Rx Register
 TDR 		.db    			; SCI Data Tx Register
 RP5CR 		.db
 Port5_Data 	.db                     ; 50 - Pin17 - Emergency Input
-					; 51 - Pin18 - Power Fail Input
-					; 52 - Pin19 - SW B+
-					; 53 - Pin20 - Ext Alarm
-					; 54 - Pin21 - HUB/PGM (mit NMI&Alert Tone verbunden)
-					; 55 - Pin22 - Lock Detect (PLL)
-					; 56 - Pin23 - SQ Det
-					; 57 - Pin24 - RSSI
+                					; 51 - Pin18 - Power Fail Input
+                					; 52 - Pin19 - SW B+
+                					; 53 - Pin20 - Ext Alarm
+                					; 54 - Pin21 - HUB/PGM (mit NMI&Alert Tone verbunden)
+                					; 55 - Pin22 - Lock Detect (PLL)
+                					; 56 - Pin23 - SQ Det
+                					; 57 - Pin24 - RSSI
 
 Port6_DDR 	.db                     ; 60 - Pin25 - Key 3/4 Detect, 2nd SCI RX
-					; 61 - Pin26 - Key 1, Serial Data In (?)
-					; 62 - Pin27 - Key 2
-					; 63 - Pin28 - Syn Latch (PLL)
-					; 64 - Pin29 - Yel LED/Test, Call LED SW2
-					; 65 - Pin30 - Signalling Encoding MSB
-					; 66 - Pin31 - Signalling Encoding LSB
-					; 67 - Pin32 - PTT input
+                					; 61 - Pin26 - Key 1, Serial Data In (?)
+                					; 62 - Pin27 - Key 2
+                					; 63 - Pin28 - Syn Latch (PLL)
+                					; 64 - Pin29 - Yel LED/Test, Call LED SW2
+                					; 65 - Pin30 - Signalling Encoding MSB
+                					; 66 - Pin31 - Signalling Encoding LSB
+                					; 67 - Pin32 - PTT input
 
 ;                                                                                      Flash Mod
 Port6_Data	.db                     ; 60 - Pin25 - Key 3/4 Detect, 2nd SCI RX
-					; 61 - Pin26 - Key 1, Serial Data In (?)   *** /OE Override
-					; 62 - Pin27 - Key 2                       *** A16
-					; 63 - Pin28 - Syn Latch (PLL)
-					; 64 - Pin29 - /Test
-					; 65 - Pin30 - Signalling Encoding MSB
-					; 66 - Pin31 - Signalling Encoding LSB
-					; 67 - Pin32 - PTT input
+                					; 61 - Pin26 - Key 1, Serial Data In (?)   *** /OE Override
+                					; 62 - Pin27 - Key 2                       *** A16
+                					; 63 - Pin28 - Syn Latch (PLL)
+                					; 64 - Pin29 - /Test
+                					; 65 - Pin30 - Signalling Encoding MSB
+                					; 66 - Pin31 - Signalling Encoding LSB
+                					; 67 - Pin32 - PTT input
 Port7_Data      .db
 OCR2
 OCR2H           .db

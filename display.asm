@@ -335,6 +335,8 @@ lcf_end
 ; L E D   S E T
 ;****************
 ;
+; CONTROL TASK -> UI TASK
+;
 ; Setzt Bits in LED Buffer entsprechend Parameter
 ; Der Buffer wird zyklisch im UI Task abgefragt und eine Änderung
 ; an das Display ausgegeben.
