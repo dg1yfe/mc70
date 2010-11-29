@@ -12,41 +12,46 @@
 ; Port Function Macros
 ;
 #DEFINE PTTPORT       Port6_Data
-#DEFINE PTTBIT        7
+#DEFINE PTTBIT        (1<< 7)
 
 ;VCO Select Output
 #DEFINE VCOPORT       Port2_Data
-#DEFINE VCOBIT        5
+#DEFINE VCOBIT        (1<< 5)
 
 ;PLL Lock Input
 #define LOCKPORT      Port5_Data
-#define LOCKBIT       5
+#define LOCKBIT       (1<< 5)
 ;Squelch Input
 #define SQPORT        Port5_Data
-#define SQBIT         6
+#define SQBIT_C       (1<< 6)
+#define SQBIT_R       (1<< 7)
 #define SQEXTPORT     Port5_Data
-#define SQEXTBIT      3
-#define SQM_CARRIER   $40
-#define SQM_RSSI      $80
-#define SQM_OFF       $20
+#define SQEXTDDR      Port5_DDR
+#define SQEXTDDRbuf   Port5_DDR_buf
+#define SQEXTBIT      (1<< 3)
+
+;
+#define SQM_OFF       0
+#define SQM_CARRIER   SQBIT_C
+#define SQM_RSSI      SQBIT_R
 
 ; Interface to shift register
 #define SRCLKPORT     Port2_Data
 #define SRCLKDDR      Port2_DDR
-#define SRCLKBIT      2
+#define SRCLKBIT      (1<< 2)
 #define SRDATAPORT    Port2_Data
 #define SRDATADDR     Port2_DDR
-#define SRDATABIT     1
+#define SRDATABIT     (1<< 1)
 
 ; Shift register output
-#define SR_PRESTAGE   0
-#define SR_STDBY      1
-#define SR_LCDRESET   2
-#define SR_nCLKSHIFT  3
-#define SR_AUDIOPA    4
-#define SR_MIC        5
-#define SR_nTXPWR     6
-#define SR_RXAUDIO    7
+#define SR_RFPA       (1<< 0)
+#define SR_9V6        (1<< 1)
+#define SR_LCDRESET   (1<< 2)
+#define SR_nCLKSHIFT  (1<< 3)
+#define SR_AUDIOPA    (1<< 4)
+#define SR_MIC        (1<< 5)
+#define SR_nTXPWR     (1<< 6)
+#define SR_RXAUDIO    (1<< 7)
 
 ;*******************
 ; R E G I S T E R S
@@ -263,9 +268,9 @@ last            .db
 blink           .db
 eep_size        .dw                                   ; Speicher für EEPROM Größe
 
-sql_flag        .db
 sql_timer       .db
 sql_mode        .db                                   ; Mode ($80 = Carrier, $40 = RSSI, 0 = off)
+sql_ctr         .db
 
 msg_mode        .db
 mem_bank        .db                                    ; aktuelle Bank / Frequenzspeicherplätze

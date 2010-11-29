@@ -77,7 +77,7 @@ ptt_get_status
                 ldaa rxtx_state             ; Alten Status holen
 
                 ldab PTTPORT                ; Port6 Data lesen 				  - TODO: PTTPORT Macro einführen
-                andb #(1<<PTTBIT)           ; alles ausser PTT Bit ausblenden - TODO: PTTBIT Macro einführen
+                andb #PTTBIT                ; alles ausser PTT Bit ausblenden - TODO: PTTBIT Macro einführen
                 bne  ptc_on                 ;
                 clrb
                 bra  ptc_end
@@ -116,8 +116,10 @@ receive
                 ldab #YEL_LED+OFF
                 jsr  led_set                ; gelbe LED aus
 
-                ldab #%01000000             ; PA disable
-                ldaa #%11011111             ; Mic disable
+;                ldab #%01000000             ; PA disable
+;                ldaa #%11011111             ; Mic disable
+                ldaa #~SR_MIC                ; disable Mic
+                ldab #SR_nTXPWR              ; disable tx power control
                 jsr  send2shift_reg
 
                 ldab #TX_TO_RX_TIME
@@ -127,8 +129,10 @@ rcv_wait
                 ldab gp_timer
                 bne  rcv_wait               ; Timer schon bei 0 angekommen?
 
-                ldab #%00000000             ;
-                ldaa #%11111110             ; TX/RX Switch auf RX
+;                ldab #%00000000             ;
+;                ldaa #%11111110             ; TX/RX Switch auf RX
+                ldaa #~SR_RFPA               ; Disable RF PA
+                clrb
                 jsr  send2shift_reg
 
                 clrb
@@ -140,10 +144,10 @@ rcv_wait
                 clr  rxtx_state             ; Status auf RX setzen
 
 ;                ldab #%00010000            ; Audio PA enable
-                ldab #%10000000             ; RX Audio enable
-                ldaa #%11111111             ;
+                ldaa #-1
+                ldab #SR_RXAUDIO            ; RX Audio enable
                 jsr  send2shift_reg
-                com  sql_flag               ; Squelch auf jedenfall neu pr¸fen/setzen lassen
+
                 clr  sql_timer              ; und zwar sofort
 
                 rts
@@ -173,8 +177,8 @@ transmit
                 ldx  #frequency
                 jsr  set_tx_freq            ; Frequenz setzen
 
-                ldab #%00000001
-                ldaa #%11111111             ; TX/RX Switch auf TX
+                ldaa #-1
+                ldab #SR_RFPA               ; activate rf pa
                 jsr  send2shift_reg
 
                 ldab #RX_TO_TX_TIME
@@ -184,13 +188,16 @@ tnt_wait
                 ldab gp_timer
                 bne  tnt_wait               ; Timer schon bei 0 angekommen?
 
-                ldab #%00100000             ; Mic enable
-                ldaa #%10111111             ; Driver enable
+                ldab #SR_MIC                ; enable Mic Amp
+                ldaa #~SR_nTXPWR            ; enable TX power control loop
+;                ldab #%00100000             ; Mic enable
+;                ldaa #%10111111             ; Driver enable
                 jsr  send2shift_reg
 
-                ldab #%00000000             ;
+                ldaa #~SR_RXAUDIO            ; RX Audio disable
+                clrb
 ;                ldaa #%11101111             ; Audio PA disable
-                ldaa #%01111111             ; RX Audio disable
+;                ldaa #%01111111
                 jsr  send2shift_reg
 
                 ldab #1
@@ -201,7 +208,7 @@ tnt_wait
 ; S Q U E L C H
 ;****************
 ;
-; last change: 6.2.07 / 1.0.0
+; last change: 29.11.2011 / 1.0.6
 ;
 ; Parameter: none
 ;
@@ -216,39 +223,58 @@ tnt_wait
 squelch
                 ldab sql_timer
                 orab rxtx_state            ; Im Sendefall Squelch nicht pr¸fen
-                bne  cql_end
+                bne  sq_end
 
-                ldab #50                  ; alle 110ms checken
+                ldab #5                    ; alle 5ms checken
                 stab sql_timer
 
-                ldab sql_mode              ; Squelch aktiviert?
-                cmpb #SQM_OFF
-                beq  sq_audio_on
+                ldab sql_mode
+                beq  sq_audio_on           ; Squelch off -> activate Audio
+sq_check
+                ldaa sql_ctr               ; get squelch counter
 
-                ldab SQPORT                ; Squelch Input auslesen
-                andb sql_mode              ; Carrier Squelch oder RSSI Input w‰hlen
-                cmpb sql_flag              ; mit gespeicherten Werten vergleichen
-                beq  cql_end               ; Keine ƒnderung -> nichts machen
-                tstb                       ; Signal vorhanden
-                beq  sql_no_sig            ; Wenn nicht, dann springen
+                andb SQPORT                ; Squelch Input auslesen
+                beq  sq_cnt_down           ; Kein Signal vorhanden? Dann springen
+
+                cmpa #SQL_HYST             ; Hysteresis level reached?
+                beq  sq_audio_on           ; yes? then activate audio
+                inca                       ; otherwise increment hysteresis counter
+                staa sql_ctr
+                bra  sq_end
 sq_audio_on
-                stab sql_flag
-                aim  #~(1<<SQEXTBIT), SQEXTPORT ; "Ext Alarm" auf 0
+                ldab SR_data_buf
+                andb #SR_RXAUDIO           ; check if audio is already activated
+                bne  sq_end                ; do nothing if it is
+
+                aim  #~SQEXTBIT, SQEXTPORT ; "Ext Alarm" auf 0
+
                 ldaa #-1
-                ldab #(1<<SR_RXAUDIO)
+                ldab #SR_RXAUDIO
                 jsr  send2shift_reg        ; RX Audio an
+
                 ldab #YEL_LED+ON
                 jsr  led_set
-                bra  cql_end
-sql_no_sig
-                stab sql_flag
-                oim  #(1<<SQEXTBIT), SQEXTPORT; "Ext Alarm" auf 1
-                ldaa #~(1<<SR_RXAUDIO)
-                ldab #0
+                bra  sq_end
+sq_cnt_down
+                tsta                       ; hysteresis counter at zero?
+                beq  sq_audio_off          ; yes? then deactivate audio
+                deca                       ; otherwise decrement (wait a bit longer)
+                staa sql_ctr
+                bra  sq_end
+sq_audio_off
+                ldab SR_data_buf
+                andb #SR_RXAUDIO           ; check if audio is already DEactivated
+                beq  sq_end                ; exit here if it is
+
+                oim  #SQEXTBIT, SQEXTPORT  ; "Ext Alarm" auf 1
+
+                ldaa #~SR_RXAUDIO
+                clrb
                 jsr  send2shift_reg        ; RX Audio aus
+
                 ldab #YEL_LED+OFF
                 jsr  led_set
-cql_end
+sq_end
                 rts
 
 ;**********************

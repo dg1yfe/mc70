@@ -235,7 +235,7 @@ pll_led
                 stab pll_timer
 
                 ldab LOCKPORT
-                andb #(1<<LOCKBIT)
+                andb #LOCKBIT
                 tba
                 eorb pll_locked_flag         ; Wenn sich nichts geändert hat (Bit6=0)
                 beq  plc_end                 ; gleich zum Ende springen

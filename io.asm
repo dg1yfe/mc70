@@ -83,18 +83,16 @@ io_init
 
                 clr  SR_data_buf               ; Shuft Reg Puffer auf 0 setzen
 
-                ldab #%01001010                ; #TX Power    = 1
-                                               ; #Clock Shift = 1
-                                               ; STBY&9,6V    = 1
-                                               ;
-                ldaa #%11111110                ; TX / #RX     = 0
+                ldaa #~(SR_RFPA)               ; disable PA
+                ldab #(SR_nTXPWR + SR_nCLKSHIFT + SR_9V6)
+                                               ; disable Power control, disable clock shift, enable 9,6 V
                 jsr  send2shift_reg
 
 ; Port 5
                 ldab #%00001000
-                stab Port5_DDR                 ; EXT Alarm auf Ausgang, Alles andere auf Input
-                stab Port5_DDR_buf
-                oim  #%00001000, Port5_Data    ; EXT Alarm off (Hi)
+                stab SQEXTDDR                  ; EXT Alarm auf Ausgang, Alles andere auf Input
+                stab SQEXTDDRbuf
+                oim  #%00001000, SQEXTPORT     ; EXT Alarm off (Hi)
 
 ; Port 6
                 ldab #%01101100

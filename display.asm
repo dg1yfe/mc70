@@ -35,10 +35,10 @@ lcd_h_reset
                 psha
 
                 clra
-                ldab  #%00000100
+                ldab  #SR_LCDRESET
                 jsr   send2shift_reg ; LCD Reset Leitung auf High (=Reset)
                 WAIT(1)
-                ldaa  #%11111011
+                ldaa  #~SR_LCDRESET
                 clrb
                 jsr   send2shift_reg ; und wieder low
 

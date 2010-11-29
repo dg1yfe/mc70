@@ -40,7 +40,9 @@ menu_init
 
                 clr  mem_bank
 
-                oim  #$SQM_CARRIER,sql_mode             ; Squelch aktiviert
+                ldab #SQM_CARRIER    ; Squelch aktiviert
+                stab sql_mode
+
                 ldab #2
                 ldaa #1
                 jsr  arrow_set
@@ -116,9 +118,9 @@ m_idle_tab
                 .dw m_frq_up          ; D1 - Kanal+
                 .dw m_frq_down        ; D2 - Kanal-
                 .dw m_sql_switch      ; D3 - Squelch ein/aus
-                .dw m_none            ; D4 - none
+;                .dw m_none            ; D4 - none
 ;                .dw m_prnt_rc         ; D4 - Control Task Schleifendurchläuft per sek. ausgeben
-;                .dw m_prnt_tc         ; D4 - Taskswitches/s anzeigen
+                .dw m_prnt_tc         ; D4 - Taskswitches/s anzeigen
                 .dw m_tone            ; D5 - 1750 Hz Ton
                 .dw m_none            ; D6 -
                 .dw m_txshift         ; D7 - TX Shift ändern
@@ -330,9 +332,10 @@ mfd_end
 ;
 m_sql_switch
                 ldab sql_mode
-                bmi  mss_none          ; RSSI -> None
-                lslb
-                bmi  mss_rssi          ; Carrier -> RSSI
+                cmpb #SQM_RSSI
+                beq  mss_none          ; RSSI -> none
+                cmpb #SQM_CARRIER
+                beq  mss_rssi          ; carrier -> RSSI
 mss_carrier                            ; Carrier Squelch Pin auswerten
                 ldab #SQM_CARRIER
                 stab sql_mode
@@ -406,12 +409,14 @@ mtc_nosave
                 jsr  m_reset_timer    ; Menü-Timer Reset (Timeout für Eingabe setzen)
                 clrb
                 jsr  lcd_cpos         ; Cursor Home
-                ldx  ts_count        ; Rundenzähler holen
-                clrb
-                pshx
+                clra
+                ldab sql_timer        ; Rundenzähler holen
                 pshb
-                pshb
+                psha
+                psha
+                psha
                 ldaa #'l'
+                clrb
                 jsr  putchar
                 pulx
                 pulx

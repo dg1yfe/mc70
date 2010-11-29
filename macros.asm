@@ -55,6 +55,10 @@
 ;#DEFINE PLLREF     1152
 ;#DEFINE PLLREF     2304
 ;
+;************************
+; Squelch
+;
+#DEFINE SQL_HYST   10           ; define squelch hysteresis in 5 ms steps
 ;
 ; **************************************************************
 #DEFINE RED_LED       $33
