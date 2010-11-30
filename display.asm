@@ -34,7 +34,7 @@ lcd_h_reset
                 pshb
                 psha
 
-                clra
+                ldaa  #-1
                 ldab  #SR_LCDRESET
                 jsr   send2shift_reg ; LCD Reset Leitung auf High (=Reset)
                 WAIT(1)

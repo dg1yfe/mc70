@@ -35,26 +35,23 @@ reset
 ;************************************
 ;************************************
 Start
-                jsr  ui_init               ; 2. Task initialisieren (2. Stack)
-                                           ; ab hier können I/O Funktionen verwendet werden
                 jsr  sci_init              ; serielle Schnittstelle aktivieren
 				jsr  init_SIO              ; SIO Interrupt konfigurieren
                 jsr  init_OCI              ; Timer Interrupt starten
+                jsr  ui_init               ; 2. Task initialisieren (2. Stack)
+                                           ; ab hier können I/O Funktionen verwendet werden
+
                 ldd  #FSTEP                ; Kanalraster holen
                 jsr  pll_init              ; PLL mit Kanalraster initialisieren
 
+                ldab #1
+                stab tasksw_en             ; Taskswitch verbieten
+
                 cli
-;                jsr  lcd_reset
                 jsr  lcd_h_reset           ; LCD Hardware Reset
 				jsr  lcd_s_reset           ; LCD Software Reset + Init
 
-                clr  irq_wd_reset          ; Watchodog Reset durch Timer Interrupt zulassen
-
-                ldab #1
-                stab tasksw_en             ; Taskswitch verbieten
                 jsr  freq_init             ; Frequenzeinstellungen initialisieren
-                cli
-                jsr  ui_init               ; 2. Task initialisieren (2. Stack)
                 psha
 
                 jsr  ui_start               ; UI Task starten
@@ -63,7 +60,7 @@ Start
 
                 ldab #GRN_LED+ON
                 jsr  led_set                ; Grüne LED aktivieren
-                WAIT(1000)
+                WAIT(500)
 ;
 ;
 

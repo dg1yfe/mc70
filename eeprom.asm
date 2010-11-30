@@ -79,7 +79,6 @@ eep_rand_read
                 tsta
                 pulb                    ; Byteadresse wiederholen
                 bne  err_error1         ; Fehler aufgetreten, abbrechen
-
                 jsr  i2c_tx             ; Byte Adresse senden
                 jsr  i2c_tstack         ; ACK testen
                 tsta

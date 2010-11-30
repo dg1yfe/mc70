@@ -113,6 +113,7 @@ io_init
                 clr  arrow_buf
                 clr  arrow_buf+1
 
+                clr  sql_ctr
                 clr  ui_ptt_req             ;
                 rts
 
@@ -902,8 +903,7 @@ pc_single                             ; Ausgabe von Zeichencodes mit 1 Byte
                bra  pc_end
 pc_extended
                clra
-;OBFUSCATION
-               ldx  #e_char_convert-$10
+               ldx  #e_char_convert
                pulb
                abx
                ldab 0,x               ; extended character holen

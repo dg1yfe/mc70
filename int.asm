@@ -113,10 +113,10 @@ OCI1_SR
 ;***********
 ; Watchdog Toggle
                 ldab Port2_DDR_buf               ; Port2 DDR lesen
-                eorb #%10                        ; Bit 1 invertieren
+;                eorb #%10                        ; Bit 1 invertieren
                 stab Port2_DDR_buf
                 stab Port2_DDR                   ; neuen Status setzen
-                aim  #%11111101,Port2_Data       ;Data auf 0
+;                aim  #%11111101,Port2_Data       ;Data auf 0
 ;***********
 oci_no_wd_reset
 ; General Purpose Timer

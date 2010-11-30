@@ -795,6 +795,94 @@ read_current
                 pshb
                 pshx                        ; Zieladresse sichern
 
+                pshx
+                pshb                        ; 3 Byte Stackspeicher reservieren
+
+                tsx                         ; Zieladresse = Stackspeicher
+                pshx                        ; Zieladresse auf Stack speichern
+                ldd  #$01FA                 ; EEPROM Adresse $01FA
+                ldx  #3                     ; 3 Bytes lesen
+                jsr  eep_seq_read
+                pulx                        ; Adresse von Stack löschen
+                tsta
+                bne  rcu_end                ; Fehler zurückgeben
+                tsx
+                ldd  0,x                    ; Kanal holen
+                lsrd
+                lsrd
+                lsrd                        ; Nur obere 12 Bit berücksichtigen
+                ldx  #1250                  ; Frequenz berechnen
+                jsr  multiply               ; 16 Bit Multiply
+                pshb
+                psha
+                pshx                        ; 32 Bit Ergebnis sichern
+                ldx  #FBASE>>16
+                ldd  #FBASE%65536
+                jsr  add32                  ; Basisfrequenz addieren
+                tsx
+                ldx  7,x                    ; Zieladresse für Frequenz holen
+                pula
+                pulb
+                std  0,x                    ; HiWord speichern
+                pula
+                pulb
+                std  2,x                    ; LoWord speichern
+                tsx
+                ldd  1,x
+                anda #%00000001             ; Nur 1 Bit vom Highword
+                ldx  #25000
+                jsr  multiply               ; mit 25000 multiplizieren
+
+                pshb
+                psha
+                pshx
+                tsx
+                ldab 5,x
+                andb #%00000010             ; Vorzeichen testen (+/- Shift)
+                beq  rcu_keep_sign
+                pulx
+                pula
+                pulb
+                jsr  sig_inv32              ; Vorzeichen umkehren
+                bra  rcu_store_txshift
+rcu_keep_sign
+                pulx
+                pula
+                pulb
+rcu_store_txshift
+
+                pshx                        ; HiWord sichern
+                tsx
+                ldx  5,x                    ; Zeiger auf Zwischenspeicher holen
+                std  6,x                    ; LoWord vom Offset speichern
+                pula
+                pulb
+                std  4,x                    ; HiWord vom Offset speichern
+
+                tsx
+                ldab 1,x
+                ldx  3,x                    ; Zeiger auf Zwischenspeicher holen
+                andb #%00000100             ; TX Shift aktiviert?
+                bne  rcu_store_offset       ; Ja, dann Shiftwert auch nach "Offset" kopieren
+                ldd  #0
+                std  8,x
+                std  10,x                   ; Offset deaktiviert
+                bra  rcu_end
+rcu_store_offset
+                ldd  6,x                    ; LoWord TxShift holen
+                std  10,x                   ; Im Platz für Offset speichern
+                ldd  4,x                    ; HiWord TXShift holen
+                std  8,x                    ; Im Platz für Offset speichern
+
+                clra
+rcu_end
+                pulb
+                pulx                        ; Stackspeicher freigeben
+
+                pulx
+                pulb
+                rts
+
 ;*************************
 ; C R C   T A B E L L E N
 ;*************************

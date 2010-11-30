@@ -67,7 +67,7 @@ ui_start
 ;
 ;
 ui
-;                bra  no_intro
+                bra  no_intro
 
                 PRINTF(dg1yfe_str)
                 jsr  lcd_fill
@@ -85,15 +85,20 @@ ui
                 clrb
                 jsr  lcd_cpos
                 WAIT(150)
+no_intro
                 ldx  #frequency
                 jsr  freq_print             ; Frequenz anzeigen
 
                 jsr  freq_offset_print      ; Frequenz anzeigen
 
+                ldab #1
+                jsr  pll_led                ; PLL Lock Status auf rote LED ausgeben
+
                 jsr  menu_init
 ui_loop                                     ; komplette Display Kommunikation
                 jsr  menu                   ; Menü für Frequenzeingabe etc.
                 jsr  sci_trans_cmd          ; Eingabe prüfen und ggf. in Menü Puffer legen
+                clrb
                 jsr  pll_led                ; PLL Lock Status auf rote LED ausgeben
                 jsr  led_update             ; LED Puffer lesen und ggf LEDs neu setzen
 

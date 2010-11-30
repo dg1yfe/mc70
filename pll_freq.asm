@@ -94,7 +94,6 @@ freq_init_eep
                 jsr  read_current        ; Frequenz, TXShift und Offset aus EEPROM lesen
                 tsta                     ; Lesen erfolgreich?
                 beq  ife_ok              ; Ja? Dann alles ok
-ife_fail
                 tsx
                 xgdx
                 addd #12
@@ -103,9 +102,9 @@ ife_fail
                 bra  ife_end             ; Mit Fehlermeldung enden
 ife_ok
                 pulx
-                stx  offset              ; Offset holen
-                pulx
-                stx  offset+2            ; und speichern
+                stx  frequency
+                pulx                     ; Frequenz holen
+                stx  frequency+2         ; und speichern
 
                 pulx
                 stx  txshift
@@ -113,9 +112,10 @@ ife_ok
                 stx  txshift+2           ; Und speichern
 
                 pulx
-                stx  frequency
-                pulx                     ; Frequenz holen
-                stx  frequency+2         ; und speichern
+                stx  offset              ; Offset holen
+                pulx
+                stx  offset+2            ; und speichern
+
                 clra                     ; Alles ok -> A=0
 ife_end
                 rts
@@ -222,23 +222,27 @@ pli_error
 ; Überprüft PLL Lock wenn PLL Timer abgelaufen ist
 ; aktiviert rote LED, wenn PLL nicht eingerastet ist
 ;
-; Parameter    : Keine
+; Parameter    : A : Force (A=1 forces update)
 ;
 ; Ergebnis     : Nichts
 ;
 ; changed Regs : A,B
 ;
 pll_led
-                ldab pll_timer
-                bne  plc_end                 ; PLL check timer abgelaufen? nein, dann Ende
-                ldab #PLLCHKTIMEOUT
-                stab pll_timer
-
                 ldab LOCKPORT
+                tsta
+                bne  plc_force_update
+
+                ldaa pll_timer
+                bne  plc_end                 ; PLL check timer abgelaufen? nein, dann Ende
+                ldaa #PLLCHKTIMEOUT
+                staa pll_timer
+
                 andb #LOCKBIT
                 tba
                 eorb pll_locked_flag         ; Wenn sich nichts geändert hat (Bit6=0)
                 beq  plc_end                 ; gleich zum Ende springen
+plc_force_update
                 staa pll_locked_flag         ; sonst neuen Status speichern
                 tsta
                 bne  plc_locked
