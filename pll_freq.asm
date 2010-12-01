@@ -246,11 +246,11 @@ plc_force_update
                 staa pll_locked_flag         ; sonst neuen Status speichern
                 tsta
                 bne  plc_locked
-                ldab #RED_LED+ON             ; Rote LED an
+                ldab #RED_LED+LED_ON         ; Rote LED an
                 jsr  led_set
                 bra  plc_end
 plc_locked
-                ldab #RED_LED+OFF
+                ldab #RED_LED+LED_OFF
                 jsr  led_set
 plc_end
                 rts

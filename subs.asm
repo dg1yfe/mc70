@@ -113,7 +113,7 @@ pgs_end
 ; aktiviert Empfänger
 ;
 receive
-                ldab #YEL_LED+OFF
+                ldab #YEL_LED+LED_OFF
                 jsr  led_set                ; gelbe LED aus
 
 ;                ldab #%01000000             ; PA disable
@@ -168,7 +168,7 @@ rcv_wait
 ;
 transmit
 
-                ldab #YEL_LED+ON            ; gelbe LED an
+                ldab #YEL_LED+LED_ON        ; gelbe LED an
                 jsr  led_set
 
                 ldab #1
@@ -252,7 +252,7 @@ sq_audio_on
                 ldab #SR_RXAUDIO
                 jsr  send2shift_reg        ; RX Audio an
 
-                ldab #YEL_LED+ON
+                ldab #YEL_LED+LED_ON
                 jsr  led_set
                 bra  sq_end
 sq_cnt_down
@@ -272,7 +272,7 @@ sq_audio_off
                 clrb
                 jsr  send2shift_reg        ; RX Audio aus
 
-                ldab #YEL_LED+OFF
+                ldab #YEL_LED+LED_OFF
                 jsr  led_set
 sq_end
                 rts

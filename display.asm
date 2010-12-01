@@ -232,25 +232,6 @@ restore_loop
                 jsr  lcd_cpos
                 rts
 
-;*****************
-; L C D   S E N D
-;*****************
-;
-;  Parameter :
-;
-lcd_send
-                pshb
-lcs_retrans
-                jsr  sci_tx_w    ; Ansonsten Echo
-                jsr  sci_rx
-                tsta
-                bne  lcs_retrans
-
-lcs_end
-                pula
-                pulb
-                rts
-
 ;**********************************
 ; L C D   T I M E R   R E S E T
 ;**********************************
@@ -345,15 +326,15 @@ lcf_end
 ;          dargestellt werden
 ;
 ;
-; Parameter : B - LED + Status (RED_LED/YEL_LED/GRN_LED + OFF/ON/BLINK/INVERT)
+; Parameter : B - LED + Status (RED_LED/YEL_LED/GRN_LED + LED_OFF/LED_ON/LED_BLINK/LED_INVERT)
 ;
-;                 RED_LED $33 - 00110011
-;                 YEL_LED $31 - 00110001
-;                 GRN_LED $32 - 00110010
-;                 OFF       0 - 00000000
-;                 ON        4 - 00000100
-;                 BLINK     8 - 00001000
-;                 INVERT  128 - 10000000
+;                 RED_LED    $33 - 00110011
+;                 YEL_LED    $31 - 00110001
+;                 GRN_LED    $32 - 00110010
+;                 LED_OFF      0 - 00000000
+;                 LED_ON       4 - 00000100
+;                 LED_BLINK    8 - 00001000
+;                 LED_INVERT 128 - 10000000
 ;
 ;
 ; Returns : nothing
@@ -628,5 +609,49 @@ aws_end
                 pula
                 pulx
                 rts
+;*************************
+; L C D   C H R   M O D E
+;*************************
+;
+; Parameter : B - Position  (0-7)
+;             A - Solid/Blink
+;                 0 = Solid,
+;                 1 = Blink
+;
+; Returns : nothing
+;
+;
+;
+lcd_chr_mode
+               pshx
+               psha
+               pshb
+               cmpb #8                      ; Only 8 characters
+               bcc  lcm_end                 ; if Pos >= 8, ignore
 
+               tsta                         ; check if mode Parameter is 0 / solid
+               beq  lcm_read_buf
+               ldaa #CHR_BLINK              ; if not, load mode bit "blinking"
+lcm_read_buf
+               ldx  #dbuf                   ; Get dbuf base address
+               abx                          ; add char position
+               ldab 0,x
+               andb #CHR_BLINK              ; check if char is blinking
+               aba                          ; add current status and new status (XOR)
+               beq  lcm_end                 ; zero indicates, that state is already correct,
+                                            ; no action required
+
+               pulb
+               pshb                         ; get position from stack
+               jsr  lcd_cpos                ; set cursor to position
+
+               ldab 0,x
+               eorb #CHR_BLINK
+               ldaa #'c'
+               jsr  putchar                 ; print char in different mode
+lcm_end
+               pulb                         ; restore registers
+               pula
+               pulx
+               rts                          ; return
 

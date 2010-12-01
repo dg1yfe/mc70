@@ -12,37 +12,6 @@
 ;*************
 ;
 ;
-; io_init
-; send2shift_reg
-; send2pll
-; i2c_start
-; i2c_stop
-; i2c_ack
-; i2c_tstack
-; i2c_tx
-; i2c_rx
-; init_SCI
-; sci_rx
-; sci_rx_m
-; sci_read
-; sci_read_m
-; sci_tx_buf
-; sci_tx
-; sci_tx_w
-; check_inbuf
-; check_outbuf
-; sci_ack
-; sci_read_cmd
-; sci_trans_cmd
-; men_buf_write
-; led_set
-; led_update
-; arrow_set
-; putchar
-; printf
-;
-;
-;
 ;****************
 ; I O   I N I T
 ;****************
@@ -805,7 +774,7 @@ mbw_end
 ; Putchar Funktion, steuert das Display an.
 ;
 ; Parameter : A - Modus
-;                 'c' - ASCII Char
+;                 'c' - ASCII Char, Char in B (ASCII $20-$7F, $A0-$FF = char + Blink)
 ;                 'x' - unsigned int (hex, 8 Bit)
 ;                 'u' - unsinged int (dezimal, 8 Bit)
 ;                 'l' - longint (dezimal, 32 Bit)
@@ -817,6 +786,7 @@ mbw_end
 ;                 Anzahl nicht darzustellender Ziffern in Modus 'l' (gezählt vom Ende! - 1=Einer, 2=Zehner+Einer, etc...)
 ;
 ;             Stack - Longint in Modus l
+;
 ;
 ; Ergebnis :    nothing
 ;
@@ -835,7 +805,7 @@ putchar
 pc_testlong
                cmpa #'l'
                bne  pc_testhex
-               jsr  ulongout2
+               jsr  ulongout
                jmp  pc_end
 pc_testhex
                cmpa #'x'
@@ -867,14 +837,32 @@ pc_char_out    ; ASCII Zeichen in B
                beq  pc_end          ; dann nichts ausgeben
                jsr  store_dbuf      ; Zeichen in Displaybuffer speichern (ASCII)
 
-pc_convert_out
-               clra                 ; HiByte = 0
+;pc_convert_out
+               tba                  ; save character to print
+               andb #~CHR_BLINK     ; exclude Blink Bit
+
                subb #$20            ; ASCII chars <$20 not supported
                pshb                 ; Index merken
+
+               psha                 ; save character to print
+               clra                 ; HiByte = 0
+
                lsld                 ; Index für Word Einträge berechnen
                addd #char_convert   ; Basisadresse hinzufügen
                xgdx
-               ldd  0,x
+               ldd  0,x             ; D=Eintrag in char_convert Tabelle
+
+               xgdx
+               pulb                 ; restore character to print
+               andb #CHR_BLINK      ; check if should be printed blinking
+               xgdx
+               bne  pc_sendchar     ; if not, print plain
+               tsta                 ; check if it is an extended or a single char
+               beq  pc_blink_single
+               oraa #$10            ; include blink bit in extended char code
+               bra  pc_sendchar
+pc_blink_single
+               orab #$10            ; include blink bit in single char code
 
 pc_sendchar
                pshb
@@ -888,27 +876,30 @@ pc_double
                tsta                   ; Zeichen erfolgreich gesendet?
                bne  pc_double         ; Wenn nicht, nochmal senden
                tsx
-               ldab 1,x               ; Tabelleneintrag holen
+               ldab 1,x               ; 2. Byte vom Tabelleneintrag holen
 pc_single                             ; Ausgabe von Zeichencodes mit 1 Byte
-               jsr  sci_tx_w          ; send 2nd char
+               jsr  sci_tx_w          ; send char from table
                jsr  sci_ack           ; Auf Quittung warten
                tsta                   ; Erfolgreich gesendet?
                bne  pc_single         ; Nein? Dann nochmal probieren
-               pula
-               pulb                   ; gemerkten Tabelleneintrag holen
-               oraa #$10
-               cmpa #$5D              ; War Byte 1 = $4D oder $5D?
+               pula                   ; gemerkten Tabelleneintrag holen
+               ins                    ; lower char aus Tabelle wird nicht mehr benötigt,
+               tab                    ; Blink Status ($4x / $5x) aber schon
+
+               orab #$10
+               cmpb #$5D              ; War Byte 1 = $4D oder $5D?
                beq  pc_extended       ; dann müssen wir noch ein $4E Char senden
-               pulb
+               pulb                   ; gemerkten Index vom Stack löschen
                bra  pc_end
 pc_extended
-               clra
+               anda #$10              ; Blink Bit isolieren
                ldx  #e_char_convert
-               pulb
-               abx
+               pulb                   ; gemerkten index vom Stack holen
+               abx                    ; Tabelle indizieren
                ldab 0,x               ; extended character holen
                pshb                   ; Character sichern
-               ldab #$4E              ; Extended Zeichen senden
+               adda #$4E              ; Extended Zeichen senden, zu Blink Bit addieren
+               tab                    ; nach B transferieren
 pc_ext_send1
                jsr  sci_tx_w          ; send char
                jsr  sci_ack           ; Bestätigen lassen
@@ -1074,49 +1065,6 @@ einer
                jsr  putchar
 
                rts
-;******************
-; U L O N G   D E C
-;
-; Putchar Subroutine für dezimale Ausgabe
-;
-; Teilt den Longint Wert rekursiv solange durch 10, bis der Quotient 0 ist,
-; danach wird der Wert ausgegeben
-;
-;
-ulongdec
-               pshx
-               pshb
-               psha                    ; Register sichern
-
-               tsx
-               ldd  8,x                ; Dividend LoWord holen
-               pshb
-               psha                    ; auf Stack speichern
-               ldx  6,x                ; Dividend HiWord holen
-               pshx                    ; auf Stack speichern
-               ldd  #10                ; Divisor holen
-               jsr  divide32           ; Division durchführen
-               pshx                    ; Rest sichern
-                                       ; Quotient ist bereits auf Stack
-               tsx
-               orab 2,x                ;
-               orab 3,x                ;
-               subd #0                 ; 32 Bit Quotient = 0 ?
-               pula
-               pulb                    ; Rest wiederholen
-               beq  uld_out            ; Wenn der Quotient = 0 ist, Zeichen ausgeben
-               jsr  ulongdec           ; wenn >0, diese funktion rekursiv aufrufen
-uld_out
-               pulx
-               pulx                    ; Quotient vom Stack löschen
-               addb #$30               ; ASCII Char erzeugen
-               ldaa #'c'
-               jsr  putchar
-uld_end
-               pula
-               pulb
-               pulx
-               rts
 
 ;******************
 ; U L O N G   O U T
@@ -1143,7 +1091,7 @@ uld_end
 ; 1 R-Adresse1 lo
 ; 0 R-Adresse1 hi
 ;
-ulongout2
+ulongout
                tsx
                inx
                inx
@@ -1282,6 +1230,7 @@ print_num
                bra  print_put
 
 ;#################################
+char_conv_solid
 char_convert
                .dw  $4C   ; ' '
                .dw  $4E60 ; '!'
@@ -1476,25 +1425,25 @@ e_char_convert
                .db  $03 ; '}' 3
                .db  $04 ; '~' 4
 key_convert
-               .db  $00
-               .db  $11 ;D1
-               .db  $12 ;D2
-               .db  $13 ;D3
-               .db  $14 ;D4
-               .db  $15 ;D5
-               .db  $16 ;D6
-               .db  $17 ;D7
-               .db  $18 ;D8
-               .db  $03 ; 3
-               .db  $06 ; 6
-               .db  $09 ; 9
-               .db  $19 ; #
-               .db  $02 ; 2
-               .db  $05 ; 5
-               .db  $08 ; 8
-               .db  $00 ; 0
-               .db  $01 ; 1
-               .db  $04 ; 4
-               .db  $07 ; 7
-               .db  $10 ; *
+               .db  00
+               .db  11 ;D1
+               .db  12 ;D2
+               .db  13 ;D3
+               .db  14 ;D4
+               .db  15 ;D5
+               .db  16 ;D6
+               .db  17 ;D7
+               .db  18 ;D8
+               .db  03 ; 3
+               .db  06 ; 6
+               .db  09 ; 9
+               .db  19 ; #
+               .db  02 ; 2
+               .db  05 ; 5
+               .db  08 ; 8
+               .db  00 ; 0
+               .db  01 ; 1
+               .db  04 ; 4
+               .db  07 ; 7
+               .db  10 ; *
 

@@ -64,15 +64,19 @@
 #DEFINE RED_LED       $33
 #DEFINE YEL_LED       $31
 #DEFINE GRN_LED       $32
-#DEFINE OFF           0
-#DEFINE ON            4
-#DEFINE BLINK         8
-#DEFINE INVERT        128
+#DEFINE LED_OFF       0
+#DEFINE LED_ON        4
+#DEFINE LED_BLINK     8
+#DEFINE LED_INVERT    128
 
 #DEFINE ARROW         $6D
 #DEFINE A_OFF           0
 #DEFINE A_ON            1
 #DEFINE A_BLINK         2
+
+; Blink Char
+#DEFINE CHR_BLINK     $80
+
 ; non printable chars
 #DEFINE semikolon  $3B
 #DEFINE komma      $2C

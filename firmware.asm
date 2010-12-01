@@ -58,7 +58,7 @@ Start
 
                 clr  tasksw_en              ; Taskswitch spätestens jede Millisekunde
 
-                ldab #GRN_LED+ON
+                ldab #GRN_LED+LED_ON
                 jsr  led_set                ; Grüne LED aktivieren
                 WAIT(500)
 ;
