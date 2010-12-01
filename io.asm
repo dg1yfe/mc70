@@ -856,7 +856,7 @@ pc_char_out    ; ASCII Zeichen in B
                pulb                 ; restore character to print
                andb #CHR_BLINK      ; check if should be printed blinking
                xgdx
-               bne  pc_sendchar     ; if not, print plain
+               beq  pc_sendchar     ; if not, print plain
                tsta                 ; check if it is an extended or a single char
                beq  pc_blink_single
                oraa #$10            ; include blink bit in extended char code
