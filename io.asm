@@ -1424,26 +1424,3 @@ e_char_convert
                .db  $00
                .db  $03 ; '}' 3
                .db  $04 ; '~' 4
-key_convert
-               .db  00
-               .db  11 ;D1
-               .db  12 ;D2
-               .db  13 ;D3
-               .db  14 ;D4
-               .db  15 ;D5
-               .db  16 ;D6
-               .db  17 ;D7
-               .db  18 ;D8
-               .db  03 ; 3
-               .db  06 ; 6
-               .db  09 ; 9
-               .db  19 ; #
-               .db  02 ; 2
-               .db  05 ; 5
-               .db  08 ; 8
-               .db  00 ; 0
-               .db  01 ; 1
-               .db  04 ; 4
-               .db  07 ; 7
-               .db  10 ; *
-

@@ -22,6 +22,43 @@ m_print
                 ldaa #'c'
                 jsr  putchar
                 jmp  m_end            ; Zurück
+;**********************************
+; M   F   I N
+;
+; Frequenzeingabe, Eingabe entgegennehmen
+;
+m_f_in
+                cmpb #KC_NONE_NUMERIC      ; Zahl?
+                bcc  m_non_numeric         ; Wenn nicht, dann entsprechende Funktionen ausführen
+                ldaa cpos                  ; sonst nachsehen
+                cmpa #08 		           ; ob noch Platz im Display
+		        bne  m_print		       ; Wenn ja, Zeichen ausgeben und in Frequenzeingabepuffer speichern
+                jmp  m_end
+
+;**********************************
+; M   N O N   N U M E R I C
+;
+; Nicht numerische Taste während Frequenzeingabe auswerten
+;
+m_non_numeric
+
+                ldx  #mnn_tab              ; Basisadresse der Tabelle holen
+                subb #10
+                aslb                       ; Index berechnen
+                abx
+                ldx  0,x                   ; Funktionsadresse aus Tabelle lesen
+                jmp  0,x                   ; Funktion aufrufen
+mnn_tab
+                .dw m_backspace            ; *  - Backspace
+                .dw m_none                 ; D1
+                .dw m_none                 ; D2
+                .dw m_none                 ; D3
+                .dw m_clr_displ            ; D4 - Clear
+                .dw m_none                 ; D5
+                .dw m_none                 ; D6
+                .dw m_set_shift            ; D7
+                .dw m_none                 ; D8
+                .dw m_set_freq             ; #  - Enter
 ;
 ;**********************************
 ; M   B A C K S P A C E
@@ -40,31 +77,6 @@ m_backspace
                 jmp  m_end            ; Zurück
 
 ;**********************************
-; M   D   F U L L
-;
-; Display voll, Zifferneingabe ignorieren
-;
-m_d_full                                   ; Display voll, Zifferneingabe ignorieren
-                jsr  m_reset_timer
-                cmpb #10                   ; keine Zahl?
-                bcc  m_non_numeric         ; dann irgendwas machen
-                jmp  m_end                 ; ansonsten ignorieren
-;**********************************
-; M   F   I N
-;
-; Frequenzeingabe, Eingabe entgegennehmen
-;
-m_f_in
-                cmpb #$10                  ; Zahl?
-                bcc  m_non_numeric         ; Wenn nicht, dann entsprechende Funktionen ausführen
-                ldaa cpos                  ; sonst nachsehen
-                cmpa #08 		           ; ob noch Platz im Display
-		        bne  m_print		       ; Wenn ja, Zeichen ausgeben und in Frequenzeingabepuffer speichern
-		        ldaa #D_FULL		       ; Display voll, state anpassen
-		        staa m_state
-                jmp  m_end
-
-;**********************************
 ; M   C L R   D I S P L
 ;
 ; Display und Eingabe löschen
@@ -75,31 +87,6 @@ m_clr_displ
                 jsr  lcd_clr
                 clr  f_in_buf              ; Erstes Zeichen im Eingabebuffer auf 0 (Buffer "leer")
                 jmp  m_end
-
-;**********************************
-; M   N O N   N U M E R I C
-;
-; Nicht numerische Taste während Frequenzeingabe auswerten
-;
-m_non_numeric
-
-                ldx  #mnn_tab              ; Basisadresse der Tabelle holen
-                subb #$10
-                aslb                       ; Index berechnen
-                abx
-                ldx  0,x                   ; Funktionsadresse aus Tabelle lesen
-                jmp  0,x                   ; Funktion aufrufen
-mnn_tab
-                .dw m_backspace            ; *  - Backspace
-                .dw m_none                 ; D1
-                .dw m_none                 ; D2
-                .dw m_none                 ; D3
-                .dw m_clr_displ            ; D4 - Clear
-                .dw m_none                 ; D5
-                .dw m_none                 ; D6
-                .dw m_set_shift            ; D7
-                .dw m_none                 ; D8
-                .dw m_set_freq             ; #  - Enter
 ;*******************************
 ;
 ; M   S E T   F R E Q

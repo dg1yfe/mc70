@@ -256,8 +256,9 @@ rxtx_state      .db                                   ; 0=RX
 ptt_debounce    .db
 ui_ptt_req      .db                                   ;
 
+cfg_head        .db                                   ; Type of Control Head
+
 m_state	        .db
-m_menu          .db                                   ; Speicher für Untermenu
 m_timer         .dw                                   ; 100ms
 m_timer_en      .db    $00
 

@@ -18,13 +18,32 @@
 ;
 ;
 ;
+;
+;
+; Tastencodes nach "Key-Convert" Tabelle ( 0 - 9 = Numerische Tasten)
+;
+#DEFINE KC_NONE_NUMERIC 10
+
+#DEFINE KC_D1 11
+#DEFINE KC_D2 12
+#DEFINE KC_D3 13
+#DEFINE KC_D4 14
+#DEFINE KC_D5 15
+#DEFINE KC_D6 16
+#DEFINE KC_D7 17
+#DEFINE KC_D8 18
+#DEFINE KC_RAUTE 19
+#DEFINE KC_STERN 10
+;
+#DEFINE KC_CLEAR KC_D4
+;
+;
 ; Menu
 #DEFINE IDLE  	     0
 #DEFINE F_IN 	     1
-#DEFINE D_FULL 	     2
-#DEFINE MEM_SEL_SLOT 3
-#DEFINE MEM_STORE    4
-#DEFINE TXSHIFT_SW   5
+#DEFINE MEM_SEL_SLOT 2
+#DEFINE MEM_STORE    3
+#DEFINE TXSHIFT_SW   4
 ;
 ;
 ;*****************************
@@ -91,9 +110,8 @@ m_break
                 jmp  m_end
 
 m_state_tab
-                .dw m_idle            ; IDLE
+                .dw m_top             ; Top Menu
                 .dw m_f_in            ; Frequenzeingabe
-                .dw m_d_full          ; Display voll
                 .dw m_sel_slot        ; Memory Slot auswählen
                 .dw m_store
                 .dw m_txshift
@@ -152,6 +170,28 @@ m_offset        .db "TXSHIFT",0
 m_sq_on_str     .db "SQ ON",0
 m_sq_off_str    .db "SQ OFF",0
 
+key_convert
+               .db  00
+               .db  KC_D1 ;D1
+               .db  KC_D2 ;D2
+               .db  KC_D3 ;D3
+               .db  KC_D4 ;D4
+               .db  KC_D5 ;D5
+               .db  KC_D6 ;D6
+               .db  KC_D7 ;D7
+               .db  KC_D8 ;D8
+               .db  03 ; 3
+               .db  06 ; 6
+               .db  09 ; 9
+               .db  19 ; #
+               .db  02 ; 2
+               .db  05 ; 5
+               .db  08 ; 8
+               .db  00 ; 0
+               .db  01 ; 1
+               .db  04 ; 4
+               .db  07 ; 7
+               .db  10 ; *
 
 #INCLUDE        "menu_top.asm"
 #INCLUDE        "menu_mem.asm"

@@ -17,18 +17,18 @@
 ;************************
 ;
 ;*******************************
-; M   I D L E
+; M   T O P
 ;
-m_idle
+m_top
                 aslb                  ; Index für Tabelle erzeugen
-                ldx  #m_idle_tab      ; Basisadresse holen
+                ldx  #m_top_h3        ; Basisadresse holen
                 abx                   ; Index addieren
                 ldx  0,x              ; Tabelleneintrag holen
-
+                lsrb                  ; undo left-shift
                 jmp  0,x              ; Funktion aufrufen
 
-m_idle_h3
-m_idle_tab
+m_top_h3
+m_top_tab
 ;               Funktion                Taste
                 .dw m_start_input     ; 0
                 .dw m_start_input     ; 1
@@ -40,7 +40,6 @@ m_idle_tab
                 .dw m_start_input     ; 7
                 .dw m_start_input     ; 8
                 .dw m_start_input     ; 9
-
                 .dw m_none            ; *
                 .dw m_frq_up          ; D1 - Kanal+
                 .dw m_frq_down        ; D2 - Kanal-
@@ -55,6 +54,30 @@ m_idle_tab
                 .dw m_frq_store       ; #
 ;                .dw m_sel_mbank       ; #
 
+m_top_h2
+;               Funktion                Taste
+                .dw m_none            ; -
+                .dw m_none            ; -
+                .dw m_none            ; -
+                .dw m_none            ; -
+                .dw m_none            ; -
+                .dw m_menu            ; upper / right side (5)
+                .dw m_none            ; -
+                .dw m_none            ; -
+                .dw m_frq_store       ; lower / right side (8)
+                .dw m_none            ; -
+                .dw m_none            ; -
+                .dw m_frq_up          ; D1 - Kanal+
+                .dw m_frq_down        ; D2 - Kanal-
+                .dw m_sql_switch      ; D3 - Squelch ein/aus
+;                .dw m_none            ; D4 - none
+;                .dw m_prnt_rc         ; D4 - Control Task Schleifendurchläuft per sek. ausgeben
+                .dw m_prnt_tc         ; D4 - Taskswitches/s anzeigen
+                .dw m_tone            ; D5 - 1750 Hz Ton
+                .dw m_digit           ; D6 - Select Digit
+                .dw m_txshift         ; D7 - TX Shift ändern
+                .dw m_sel_mbank       ; D8 - Speicherbank wählen
+                .dw m_none            ; -
 
 
 ;*******************************
@@ -214,6 +237,25 @@ mts_print_offset
 ;
 ;
 mts_switch
+                ldaa cfg_head
+                cmpa #3
+                beq  mts_hd3
+                cmpa #2
+                beq  mts_hd2
+                bra  mts_hd3
+mts_hd1
+
+mts_hd2
+                cmpb #5
+                beq  mts_chg_sign
+                cmpb #KC_D7           ; 'A'?
+                beq  mts_toggle
+                cmpb #8
+                bne  mts_to_idle      ; Bei allen anderen Tasten zu IDLE zurückkehren
+                ldx  #0
+                stx  m_timer
+                jmp  m_end
+mts_hd3
                 cmpb #KC_STERN
                 beq  mts_chg_sign
                 cmpb #KC_D7           ; 'A'?
@@ -227,7 +269,7 @@ mts_to_idle
                 pshb
                 jsr  restore_dbuf     ; Displayinhalt wiederherstellen
                 pulb
-                jmp  m_idle           ; Mit Frequenzeingabe weitermachen
+                jmp  m_top            ; Mit Frequenzeingabe weitermachen
 mts_toggle
                 jsr  m_reset_timer    ; Menü-Timer Reset (Timeout für Eingabe setzen)
                 ldx  offset
@@ -241,7 +283,7 @@ mts_toggle
                 stx  ui_txshift
                 pshx
                 swi
-                bra  mts_print
+                jmp  mts_print
 mts_to_zero
                 ldx  #0
                 stx  ui_txshift+2
@@ -249,7 +291,7 @@ mts_to_zero
                 swi
                 pshx
                 pshx
-                bra  mts_print
+                jmp  mts_print
 mts_chg_sign
                 ldx  offset
                 ldd  offset+2
@@ -337,6 +379,23 @@ mpr_nosave
 ;
 ;
 m_test
+                pshb
+                ldab m_timer_en       ; Falls Roundcount noch angezeigt wird, Displayinhalt NICHT speichern
+                bne  mt_nosave        ; Sondern Zahl erneut ausgeben
+
+                ldx  #dbuf2
+                jsr  save_dbuf        ; Displayinhalt in dbuf2 sichern
+                jsr  m_reset_timer    ; Menü-Timer Reset (Timeout für Eingabe setzen)
+mt_nosave
+                clrb
+                jsr  lcd_cpos         ; Cursor Home
+                
+                pulb
+                ldaa #'x'
+                jsr  putchar
+
+                jsr  lcd_fill         ; restliches Display mit Leerzeichen füllen
+
                 jmp  m_end
 
 
@@ -367,5 +426,35 @@ mtc_nosave
                 pulx
                 pulx
                 jsr  lcd_fill         ; restliches Display mit Leerzeichen füllen
+                jmp  m_end
+
+;*************
+; M   M E N U
+;
+; Call Submenu
+;
+m_menu
+                ldab m_timer_en       ; Falls Roundcount noch angezeigt wird, Displayinhalt NICHT speichern
+                bne  mmn_nosave       ; Sondern Zahl erneut ausgeben
+
+                ldx  #dbuf2
+                jsr  save_dbuf        ; Displayinhalt in dbuf2 sichern
+mmn_nosave
+                jsr  m_reset_timer    ; Menü-Timer Reset (Timeout für Eingabe setzen)
+                clrb
+                jsr  lcd_cpos         ; Cursor Home
+
+                ldx  #m_menu_str
+                jsr  printf
+                jmp  m_end
+
+m_menu_str     .db "MENU",0
+
+;***************
+; M   D I G I T
+;
+; select frequency digit to alter using up/down
+;
+m_digit
                 jmp  m_end
 
