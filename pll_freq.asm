@@ -576,6 +576,7 @@ frq_calc_freq
                 clra                       ; Zähler auf 0
 fcf_loop
                 ldab 0,x
+                andb #~CHR_BLINK           ; Blink Bit ausblenden
                 beq  fcf_end               ; Schon das Stringende erreicht?
                 pshx                       ; save bufferaddress (index)
                 psha                       ; save counter

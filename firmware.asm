@@ -60,6 +60,10 @@ Start
 
                 ldab #GRN_LED+LED_ON
                 jsr  led_set                ; Grüne LED aktivieren
+
+                ldab #2
+                stab cfg_head
+
                 WAIT(500)
 ;
 ;

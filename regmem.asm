@@ -258,6 +258,8 @@ ui_ptt_req      .db                                   ;
 
 cfg_head        .db                                   ; Type of Control Head
 
+m_svar1         .db
+m_svar2         .db
 m_state	        .db
 m_timer         .dw                                   ; 100ms
 m_timer_en      .db    $00

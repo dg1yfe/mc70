@@ -37,6 +37,8 @@
 ;
 #DEFINE KC_CLEAR KC_D4
 ;
+#DEFINE HD2_ENTER 8
+#DEFINE HD2_EXIT  5
 ;
 ; Menu
 #DEFINE IDLE  	     0
@@ -44,6 +46,7 @@
 #DEFINE MEM_SEL_SLOT 2
 #DEFINE MEM_STORE    3
 #DEFINE TXSHIFT_SW   4
+#DEFINE DIGIT        5
 ;
 ;
 ;*****************************
@@ -115,6 +118,7 @@ m_state_tab
                 .dw m_sel_slot        ; Memory Slot auswählen
                 .dw m_store
                 .dw m_txshift
+                .dw m_digit
 m_state_tab_end
 
 ;*************
@@ -141,6 +145,8 @@ m_end
                 stab m_state      ; State speichern
 m_return
                 rts
+
+
 ;**************************************
 ;
 m_reset_timer                         ; Eingabe Timeout zurücksetzen

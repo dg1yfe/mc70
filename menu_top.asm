@@ -1,4 +1,12 @@
 ;
+;
+#DEFINE DIGIT_POS  m_svar1
+#DEFINE DIGIT_MODE m_svar2
+;
+#DEFINE DM_FREQ  0
+#DEFINE DM_SHIFT 1
+;
+;
 ;*****************************
 ; M E N U   I D L E
 ;*****************************
@@ -21,7 +29,20 @@
 ;
 m_top
                 aslb                  ; Index für Tabelle erzeugen
+                ldaa cfg_head
+                cmpa #3
+                beq  mto_h3
+                cmpa #2
+                beq  mto_h2
+                ldx  #m_top_h3        ; default TODO: include HD2b, HD Mic
+                bra  mto_tabjmp
+mto_h2
+                ldx  #m_top_h2
+                bra  mto_tabjmp
+mto_h3
                 ldx  #m_top_h3        ; Basisadresse holen
+                bra  mto_tabjmp
+mto_tabjmp
                 abx                   ; Index addieren
                 ldx  0,x              ; Tabelleneintrag holen
                 lsrb                  ; undo left-shift
@@ -45,8 +66,8 @@ m_top_tab
                 .dw m_frq_down        ; D2 - Kanal-
                 .dw m_sql_switch      ; D3 - Squelch ein/aus
 ;                .dw m_none            ; D4 - none
-;                .dw m_prnt_rc         ; D4 - Control Task Schleifendurchläuft per sek. ausgeben
-                .dw m_prnt_tc         ; D4 - Taskswitches/s anzeigen
+                .dw m_test            ; D4 - Test
+;                .dw m_prnt_tc         ; D4 - Taskswitches/s anzeigen
                 .dw m_tone            ; D5 - 1750 Hz Ton
                 .dw m_none            ; D6 -
                 .dw m_txshift         ; D7 - TX Shift ändern
@@ -56,17 +77,17 @@ m_top_tab
 
 m_top_h2
 ;               Funktion                Taste
-                .dw m_none            ; -
-                .dw m_none            ; -
-                .dw m_none            ; -
-                .dw m_none            ; -
-                .dw m_none            ; -
+                .dw m_none            ; - (0)
+                .dw m_test            ; - (1)
+                .dw m_none            ; - (2)
+                .dw m_none            ; - (3)
+                .dw m_none            ; - (4)
                 .dw m_menu            ; upper / right side (5)
-                .dw m_none            ; -
-                .dw m_none            ; -
+                .dw m_none            ; - (6)
+                .dw m_none            ; - (7)
                 .dw m_frq_store       ; lower / right side (8)
-                .dw m_none            ; -
-                .dw m_none            ; -
+                .dw m_none            ; - (9)
+                .dw m_none            ; - (*)
                 .dw m_frq_up          ; D1 - Kanal+
                 .dw m_frq_down        ; D2 - Kanal-
                 .dw m_sql_switch      ; D3 - Squelch ein/aus
@@ -74,7 +95,7 @@ m_top_h2
 ;                .dw m_prnt_rc         ; D4 - Control Task Schleifendurchläuft per sek. ausgeben
                 .dw m_prnt_tc         ; D4 - Taskswitches/s anzeigen
                 .dw m_tone            ; D5 - 1750 Hz Ton
-                .dw m_digit           ; D6 - Select Digit
+                .dw m_digit_start     ; D6 - Select Digit
                 .dw m_txshift         ; D7 - TX Shift ändern
                 .dw m_sel_mbank       ; D8 - Speicherbank wählen
                 .dw m_none            ; -
@@ -237,6 +258,7 @@ mts_print_offset
 ;
 ;
 mts_switch
+                jsr  m_reset_timer    ; Menü-Timer Reset (Timeout für Eingabe setzen)
                 ldaa cfg_head
                 cmpa #3
                 beq  mts_hd3
@@ -250,11 +272,15 @@ mts_hd2
                 beq  mts_chg_sign
                 cmpb #KC_D7           ; 'A'?
                 beq  mts_toggle
+                cmpb #KC_D6           ; Digit Editor
+                beq  mts_jdigit
                 cmpb #8
                 bne  mts_to_idle      ; Bei allen anderen Tasten zu IDLE zurückkehren
                 ldx  #0
                 stx  m_timer
                 jmp  m_end
+mts_jdigit
+                jmp  mts_digit
 mts_hd3
                 cmpb #KC_STERN
                 beq  mts_chg_sign
@@ -307,6 +333,26 @@ mts_chg_sign
                 jmp  mts_print
 mts_end
                 jmp  m_end
+
+;*******************
+; M T S   D I G I T
+;
+; TX Shift per Digit Eingabe setzen
+;
+mts_digit
+                ldx  offset
+                bne  mts_ed_digit
+                ldx  offset+2
+                bne  mts_ed_digit
+                ldab #0
+                jsr  cpos
+                ldx  #str_mts_zero
+                jsr  printf
+mts_ed_digit
+                ldab #DM_SHIFT
+                stab DIGIT_MODE
+                jmp  m_digit_start
+str_mts_zero    .db  "-0000",0
 ;**************************************
 ; M   S E T   S H I F T
 ;
@@ -379,7 +425,6 @@ mpr_nosave
 ;
 ;
 m_test
-                pshb
                 ldab m_timer_en       ; Falls Roundcount noch angezeigt wird, Displayinhalt NICHT speichern
                 bne  mt_nosave        ; Sondern Zahl erneut ausgeben
 
@@ -387,9 +432,11 @@ m_test
                 jsr  save_dbuf        ; Displayinhalt in dbuf2 sichern
                 jsr  m_reset_timer    ; Menü-Timer Reset (Timeout für Eingabe setzen)
 mt_nosave
+                ldab cpos
+                pshb
                 clrb
                 jsr  lcd_cpos         ; Cursor Home
-                
+
                 pulb
                 ldaa #'x'
                 jsr  putchar
@@ -450,11 +497,136 @@ mmn_nosave
 
 m_menu_str     .db "MENU",0
 
-;***************
-; M   D I G I T
+;***************************
+; M   D I G I T   S T A R T
 ;
 ; select frequency digit to alter using up/down
 ;
-m_digit
+m_digit_start
+                ldab m_timer_en       ; Falls Roundcount noch angezeigt wird, Displayinhalt NICHT speichern
+                bne  mds_nosave       ; Sondern Zahl erneut ausgeben
+
+                jsr  save_dbuf        ; Displayinhalt in dbuf2 sichern
+mds_nosave
+                jsr  m_reset_timer    ; Menü-Timer Reset (Timeout für Eingabe setzen)
+                ldab DIGIT_MODE       ;
+                cmpb #DM_FREQ
+                beq  mds_mode_freq
+mds_mode_shift
+                ldab #2
+                bra  mds_make_blink
+mds_mode_freq
+                ldab #3
+mds_make_blink
+                stab DIGIT_POS        ; Bei Zifferpos. 3 beginnen
+                ldaa #1
+                jsr  lcd_chr_mode     ; let digit 3 blink
+                ldab #DIGIT
+                stab m_state          ; next state: DIGIT
                 jmp  m_end
+
+;****************
+; M   D I G I T
+;
+m_digit
+                jsr  m_reset_timer    ; Menü-Timer Reset (Timeout für Eingabe setzen)
+                cmpb #HD2_ENTER
+                beq  mdi_enter
+                cmpb #HD2_EXIT
+                beq  mdi_exit
+                cmpb #KC_D1
+                beq  mdi_up
+                cmpb #KC_D2
+                beq  mdi_down
+                cmpb #KC_D6
+                beq  mdi_next
+                jmp  m_end
+mdi_up
+                ldab DIGIT_POS        ; get current digit position
+                ldx  #dbuf            ; use as index for display buffer
+                abx
+                ldab 0,x              ; get char at digit
+                andb #~CHR_BLINK      ; ignore blink bit
+                tba
+                anda #$30
+                cmpa #$30             ; check is current position contains number
+                bne  mdi_checknum
+                incb                  ; increment
+                cmpb #'9'+1           ; wrap around at 9
+                bne  mdu_store
+                ldab #'0'
+                bra  mdu_store
+mdi_down
+                ldab DIGIT_POS        ; get current digit position
+                ldx  #dbuf            ; use as index for display buffer
+                abx
+                ldab 0,x              ; get char at digit
+                andb #~CHR_BLINK      ; ignore blink bit
+                decb                  ; decrement
+                cmpb #'0'             ; wrap around at 0
+                bcc  mdu_store
+                ldab #'9'
+mdu_store
+                tba                   ; save digit in A
+                ldab DIGIT_POS
+                jsr  lcd_cpos         ; move cursor to digit position
+                tab
+                orab #$80             ; set blink bit
+                ldaa #'c'
+                jsr  putchar          ; print char
+                jmp  m_end
+;----------------
+mdi_next
+                ldab DIGIT_POS
+                clra
+                jsr  lcd_chr_mode
+                decb
+                ldaa DIGIT_MODE       ; check mode
+                cmpa #DM_FREQ         ; behaviour depends on mode
+                beq  mdn_mode_freq    ;
+                tstb
+                bne  mdn_shift        ; in shift mode
+                ldab #2               ; chars 1-2 are editable
+                bra  mdn_shift
+mdn_mode_freq
+                tstb                  ; in frequency mode,
+                bpl  mdn_shift        ; chars 0-3 are editable
+                ldab #3
+mdn_shift
+                stab DIGIT_POS
+                inca
+                jsr  lcd_chr_mode
+
+                jmp  m_end
+;----------------
+mdi_exit
+                ldx  #0
+                stx  m_timer
+                jmp  m_end
+
+;----------------
+mdi_enter
+                ldab DIGIT_MODE
+                cmpb #DM_FREQ
+                beq  mdi_mode_freq
+                ldd  dbuf+1
+                std  f_in_buf
+                ldd  dbuf+3
+                std  f_in_buf+2
+                ldab #4
+                stab cpos
+                jmp  m_set_shift
+mdi_mode_freq
+                ldd  dbuf
+                std  f_in_buf
+                ldd  dbuf+2
+                std  f_in_buf+2
+                ldd  dbuf+4
+                std  f_in_buf+4
+                ldab #6
+                stab cpos
+                jmp  m_set_freq
+
+
+
 
