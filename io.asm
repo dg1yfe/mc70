@@ -461,19 +461,18 @@ srm_no_data
 ;************************
 ; S C I   R E A D   M
 ;************************
+;
+; Eingabe von Display lesen (blocking)
+;
+; Parameter:  none
+;
+; Ergebnis :  A : raw data
+;             B : converted data
+;
+;  changed Regs : A, B
+;
+;
 sci_read_m
-                ;B : rxd Byte
-                ;changed Regs: A, B
-;                bsr  sci_rx
-;                tsta
-
-;                bsr  sci_rx_m
-;                tsta
-;                bne  srdm_end
-;                swi                ; Taskswitch durchführen wenn gewartet werden muß
-;                bra  sci_read_m
-;srdm_end
-;                rts
                 ldab io_menubuf_r         ; Zeiger auf Leseposition holen
                 cmpb io_menubuf_w         ; mit Schreibposition vergleichen
                 bne  srdm_cont            ; Wenn nicht gleich sind Daten gekommen -> weitermachen
@@ -487,7 +486,11 @@ srdm_cont
                 andb #io_menubuf_mask     ; Im Bereich 0-7 bleiben
                 stab io_menubuf_r         ; neue Zeigerposition speichern
                 tab                       ; Datenbyte nach B
-                clra                      ; A = 0
+                pshx
+                ldx  #key_convert         ; index key convert table
+                abx
+                ldab 0,x                  ; Key übersetzen
+                pulx
                 rts
 
 ;************************
@@ -1179,6 +1182,7 @@ store_dbuf_end
 ;
 printf
                ; X : Pointer auf 0-terminated String
+               ; Stack : Variables
                ; changed Regs: X
                pshb
                psha
@@ -1187,7 +1191,7 @@ print_loop
                beq  end_printf      ; =$00 ? Dann String zu Ende -> Return
                inx                  ; Zeiger auf nächstes Zeichen
                cmpb #'%'            ; auf "%" testen
-               beq  print_num       ;
+               beq  print_escape    ;
                cmpb #backslash      ; auf "\" testen
                beq  print_special
 print_char
@@ -1225,7 +1229,7 @@ print_addval
                tab
                ldaa #'p'
                bra  print_put
-print_num
+print_escape
                ldaa 0,x
                bra  print_put
 
