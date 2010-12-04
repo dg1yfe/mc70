@@ -1012,7 +1012,7 @@ uinthex
 ;
 ;
 sendnibble     ; Nibble to send in B
-               cmpb #$0A                        ; Wert
+               cmpb #10                         ; Wert
                bcs  snb_numeric                 ; >=10 ? Dann
                addb #7                          ; 7 addieren (Bereich A-F)
 snb_numeric
@@ -1077,6 +1077,7 @@ einer
 ; Formatiert einen 32 Bit Integer für Dezimale Darstellung um und gibt ihn aus
 ;
 ; Parameter : B - Anzahl der vom Ende der Zahl abzuschneidenden Ziffern
+;             A - Anzahl der mindestens auszugebenden Stellen (MSB = fill with space)
 ;
 ;             Stack - 32 Bit Integer
 ;
@@ -1095,11 +1096,14 @@ einer
 ; 0 R-Adresse1 hi
 ;
 ulongout
+               clra
                tsx
                inx
                inx
                inx
                inx
+udecout
+               psha                    ; Minimum digits to Stack
                pshx                    ; Zeiger auf Longint auf Stack
                andb #7                 ; max. 7 Stellen abschneiden
                pshb                    ; Exponent auf stack
@@ -1130,20 +1134,48 @@ ulo2_divloop
                xgdx                    ; Rest (0-9) nach D
                pulx                    ; Zeiger auf Quotient holen
                pshb                    ; Rest auf Stack
-               ldd  2,x
+               ldab 3,x
+               orab 2,x
                orab 1,x
                orab 0,x
-               subd #0                 ; Prüfen ob Quotient = 0
+               xgdx
+               subd #6
+               xgdx
+               ldaa 0,x
+               anda #$7f
+               tpa
+               beq  ulo2_nodecr
+               dec  0,x                ; decrement min number of digits
+ulo2_nodecr
+               xgdx
+               addd #6
+               xgdx
+               tstb                    ; Prüfen ob Quotient = 0
                bne  ulo2_divloop       ; Wenn nicht, dann erneut teilen
+               tap
+               bne  ulo2_divloop       ; Mindestanzahl noch nicht erreicht
+               xgdx
+               subd #6
+               xgdx
+               ldaa 0,x
 ulo2_prntloop
                pulb
                cmpb #$ff               ; Prüfen ob alle Ergebniswerte vom Stack gelesen wurden
                beq  ulo2_end           ; Ja, dann Ende
+               tstb
+               beq  ulo_zero           ; print accorcing to modifier if digit is 0
+               clra                    ; print everything from 1st non-zero digit
+ulo_zero
+               tsta                    ; print zero (A=0) or space (A!=0)
+               beq  ulo_print
+               ldab #$f0
+ulo_print
                addb #$30               ; $30 addieren
                ldaa #'c'
                jsr  putchar            ; Zeichen ausgeben
                bra  ulo2_prntloop      ;
 ulo2_end
+               ins
                rts
 
 ;**********************
@@ -1180,100 +1212,142 @@ store_dbuf_end
 ;
 ;
 ;
+; 7 - Arg
+#define PES_ARG      7
+; 5 - Return
+; 4 - B
+; 3 - A
+; 2 - ARG Offset
+#define PES_ARG_OFS  2
+; 1 - Modifier2
+; 0 - Modifier1
+#define PES_MODIF1   1
+#define PES_MODIF2   0
+
 printf
                ; X : Pointer auf 0-terminated String
                ; Stack : Variables
                ; changed Regs: X
                pshb
                psha
+               clra
+               psha
+               des
+               des
 print_loop
                ldab 0,x             ; Zeichen holen
                beq  end_printf      ; =$00 ? Dann String zu Ende -> Return
                inx                  ; Zeiger auf nächstes Zeichen
                cmpb #'%'            ; auf "%" testen
                beq  print_escape    ;
-               cmpb #backslash      ; auf "\" testen
-               beq  print_special
 print_char
                ldaa #'c'
 print_put
                pshx
+print_putpl
                jsr  putchar
+               tsx
+               clr  2,x
+               clr  3,x             ; clear modifier variables
                pulx
                bra  print_loop
 print_end
 end_printf
+               ins
+               ins
+               ins
                pula
                pulb
                rts
-print_special
-               ldab 0,x
-               inx
-               subb #$30
-               lsla
-               lsla
-               lsla
-               lsla
-               bcc  print_hinib
-               subb #7
-print_hinib
-               ldaa 0,x
-               inx
-               suba #$30
-               cmpa #$10
-               bne  print_addval
-               suba #7
-print_addval
-               aba
-               clrb
-               jsr  store_dbuf
-               tab
-               ldaa #'p'
-               bra  print_put
 print_escape
-        	ldab 0,x
-		beq  print_end
-		clra
-		psha
-		psha
-		inx
-		tba
-		anda #~$20		; ignore case 
-		cmpa #'x'
-		beq  pes_hex
-		cmpa #'i'
-		beq  pes_dec
-		cmpa #'d'
-		beq  pes_dec
-		cmpa #'s'
-		beq  pes_str
-		cmpa #'c'
-		beq  pes_chr
-		cmpb #'%'
-		beq  pes_esc
-		cmpb #'9'+1
-		bcc  pes_return
-		cmpb #'0'
-		bcs  pes_return
-		bne  pes_padspc
-		ins
-		ins
-		pshb
-		des
-		bra  pes_pad
-pes_padspc
-		ins
-		ins
-		ldaa #' '
-		psha
-		des
-pes_pad
-		ldab 0,x
-		
-pes_return
-		ins
-		ins
-		bra  print_loop
+               pula
+               ins
+               psha
+               pshb                    ; remember the 2 bytes read before
+               ldab 0,x                ; read next byte
+               beq  print_end
+               inx
+               tba
+               anda #~$20              ; ignore case
+               cmpa #'x'
+               beq  pes_hex
+               cmpa #'i'
+               beq  pes_dec
+               cmpa #'d'
+               beq  pes_dec
+               cmpa #'s'
+               beq  pes_str
+               cmpa #'c'
+               beq  pes_chr
+               cmpb #'%'
+               beq  print_char         ; print "%"
+                                       ; all types have been checked
+               cmpb #'9'+1             ; check possible modifiers for sanity
+               bcc  print_loop         ; (only numeric values allowed)
+               cmpb #'0'
+               bcs  print_loop
+               bra  print_escape
+;**********
+pes_hex
+               pshx
+               tsx
+               ldab 2+PES_ARG_OFS,x    ; get Offset of next Variable
+               inc  2+PES_ARG_OFS,x    ; increment offset
+               abx
+               ldab 2+PES_ARG,x        ; get variable
+               pshb
+               tsx
+               ldaa 3+PES_MODIF2,x     ; get modifier 2
+phx_print
+               tsx
+               ldab 1,x
+               lsrb
+               lsrb
+               lsrb
+               lsrb
+               cmpa #'0'               ; check if '0' modifier was given
+               beq  phx_hinib          ; if it was, print both nibbles
+               tstb                    ; if not, test hi nibble
+               beq  phx_lonib          ; omit printout if it is zero
+phx_hinib
+               jsr  sendnibble         ; print hi nibble
+phx_lonix
+               pulb
+               andb #$0f
+               jsr  sendnibble         ; print lo nibble
+               pulx
+               jmp  print_loop         ; continue
+;**********
+pes_dec
+               pshx
+               tsx
+               ldab 2+PES_ARG_OFS,x    ; get Offset of next Variable
+               ldaa 2+PES_ARG_OFS,x
+               adda #4
+               staa 2+PES_ARG_OFS,x    ; increment offset
+               abx
+               pshx                    ; push pointer to long onto stack
+               tsx
+               ldaa 4+PES_MODIF2,x     ; get modifier 2
+               beq  pdc_print          ; if there is no modifier 2, print unmodified
+               ldab 4+PES_MODIF1,x     ; get modifier 1
+               cmpb #'0'
+               beq  pdc_singlemod
+               ldab #$80               ; load 'fill with space' modifier bit
+               suba #'0'
+               aba                     ; add number of digits to print
+               bra  pdc_print
+pdc_singlemod
+               suba #'0'               ; number of digits to print
+pdc_print
+               clrb                    ; do not truncate printout
+               pulx                    ; get longint pointer from stack
+               jsr  uintdec
+               pulx                    ; get pointer to next char from stack
+               jmp  print_loop         ; continue
+
+
+
 ;*********
 ; A T O I
 ;*********
@@ -1283,7 +1357,7 @@ pes_return
 ; conversion ignores non-numeric chars preceeding the number
 ; conversion stops at NULL or
 ; 		   at non-numeric char trailing the number
-; 
+;
 ; Parameter    : D  - Adresse vom Input String (nullterminiert)
 ;                X  - Adresse f�r Ergebnis (Integer, 32 Bit)
 ;
@@ -1310,24 +1384,24 @@ atoi_loop
                 ldab 0,x
                 andb #~CHR_BLINK           ; Blink Bit ausblenden
                 beq  atoi_end              ; Schon das Stringende erreicht?
-		cmpb #'0'
-		bcs  atoi_nonum
-		cmpb #'9'+1
-		bcs  atoi_isnum
+                cmpb #'0'
+                bcs  atoi_nonum
+                cmpb #'9'+1
+                bcs  atoi_isnum
 atoi_nonum
-		pshx
-		tsx
-		ldx  2,x		   ; get *output 
-		ldab 0,x		   ; get output
-		orab 1,x
-		orab 2,x
-		orab 3,x
-		beq  atoi_next		   ; if output is still zero,
-					   ; ignore non-numeric chars
-		pulx
-		bra  atoi_end		   ; else stop conversion here
-atoi_isnum	
-		pshx                       ; save bufferaddress (index)
+                pshx
+                tsx
+                ldx  2,x                   ; get *output 
+                ldab 0,x                   ; get output
+                orab 1,x
+                orab 2,x
+                orab 3,x
+                beq  atoi_next             ; if output is still zero,
+                                           ; ignore non-numeric chars
+                pulx
+                bra  atoi_end              ; else stop conversion here
+atoi_isnum      
+                pshx                       ; save bufferaddress (index)
                 psha                       ; save counter
                 subb #$30                  ; get number from ascii code
 
