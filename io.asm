@@ -37,7 +37,7 @@
 ;
 io_init
                 aim  #%11100111,RP5CR     ; nicht auf "Memory Ready" warten, das statische RAM ist schnell genug
-                                          ; HALT Input auch deaktivieren, Port53 wird später als Ausgang benötigt
+                                          ; HALT Input auch deaktivieren, Port53 wird spÃ¤ter als Ausgang benÃ¶tigt
 
                 ldab #%10110100
                 stab Port2_DDR_buf             ; Clock (I2C),
@@ -68,7 +68,7 @@ io_init
                 stab Port6_DDR_buf
                 stab Port6_DDR                 ; A16 (Bank Switch), PTT Syn Latch und DAC auf Ausgang
 
-                aim  #%10011011, Port6_Data    ; Bank 0 wählen
+                aim  #%10011011, Port6_Data    ; Bank 0 wÃ¤hlen
 
 
                 ldx  #bank_switch_end-bank_switch_cpy
@@ -114,7 +114,7 @@ s2sr_loop
                 psha                    ; Bitcounter sichern
                 lslb                    ; MSB in Carryflag schieben
                 bcs  s2sr_bitset        ; Sprung, wenn Bit gesetzt
-                I2C_DL                  ; Bit gelöscht, also Datenleitung 0
+                I2C_DL                  ; Bit gelÃ¶scht, also Datenleitung 0
                 I2C_CH
                 I2C_CL                  ; Clock Hi/Lo toggle
                 bra  s2sr_dec
@@ -130,7 +130,7 @@ s2sr_dec
 
 
                 oim  #$80, Port2_Data
-                aim  #$7F, Port2_Data            ;Shift Reg Latch toggeln - Daten übernehmen
+                aim  #$7F, Port2_Data            ;Shift Reg Latch toggeln - Daten Ã¼bernehmen
 
                 dec  irq_wd_reset                ; disable IRQ Watchdog Reset
                 dec  tasksw_en
@@ -143,7 +143,7 @@ s2sr_dec
 ;             B = Divider Value ( A )
 ;             X = Divider Value ( N / R)
 ;
-;             gültige Werte für N: 3-1023
+;             gÃ¼ltige Werte fÃ¼r N: 3-1023
 ;                               A: 0-127
 ;                               R: 3-16383
 ;
@@ -160,8 +160,8 @@ set_an
 set_an_loop
                 lslb                             ; B ein Bit nach links
                 xgdx
-                rolb                             ; X/lo ein Bit nach links, Bit von B einfügen
-                rola                             ; X/hi ein Bit nach links, Bit von X/lo einfügen
+                rolb                             ; X/lo ein Bit nach links, Bit von B einfÃ¼gen
+                rola                             ; X/hi ein Bit nach links, Bit von X/lo einfÃ¼gen
                 xgdx
                 deca                             ; Counter --
                 bne  set_an_loop
@@ -179,8 +179,8 @@ set_r
 pll_loop
                 lslb                             ; B ein Bit nach links
                 xgdx
-                rolb                             ; X/lo ein Bit nach links, Bit von B einfügen
-                rola                             ; X/hi ein Bit nach links, Bit von X/lo einfügen
+                rolb                             ; X/lo ein Bit nach links, Bit von B einfÃ¼gen
+                rola                             ; X/hi ein Bit nach links, Bit von X/lo einfÃ¼gen
                                                  ; Shift next Bit into Carry Flag
                 xgdx
 
@@ -249,7 +249,7 @@ i2c_stop
 ;***************
 ;
 ; I2C "ACK" senden
-; Bestätigung des Adress und Datenworts -> 0 im 9. Clock Zyklus senden
+; BestÃ¤tigung des Adress und Datenworts -> 0 im 9. Clock Zyklus senden
 ;
 ; changed Regs: NONE
 ;
@@ -266,8 +266,8 @@ i2c_ack
 ; I 2 C   T S T A C K
 ;***********************
 ;
-; I2C "ACK" prüfen
-; Bestätigung des Adress und Datenworts -> 0 im 9. Clock Zyklus senden
+; I2C "ACK" prÃ¼fen
+; BestÃ¤tigung des Adress und Datenworts -> 0 im 9. Clock Zyklus senden
 ;
 ; Ergebnis    : A - 0 : Ack
 ;                   1 : No Ack / Error
@@ -303,7 +303,7 @@ itx_loop
                 psha                    ; Bitcounter sichern
                 lslb                    ; MSB in Carryflag schieben
                 bcs  itx_bitset         ; Sprung, wenn Bit gesetzt
-                I2C_DL                  ; Bit gelöscht, also Datenleitung 0
+                I2C_DL                  ; Bit gelÃ¶scht, also Datenleitung 0
                 I2C_CH
                 I2C_CL                  ; Clock Hi/Lo toggle
                 bra  itx_dec
@@ -333,7 +333,7 @@ i2c_rx
                 psha
                 pshx
                 clra
-                psha                    ; temporären Speicher für empfangenes Byte
+                psha                    ; temporÃ¤ren Speicher fÃ¼r empfangenes Byte
 
                 tsx
                 I2C_DI                  ; I2C Data Input
@@ -343,14 +343,14 @@ irx_loop
                 ldab Port2_Data         ; Daten einlesen
                 andb #%10
                 tstb                    ; Bit gesetzt?
-                beq  irx_shift          ; Nein, dann kein Bit einfügen
+                beq  irx_shift          ; Nein, dann kein Bit einfÃ¼gen
                 tab
-                oraa 0,x                ; Wenn gesetzt, dann Bit einfügen
+                oraa 0,x                ; Wenn gesetzt, dann Bit einfÃ¼gen
                 staa 0,x                ; und speichern
                 tba
 irx_shift
                 I2C_CLb                 ; Clock toggle
-                lsra                    ; nächstes Bit
+                lsra                    ; nÃ¤chstes Bit
                 bcc  irx_loop           ; wenn noch ein Bit zu empfangen ist -> loop
 
                 pulb                    ; Ergebnis holen
@@ -367,7 +367,7 @@ irx_shift
 ;***********************
 sci_init
                 ldab #51						; TODO: MACRO
-                stab TCONR                      ; Counter für 1200 bps
+                stab TCONR                      ; Counter fÃ¼r 1200 bps
 
                 ldab #%10000
                 stab TCSR3                      ; Timer 2 aktivieren, Clock = E (Sysclk/4=2MHz), no Timer output
@@ -398,7 +398,7 @@ sci_rx
                 abx                       ; Zeiger addieren, Leseadresse berechnen
                 ldaa 0,x                  ; Datenbyte aus Puffer lesen
                 incb                      ; Zeiger++
-                andb #$io_inbuf_mask      ; Im gültigen Bereich bleiben
+                andb #$io_inbuf_mask      ; Im gÃ¼ltigen Bereich bleiben
                 stab io_inbuf_r           ; neue Zeigerposition speichern
                 tab                       ; Datenbyte nach B
                 clra                      ; A = 0
@@ -424,7 +424,7 @@ sci_read
                 abx                       ; Zeiger addieren, Leseadresse berechnen
                 ldaa 0,x                  ; Datenbyte aus Puffer lesen
                 incb                      ; Zeiger++
-                andb #$io_inbuf_mask      ; Im gültigen Bereich bleiben
+                andb #$io_inbuf_mask      ; Im gÃ¼ltigen Bereich bleiben
                 stab io_inbuf_r           ; neue Zeigerposition speichern
                 tab                       ; Datenbyte nach B
                 clra                      ; A = 0
@@ -434,7 +434,7 @@ sci_read
 ; S C I   R X   M
 ;************************
 ;
-; Echo/Kommandobestätigung lesen
+; Echo/KommandobestÃ¤tigung lesen
 ;
 ;                         A : Status (0=RX ok, 1=no RX)
 ;                         B : rxd Byte
@@ -489,7 +489,7 @@ srdm_cont
                 pshx
                 ldx  #key_convert         ; index key convert table
                 abx
-                ldab 0,x                  ; Key übersetzen
+                ldab 0,x                  ; Key Ã¼bersetzen
                 pulx
                 rts
 
@@ -501,7 +501,7 @@ sci_tx_buf
                 ;A : Status (0=ok, 1=buffer full)
                 tab
                 ldab io_outbuf_w          ; Zeiger auf Schreibposition holen
-                incb                      ; erhöhen
+                incb                      ; erhÃ¶hen
                 andb #io_outbuf_mask      ; Im Bereich 0-(size-1) bleiben
                 cmpb io_outbuf_r          ; mit Leseposition vergleichen
                 beq  stb_full             ; Wenn gleich, ist Puffer voll
@@ -542,8 +542,8 @@ stx_wait_tdr_empty2
 ; S C I   T X   W
 ;************************
 ;
-; Sendet Zeichen in B nach Ablauf des LCD_TIMER. Setzt abhängig von gesendeten
-; Zeichen den Timer neu. Berücksichtigt unterschiedliche Timeouts für $78, $4F/$5F und Rest
+; Sendet Zeichen in B nach Ablauf des LCD_TIMER. Setzt abhÃ¤ngig von gesendeten
+; Zeichen den Timer neu. BerÃ¼cksichtigt unterschiedliche Timeouts fÃ¼r $78, $4F/$5F und Rest
 ;
 ; Parameter    : B - zu sendendes Zeichen
 ;
@@ -574,19 +574,19 @@ stw_wait_tdr_empty2
 
                 tba
                 oraa #$10
-                cmpa #$5D              ; auf 4D/5D prüfen - extended char
-                beq  stw_end           ; nächstes Zeichen OHNE Delay senden
+                cmpa #$5D              ; auf 4D/5D prÃ¼fen - extended char
+                beq  stw_end           ; nÃ¤chstes Zeichen OHNE Delay senden
                 oraa #$01
-                cmpa #$5F              ; auf 4E/4F/5E/5F prüfen - extended char
-                beq  stw_end           ; nächstes Zeichen OHNE Delay senden
+                cmpa #$5F              ; auf 4E/4F/5E/5F prÃ¼fen - extended char
+                beq  stw_end           ; nÃ¤chstes Zeichen OHNE Delay senden
 
                 cmpb #$78              ; LCD Clear Zeichen?
                 bcs  stw_10ms          ; Alles was <$78 ist mit normalem Delay
-                ldx  #LCDDELAY*4       ; vierfacher Timeout für Clear & Reset Befehle
+                ldx  #LCDDELAY*4       ; vierfacher Timeout fÃ¼r Clear & Reset Befehle
                 stx  lcd_timer
                 bra  stw_end
 stw_10ms
-                ldx  #LCDDELAY         ; normaler Timeout für Rest (außer 4f/5f)
+                ldx  #LCDDELAY         ; normaler Timeout fÃ¼r Rest (auÃŸer 4f/5f)
                 stx  lcd_timer
 stw_end
                 pulx
@@ -624,7 +624,7 @@ check_outbuf
 ; S C I   A C K
 ;****************
 ;
-; Parameter : B - gesendetes Zeichen, das bestätigt werden soll
+; Parameter : B - gesendetes Zeichen, das bestÃ¤tigt werden soll
 ;
 ; Result    : A - 0 = OK
 ;                 1 = Error / Timeout
@@ -635,7 +635,7 @@ sci_ack
                 psha
 
 sak_empty_buf
-                jsr  check_inbuf       ; Empfangspuffer überprüfen
+                jsr  check_inbuf       ; Empfangspuffer Ã¼berprÃ¼fen
                 tsta
                 beq  sak_start_chk     ; Wenn kein Zeichen
                 decb
@@ -655,19 +655,19 @@ sak_loop
                 bra  sak_loop          ; nochmal nachsehen
 sak_getanswer
                 jsr  sci_read          ; Zeichen holen
-                cmpb #$7F              ; Fehler? (Es wurde eine Taste gedrückt)
+                cmpb #$7F              ; Fehler? (Es wurde eine Taste gedrÃ¼ckt)
                 bne  sak_chk_cmd
-                bsr  sci_read_cmd      ; Ja, dann Kommando lesen und in Puffer für Menü speichern
+                bsr  sci_read_cmd      ; Ja, dann Kommando lesen und in Puffer fÃ¼r MenÃ¼ speichern
                 bra  sak_end
 sak_chk_cmd
                 tsx
                 cmpb 1,x               ; Empfangenes Zeichen = gesendeten Zeichen?
-                beq  sak_ok            ; Ja, dann zurück
-                cmpb #$74              ; auf 'Input lock' prüfen
+                beq  sak_ok            ; Ja, dann zurÃ¼ck
+                cmpb #$74              ; auf 'Input lock' prÃ¼fen
                 beq  sak_unlock
                 jsr  check_inbuf       ; Noch Zeichen im Puffer?
                 tsta
-                bne  sak_getanswer     ; Ja, dann nochmal Vergleich durchführen
+                bne  sak_getanswer     ; Ja, dann nochmal Vergleich durchfÃ¼hren
                 bra  sak_end           ; Ansonsten Ende mit Fehlermeldung
 sak_ok
                 tsx
@@ -698,9 +698,9 @@ src_empty_buf
                 jsr  sci_rx
                 tsta
                 beq  src_empty_buf     ; Solange Zeichen lesen bis Puffer leer ist
-                pulb                   ; Zeichen zurückholen
-                jsr  sci_tx_w          ; Bestätigung senden
-                jsr  men_buf_write     ; Eingabe in Menü Puffer ablegen
+                pulb                   ; Zeichen zurÃ¼ckholen
+                jsr  sci_tx_w          ; BestÃ¤tigung senden
+                jsr  men_buf_write     ; Eingabe in MenÃ¼ Puffer ablegen
                 rts
 ;****************************
 ; S C I   T R A N S   C M D
@@ -722,13 +722,13 @@ sci_trans_cmd
 stc_clear_buf
                 cmpb #$20              ; Werte >= $20 sind keine Eingaben
                 bcc  stc_end
-                jsr  check_inbuf       ; Prüfen wieviele Byte im Input Speicher sind
+                jsr  check_inbuf       ; PrÃ¼fen wieviele Byte im Input Speicher sind
                 beq  stc_ack           ; Wenn das letzte gerade gelesen wurde, ACK senden
-                jsr  sci_read          ; nächstes Zeichen lesen
+                jsr  sci_read          ; nÃ¤chstes Zeichen lesen
                 bra  stc_clear_buf     ; loop
 stc_ack
-                jsr  sci_tx_w          ; Sonst Bestätigung senden
-                jsr  men_buf_write     ; und Eingabe in Menü Puffer ablegen
+                jsr  sci_tx_w          ; Sonst BestÃ¤tigung senden
+                jsr  men_buf_write     ; und Eingabe in MenÃ¼ Puffer ablegen
 stc_end
                 pulx
                 pula
@@ -750,8 +750,8 @@ men_buf_write
                 pshx
                 tba
                 ldab io_menubuf_w          ; Zeiger auf Schreibadresse holen
-                incb                       ; prüfen ob Puffer schon voll
-                andb #io_menubuf_mask      ; maximal 15 Einträge
+                incb                       ; prÃ¼fen ob Puffer schon voll
+                andb #io_menubuf_mask      ; maximal 15 EintrÃ¤ge
                 cmpb io_menubuf_r          ; Lesezeiger schon erreicht?
                 beq  mbw_end               ; Overrun Error, Zeichen verwerfen
                 ldab io_menubuf_w          ; Zeiger erneut holen
@@ -781,12 +781,12 @@ mbw_end
 ;                 'x' - unsigned int (hex, 8 Bit)
 ;                 'u' - unsinged int (dezimal, 8 Bit)
 ;                 'l' - longint (dezimal, 32 Bit)
-;                 'p' - PLAIN, gibt Zeichen unverändert aus, speichert es NICHT im Puffer
+;                 'p' - PLAIN, gibt Zeichen unverÃ¤ndert aus, speichert es NICHT im Puffer
 ;                       Anwendung von 'p' : Senden von Display Befehlen (Setzen des Cursors, Steuern der LEDs, etc.)
 ;
 ;
 ;             B - Zeichen in Modus c,x,u,p
-;                 Anzahl nicht darzustellender Ziffern in Modus 'l' (gezählt vom Ende! - 1=Einer, 2=Zehner+Einer, etc...)
+;                 Anzahl nicht darzustellender Ziffern in Modus 'l' (gezÃ¤hlt vom Ende! - 1=Einer, 2=Zehner+Einer, etc...)
 ;
 ;             Stack - Longint in Modus l
 ;
@@ -835,7 +835,7 @@ pc_char_out    ; ASCII Zeichen in B
                ldaa cpos            ; Cursorposition holen
                cmpa #8              ; Cursorpos >=8?
                bcc  pc_end          ; Dann ist das Display voll, nix ausgeben (geht auch viel schneller)
-               jsr  pc_cache        ; Prüfen ob Zeichen schon an dieser Position geschrieben wurde
+               jsr  pc_cache        ; PrÃ¼fen ob Zeichen schon an dieser Position geschrieben wurde
                tsta                 ; Wenn ja,
                beq  pc_end          ; dann nichts ausgeben
                jsr  store_dbuf      ; Zeichen in Displaybuffer speichern (ASCII)
@@ -850,8 +850,8 @@ pc_char_out    ; ASCII Zeichen in B
                psha                 ; save character to print
                clra                 ; HiByte = 0
 
-               lsld                 ; Index für Word Einträge berechnen
-               addd #char_convert   ; Basisadresse hinzufügen
+               lsld                 ; Index fÃ¼r Word EintrÃ¤ge berechnen
+               addd #char_convert   ; Basisadresse hinzufÃ¼gen
                xgdx
                ldd  0,x             ; D=Eintrag in char_convert Tabelle
 
@@ -875,7 +875,7 @@ pc_sendchar
                tab
 pc_double
                jsr  sci_tx_w          ; Zeichen senden
-               jsr  sci_ack           ; Auf Bestätigung warten
+               jsr  sci_ack           ; Auf BestÃ¤tigung warten
                tsta                   ; Zeichen erfolgreich gesendet?
                bne  pc_double         ; Wenn nicht, nochmal senden
                tsx
@@ -886,13 +886,13 @@ pc_single                             ; Ausgabe von Zeichencodes mit 1 Byte
                tsta                   ; Erfolgreich gesendet?
                bne  pc_single         ; Nein? Dann nochmal probieren
                pula                   ; gemerkten Tabelleneintrag holen
-               ins                    ; lower char aus Tabelle wird nicht mehr benötigt,
+               ins                    ; lower char aus Tabelle wird nicht mehr benÃ¶tigt,
                tab                    ; Blink Status ($4x / $5x) aber schon
 
                orab #$10
                cmpb #$5D              ; War Byte 1 = $4D oder $5D?
-               beq  pc_extended       ; dann müssen wir noch ein $4E Char senden
-               pulb                   ; gemerkten Index vom Stack löschen
+               beq  pc_extended       ; dann mÃ¼ssen wir noch ein $4E Char senden
+               pulb                   ; gemerkten Index vom Stack lÃ¶schen
                bra  pc_end
 pc_extended
                anda #$10              ; Blink Bit isolieren
@@ -905,7 +905,7 @@ pc_extended
                tab                    ; nach B transferieren
 pc_ext_send1
                jsr  sci_tx_w          ; send char
-               jsr  sci_ack           ; Bestätigen lassen
+               jsr  sci_ack           ; BestÃ¤tigen lassen
                tsta
                bne  pc_ext_send1      ; nochmal senden, falls erfolglos gesendet
 
@@ -929,13 +929,13 @@ pc_terminal
 ; Putchar Subroutine
 ;
 ; Funktion zur Beschleunigung der Displayausgabe
-; Überspringt Zeichen, die schon auf dem Display vorhanden sind
+; Ãœberspringt Zeichen, die schon auf dem Display vorhanden sind
 ; Falls ein Unterschied zwischen vorhandenem und zu schreibenden Zeichen
 ; auftritt, wird der Cursor von dieser Funktion korrekt positioniert
 ;
 ; Parameter : B - Zeichen (ASCII)
 ;
-; Ergebnis :  A - 0 = Zeichen überspringen
+; Ergebnis :  A - 0 = Zeichen Ã¼berspringen
 ;                 1 = Zeichen ausgeben
 ;
 pc_cache
@@ -949,19 +949,19 @@ pc_cache
                cmpa 0,x               ; Mit auszugebenden Zeichen vergleichen
                beq  pcc_same          ; Wenn es gleich ist, Zeichen nicht ausgeben
 
-               ldaa pcc_cdiff_flag    ; Unterscheidet sich Cursorposition in CPOS von tatsächlicher Cursorposition?
+               ldaa pcc_cdiff_flag    ; Unterscheidet sich Cursorposition in CPOS von tatsÃ¤chlicher Cursorposition?
                beq  pcc_diff          ; Nein, dann weitermachen - Returnvalue = 'Zeichen ausgeben'
 
                ldaa #'p'
                addb #$60              ; $60 zu Cursorposition addieren -> Positionierungsbefehl erzeugen
                jsr  putchar           ; Cursor korrekt positionieren
-               clr  pcc_cdiff_flag    ; Flag löschen, Positionen stimmen wieder überein
+               clr  pcc_cdiff_flag    ; Flag lÃ¶schen, Positionen stimmen wieder Ã¼berein
                bra  pcc_diff
 pcc_same
                inc  cpos              ; Cursor weitersetzen
                ldab #1
-               stab pcc_cdiff_flag    ; Cursorposition in CPOS unterscheidet sich von tatsächlicher
-               clra                   ; Returnvalue: 'Zeichen überspringen'
+               stab pcc_cdiff_flag    ; Cursorposition in CPOS unterscheidet sich von tatsÃ¤chlicher
+               clra                   ; Returnvalue: 'Zeichen Ã¼berspringen'
                bra  pcc_end
 pcc_diff
                ldaa #1
@@ -975,7 +975,7 @@ pcc_end
 ;
 ; Putchar Subroutine
 ;
-; Formatiert einen 8 Bit Integer für Hexadezimale Darstellung um und gibt ihn aus
+; Formatiert einen 8 Bit Integer fÃ¼r Hexadezimale Darstellung um und gibt ihn aus
 ;
 ; Parameter : B - 8 Bit Integer
 ;
@@ -1026,7 +1026,7 @@ snb_numeric
 ;
 ; Putchar Subroutine
 ;
-; Formatiert einen 8 Bit Integer für Dezimale Darstellung um und gibt ihn aus
+; Formatiert einen 8 Bit Integer fÃ¼r Dezimale Darstellung um und gibt ihn aus
 ;
 ; Parameter : B - 8 Bit Integer
 ;
@@ -1074,7 +1074,7 @@ einer
 ;
 ; Putchar Subroutine
 ;
-; Formatiert einen 32 Bit Integer für Dezimale Darstellung um und gibt ihn aus
+; Formatiert einen 32 Bit Integer fÃ¼r Dezimale Darstellung um und gibt ihn aus
 ;
 ; Parameter : B - Anzahl der vom Ende der Zahl abzuschneidenden Ziffern
 ;
@@ -1104,10 +1104,10 @@ ulongout
                andb #7                 ; max. 7 Stellen abschneiden
                pshb                    ; Exponent auf stack
                tsx
-               ldab #9                 ; index für 10^x Tabelle berechnen
+               ldab #9                 ; index fÃ¼r 10^x Tabelle berechnen
                sbcb 0,x
-               ins                     ; Exponent vom Stack löschen
-; TODO Überprüfung auf b>9
+               ins                     ; Exponent vom Stack lÃ¶schen
+; TODO ÃœberprÃ¼fung auf b>9
                lslb
                lslb                    ; Index *4 (DWords werden adressiert)
                ldx  #exp10_9
@@ -1117,9 +1117,9 @@ ulongout
                psha
                ldx  0,x                ; HiWord lesen und beides
                pshx                    ; als Divisor auf Stack
-               jsr  divide3232         ; 32 Bit Division durchführen
+               jsr  divide3232         ; 32 Bit Division durchfÃ¼hren
                pulx
-               pulx                    ; Rest löschen
+               pulx                    ; Rest lÃ¶schen
                pulx                    ; Zeiger holen
                ldab #$ff
                pshb
@@ -1133,11 +1133,11 @@ ulo2_divloop
                ldd  2,x
                orab 1,x
                orab 0,x
-               subd #0                 ; Prüfen ob Quotient = 0
+               subd #0                 ; PrÃ¼fen ob Quotient = 0
                bne  ulo2_divloop       ; Wenn nicht, dann erneut teilen
 ulo2_prntloop
                pulb
-               cmpb #$ff               ; Prüfen ob alle Ergebniswerte vom Stack gelesen wurden
+               cmpb #$ff               ; PrÃ¼fen ob alle Ergebniswerte vom Stack gelesen wurden
                beq  ulo2_end           ; Ja, dann Ende
                addb #$30               ; $30 addieren
                ldaa #'c'
@@ -1189,7 +1189,7 @@ printf
 print_loop
                ldab 0,x             ; Zeichen holen
                beq  end_printf      ; =$00 ? Dann String zu Ende -> Return
-               inx                  ; Zeiger auf nächstes Zeichen
+               inx                  ; Zeiger auf nÃ¤chstes Zeichen
                cmpb #'%'            ; auf "%" testen
                beq  print_escape    ;
                cmpb #backslash      ; auf "\" testen
@@ -1232,6 +1232,110 @@ print_addval
 print_escape
                ldaa 0,x
                bra  print_put
+;*********
+; A T O I
+;*********
+;
+; Umrechnung String -> Integer (long)
+;
+; conversion ignores non-numeric chars preceeding the number
+; conversion stops at NULL or
+; 		   at non-numeric char trailing the number
+; 
+; Parameter    : D  - Adresse vom Input String (nullterminiert)
+;                X  - Adresse für Ergebnis (Integer, 32 Bit)
+;
+; Ergebnis     : *X - 32Bit Integer
+;
+; changed Regs : A, B , X
+;
+; 0 - *input
+; 2 - *frequenz
+atoi
+frq_calc_freq
+                pshx                       ; Adresse für output auf Stack sichern
+                pshb
+                psha                       ; Adresse vom Eingabepuffer auf Stack
+
+                ldd  #0
+                std  0,x
+                std  2,x                   ; output = 0
+
+                pulx                       ; Adresse vom String wiederholen
+                clra                       ; Zähler auf 0
+atoi_loop
+                ldab 0,x
+                andb #~CHR_BLINK           ; Blink Bit ausblenden
+                beq  atoi_end              ; Schon das Stringende erreicht?
+		cmpb #'0'
+		bcs  atoi_nonum
+		cmpb #'9'+1
+		bcs  atoi_isnum
+atoi_nonum
+		pshx
+		tsx
+		ldx  2,x		   ; get *output 
+		ldab 0,x		   ; get output
+		orab 1,x
+		orab 2,x
+		orab 3,x
+		beq  atoi_next		   ; if output is still zero,
+					   ; ignore non-numeric chars
+		pulx
+		bra  atoi_end		   ; else stop conversion here
+atoi_isnum	
+		pshx                       ; save bufferaddress (index)
+                psha                       ; save counter
+                subb #$30                  ; get number from ascii code
+
+                pshb                       ; store on stack
+                clrb
+                pshb
+                pshb
+                pshb                       ; Faktor 1 auf Stack - Ziffer von Eingabe
+
+                tab
+                lslb
+                lslb                       ; calc Index for 4 Byte entries
+
+                clra
+                addd #exp10                ; add base address
+                xgdx
+                ldd  2,x
+                ldx  0,x                   ; Faktor 2 nach D:X
+                jsr  multiply32            ; Multiplizieren
+                ins
+                ins
+                ins
+                ins                        ; Faktor 1 vom Stack löschen
+
+                pshx                       ; Highword vom Ergebnis sichern
+                tsx
+                ldx  5,x                   ; Zieladresse vom Stack holen
+
+                addd 2,x                   ; add new digit to output
+                std  2,x
+
+                pula
+                pulb                       ; Highword vom Stack holen
+
+                adcb 1,x
+                stab 1,x
+                adca 0,x
+                staa 0,x                   ; store new output
+
+                pula                       ; Zähler wiederholen
+atoi_next
+                pulx                       ; String Adresse wiederholen
+        	inx                        ; Adresse ++
+                inca                       ; Zähler --
+                cmpa #8                    ; Zähler <8 (maximale Eingabelänge)
+                bcs  atoi_loop              ; dann loop
+atoi_end
+                pulx                       ; sonst: Zieladresse vom Stack löschen und
+                rts                        ; Rücksprung
+
+
 
 ;#################################
 char_conv_solid

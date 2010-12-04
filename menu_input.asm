@@ -105,7 +105,7 @@ m_set_freq
 
                 tsx                   ; Zeiger auf Zwischenspeicher (Stack) nach X
                 ldd  #f_in_buf        ; Zeiger auf Eingabestring holen
-                jsr  frq_calc_freq    ; Frequenz berechnen
+                jsr  atoi    	      ; Frequenz berechnen
 
                 tsx                   ; Zeiger auf Frequenz DWord nach X
                 jsr  frq_update       ; Control Task mitteilen, dass neue Frequenz gesetzt wurde
@@ -184,16 +184,16 @@ m_digit_editor
                 ldab #'z'
                 pshb
                 bra  mde_chkspace
-mde_numeric
-                ldab #'0'
-                pshb
-                ldab #'9'
-                pshb
-                bra  mde_chkspace
 mde_alphanum
                 ldab #'0'
                 pshb
                 ldab #'z'
+                pshb
+                bra  mde_chkspace
+mde_numeric
+                ldab #'0'
+                pshb
+                ldab #'9'
                 pshb
 mde_chkspace
                 tsx
@@ -213,8 +213,9 @@ mde_chkspace
                 ins
                 pulb
                 rts
-
-
+mde_convspace
+		tsx
+	
 ;****************
 ; M   D I G I T
 ;
