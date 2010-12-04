@@ -1278,7 +1278,7 @@ print_escape
                cmpa #'s'
                beq  pes_str
                cmpa #'c'
-               beq  pes_chr
+               beq  pes_char
                cmpb #'%'
                beq  print_char         ; print "%"
                                        ; all types have been checked
@@ -1287,6 +1287,37 @@ print_escape
                cmpb #'0'
                bcs  print_loop
                bra  print_escape
+;**********
+pes_char
+               pshx
+               tsx
+               ldab 2+PES_ARG_OFS,x    ; get Offset of next Variable
+               inc  2+PES_ARG_OFS,x    ; increment offset
+               abx
+               ldab 2+PES_ARG,x        ; get variable
+               pulx
+               bra  print_char         ; print as character
+;**********
+pes_str
+               pshx
+               tsx
+               ldab 2+PES_ARG_OFS,x    ; get Offset of next Variable
+               tba
+               adda #2
+               staa 2+PES_ARG_OFS,x    ; store new Offset
+               abx
+               ldx  2+PES_ARG,x        ; get pointer
+pst_loop
+               ldab 0,x                ; get char from string
+               beq  pst_return         ; exit on "NULL"
+               ldaa #'c'
+               pshx
+               jsr  putchar            ; print char
+               pulx
+               bra  pst_loop           ; loop
+pst_return
+               pulx
+               bra  print_loop         ; print as character
 ;**********
 pes_hex
                pshx
@@ -1311,7 +1342,7 @@ phx_print
                beq  phx_lonib          ; omit printout if it is zero
 phx_hinib
                jsr  sendnibble         ; print hi nibble
-phx_lonix
+phx_lonib
                pulb
                andb #$0f
                jsr  sendnibble         ; print lo nibble
@@ -1322,7 +1353,7 @@ pes_dec
                pshx
                tsx
                ldab 2+PES_ARG_OFS,x    ; get Offset of next Variable
-               ldaa 2+PES_ARG_OFS,x
+               tba
                adda #4
                staa 2+PES_ARG_OFS,x    ; increment offset
                abx
