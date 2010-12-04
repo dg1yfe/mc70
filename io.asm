@@ -1201,6 +1201,7 @@ print_put
                jsr  putchar
                pulx
                bra  print_loop
+print_end
 end_printf
                pula
                pulb
@@ -1230,8 +1231,49 @@ print_addval
                ldaa #'p'
                bra  print_put
 print_escape
-               ldaa 0,x
-               bra  print_put
+        	ldab 0,x
+		beq  print_end
+		clra
+		psha
+		psha
+		inx
+		tba
+		anda #~$20		; ignore case 
+		cmpa #'x'
+		beq  pes_hex
+		cmpa #'i'
+		beq  pes_dec
+		cmpa #'d'
+		beq  pes_dec
+		cmpa #'s'
+		beq  pes_str
+		cmpa #'c'
+		beq  pes_chr
+		cmpb #'%'
+		beq  pes_esc
+		cmpb #'9'+1
+		bcc  pes_return
+		cmpb #'0'
+		bcs  pes_return
+		bne  pes_padspc
+		ins
+		ins
+		pshb
+		des
+		bra  pes_pad
+pes_padspc
+		ins
+		ins
+		ldaa #' '
+		psha
+		des
+pes_pad
+		ldab 0,x
+		
+pes_return
+		ins
+		ins
+		bra  print_loop
 ;*********
 ; A T O I
 ;*********
@@ -1245,10 +1287,11 @@ print_escape
 ; Parameter    : D  - Adresse vom Input String (nullterminiert)
 ;                X  - Adresse für Ergebnis (Integer, 32 Bit)
 ;
-; Ergebnis     : *X - 32Bit Integer
+; Ergebnis     : X - *Output (32 Bit Integer)
 ;
 ; changed Regs : A, B , X
 ;
+; local Stack variables:
 ; 0 - *input
 ; 2 - *frequenz
 atoi
