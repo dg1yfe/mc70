@@ -99,7 +99,7 @@ m_set_freq
                 addd #f_in_buf
                 xgdx
                 clr  0,x              ; Eingabe mit 0 terminieren
-
+m_set_freq_x
                 pshx                  ; 32 Bit Platz schaffen auf Stack
                 pshx                  ; für Ergebnis der Frequenzberechnung
 
@@ -142,11 +142,11 @@ msf_end
 ;
 ; Editiert einen Bereich im Display
 ;
-; Parameter: A - Erstes Digit (Bit 0-2),
-;                Letztes Digit (Bit 3-5),
-;                Mode (Bit 6-7) :  0 - Dezimal
-;                                  1 - Alphanumerisch
-;                                  2 - Alphabet
+; Parameter: A - Erstes Digit  (Bit 0-3)
+;                Letztes Digit (Bit 4-7)
+;            B - Mode :  0 - Dezimal
+;                        1 - Alphanumerisch
+;                        2 - Alphabet
 ;
 ; Ergebnis : X - Zeiger auf 0-terminierten String (f_in_buffer)
 ;            A - Status :  0 - OK
@@ -154,27 +154,29 @@ msf_end
 ;
 ; changed Regs : A,X
 ;
-; 3 - first pos
-; 2 - last pos
-; 1 - lower limit
-; 0 - upper limit
+; 4 - first pos
+; 3 - last pos
+; 2 - lower limit
+; 1 - upper limit
+; 0 - current pos
 m_digit_editor
+                pshb
                 pshb
 
                 tab
-                anda #7
-                psha                  ; save first digit pos
-
-                lsra
-                lsra
-                lsra
-                tba
-                anda #7
-                psha                  ; save last digit pos
+                anda #$f
 
                 lsrb
                 lsrb
                 lsrb
+                lsrb
+                pshb                  ; save last digit pos
+
+                tsx
+                staa 1,x              ; save first digit pos
+
+                ldab 2,x
+
                 tstb
                 beq  mde_numeric
                 cmpb #1
@@ -198,122 +200,135 @@ mde_numeric
 mde_chkspace
                 tsx
                 ldab 3,x              ; get first pos
-                ldx  #dbuf            ; use as index for display buffer
-                abx
-                ldab 0,x              ; get char at digit
-                andb #~CHR_BLINK      ; ignore blink bit
-                tba
-                cmpa #$20             ; check if current position contains space
-                beq  mde_convspace
+                pshb                  ; store as current position
+;                andb #~CHR_BLINK      ; ignore blink bit
                 ldaa #1
                 jsr  lcd_chr_mode     ; let digit blink
+mde_loop
+                jsr  m_reset_timer      ; Eingabe Timeout zurücksetzen
+                jsr  sci_read_m
+                tsta
+                bmi  mde_exit
+                ldaa cfg_head
+                cmpa #3
+                beq  mde_hd3sel
 
-
-                ins
-                ins
-                pulb
-                rts
-mde_convspace
-		tsx
-	
-;****************
-; M   D I G I T
-;
-m_digit
-                jsr  m_reset_timer    ; Menü-Timer Reset (Timeout für Eingabe setzen)
                 cmpb #HD2_ENTER
-                beq  mdi_enter
+                beq  mde_enter
                 cmpb #HD2_EXIT
-                beq  mdi_exit
+                beq  mde_exit
+                bra  mde_sel
+mde_hd3sel
+                cmpb #HD3_ENTER
+                beq  mde_enter
+                cmpb #HD3_EXIT
+                beq  mde_exit
+mde_sel
                 cmpb #KC_D1
-                beq  mdi_up
+                beq  mde_up
                 cmpb #KC_D2
-                beq  mdi_down
+                beq  mde_down
                 cmpb #KC_D6
-                beq  mdi_next
-                jmp  m_end
-mdi_up
-                ldab DIGIT_POS        ; get current digit position
+                beq  mde_next
+                cmpb #KC_D3
+                beq  mde_next
+                bra  mde_loop
+;*************
+mde_exit
+                pulb
+                clra
+                jsr  lcd_chr_mode     ; let digit be solid
+                pulx
+                pulx                  ; clean stack
+                ins
+                ldaa #1
+                rts
+;*************
+mde_up
+                pulb
+                pshb
                 ldx  #dbuf            ; use as index for display buffer
                 abx
-                ldab 0,x              ; get char at digit
-                andb #~CHR_BLINK      ; ignore blink bit
-                tba
-                anda #$30
-                cmpa #$30             ; check is current position contains number
-                bne  mdi_checknum
-                incb                  ; increment
-                cmpb #'9'+1           ; wrap around at 9
-                bne  mdu_store
-                ldab #'0'
+                ldaa 0,x              ; get char at digit
+                anda #~CHR_BLINK      ; ignore blink bit
+                tsx
+                cmpa 1,x              ; compare to upper limit
+                bcc  mdu_wrap
+                inca                  ; increment
                 bra  mdu_store
-mdi_down
-                ldab DIGIT_POS        ; get current digit position
-                ldx  #dbuf            ; use as index for display buffer
-                abx
-                ldab 0,x              ; get char at digit
-                andb #~CHR_BLINK      ; ignore blink bit
-                decb                  ; decrement
-                cmpb #'0'             ; wrap around at 0
-                bcc  mdu_store
-                ldab #'9'
+mdu_wrap
+                ldaa 2,x              ; set lower limit
 mdu_store
-                tba                   ; save digit in A
-                ldab DIGIT_POS
                 jsr  lcd_cpos         ; move cursor to digit position
                 tab
                 orab #$80             ; set blink bit
                 ldaa #'c'
                 jsr  putchar          ; print char
-                jmp  m_end
+                jmp  mde_loop         ; wait for upcoming action
+;*************
+mde_down
+                pulb
+                pshb
+                ldx  #dbuf            ; use as index for display buffer
+                abx
+                ldaa 0,x              ; get char at digit
+                anda #~CHR_BLINK      ; ignore blink bit
+                deca
+                tsx
+                cmpa 2,x              ; compare to upper limit
+                bcs  mdu_wrap
+                bra  mdu_store
+mdd_wrap
+                ldaa 1,x              ; set upper limit
+                bra  mdu_store
 ;----------------
-mdi_next
-                ldab DIGIT_POS
+mde_next
+                pulb
+                pshb
                 clra
                 jsr  lcd_chr_mode
+                tsx
+                cmpb 3,x              ; check if first pos reached
+                beq  mdn_wrap         ; then wrap
                 decb
-                ldaa DIGIT_MODE       ; check mode
-                cmpa #DM_FREQ         ; behaviour depends on mode
-                beq  mdn_mode_freq    ;
-                tstb
-                bne  mdn_shift        ; in shift mode
-                ldab #2               ; chars 1-2 are editable
-                bra  mdn_shift
-mdn_mode_freq
-                tstb                  ; in frequency mode,
-                bpl  mdn_shift        ; chars 0-3 are editable
-                ldab #3
-mdn_shift
-                stab DIGIT_POS
+                bra  mdn_cont
+mdn_wrap
+                ldab 4,x              ; load first position
+mdn_cont
                 inca
+                jsr  lcd_chr_mode     ; let digit blink
+                jmp  mde_loop
+;----------------
+mde_enter
+                pulb
+                clra
                 jsr  lcd_chr_mode
-
-                jmp  m_end
-;----------------
-mdi_exit
-                ldx  #0
-                stx  m_timer
-                jmp  m_end
-
-;----------------
-mdi_enter
-                ldab DIGIT_MODE
-                cmpb #DM_FREQ
-                beq  mdi_mode_freq
-                ldd  dbuf+1
-                std  f_in_buf
-                ldd  dbuf+3
-                std  f_in_buf+2
-                ldab #4
-                stab cpos
-                jmp  m_set_shift
-mdi_mode_freq
-                ldd  dbuf
-                std  f_in_buf
-                ldd  dbuf+2
-                std  f_in_buf+2
-                ldd  dbuf+4
-                std  f_in_buf+4
-                ldab #6
-                stab cpos
-                jmp  m_set_freq
+                pulx
+                pulb
+                clra
+mee_loop
+                ldx  #dbuf
+                abx
+                pshb
+                psha
+                ldaa 0,x
+                ldx  #f_in_buf
+                pulb
+                abx
+                staa 0,x
+                incb
+                inx
+                clr  0,x         ; set next byte to "Null"
+                tba
+                pulb
+                tsx
+                cmpb 0,x
+                beq  mee_end
+                incb
+                bra  mee_loop
+mee_end
+                ins
+                pulb
+                clra
+                ldx  #f_in_buf
+                rts

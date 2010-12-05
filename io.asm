@@ -477,7 +477,10 @@ sci_read_m
                 cmpb io_menubuf_w         ; mit Schreibposition vergleichen
                 bne  srdm_cont            ; Wenn nicht gleich sind Daten gekommen -> weitermachen
                 swi                       ; sonst Taskswitch
-                bra  sci_read_m           ; und warten
+                ldd  m_timer              ; check m_timer
+                bne  sci_read_m           ; loop if not zero
+                ldaa #-1
+                rts                       ; otherwise return with error code
 srdm_cont
                 ldx  #io_menubuf          ; Basisadresse holen
                 abx                       ; Zeiger addieren, Leseadresse berechnen

@@ -508,21 +508,13 @@ m_digit_start
 
                 jsr  save_dbuf        ; Displayinhalt in dbuf2 sichern
 mds_nosave
-                jsr  m_reset_timer    ; Menü-Timer Reset (Timeout für Eingabe setzen)
-                ldab DIGIT_MODE       ;
-                cmpb #DM_FREQ
-                beq  mds_mode_freq
-mds_mode_shift
-                ldab #2
-                bra  mds_make_blink
-mds_mode_freq
-                ldab #3
-mds_make_blink
-                stab DIGIT_POS        ; Bei Zifferpos. 3 beginnen
-                ldaa #1
-                jsr  lcd_chr_mode     ; let digit 3 blink
-                ldab #DIGIT
-                stab m_state          ; next state: DIGIT
+                ldaa #(0<<4)+3        ; edit char 0 to char 3
+                clrb                  ; edit mode: decimal
+                jsr  m_digit_editor
+                tsta                  ; test for abort
+                bne  mds_end
+                jmp  m_set_freq_x     ; set frequency
+mds_end
                 jmp  m_end
 
 ;****************
@@ -550,12 +542,12 @@ mdi_up
                 tba
                 anda #$30
                 cmpa #$30             ; check is current position contains number
-                bne  mdi_checknum
+;                bne  mdi_checknum
                 incb                  ; increment
                 cmpb #'9'+1           ; wrap around at 9
-                bne  mdu_store
+;                bne  mdu_store
                 ldab #'0'
-                bra  mdu_store
+;                bra  mdu_store
 mdi_down
                 ldab DIGIT_POS        ; get current digit position
                 ldx  #dbuf            ; use as index for display buffer
@@ -564,9 +556,9 @@ mdi_down
                 andb #~CHR_BLINK      ; ignore blink bit
                 decb                  ; decrement
                 cmpb #'0'             ; wrap around at 0
-                bcc  mdu_store
+;                bcc  mdu_store
                 ldab #'9'
-mdu_store
+;mdu_store
                 tba                   ; save digit in A
                 ldab DIGIT_POS
                 jsr  lcd_cpos         ; move cursor to digit position
