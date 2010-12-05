@@ -88,6 +88,16 @@ ui
 no_intro
                 ldx  #frequency
                 jsr  freq_print             ; Frequenz anzeigen
+                WAIT(150)
+                clra
+                jsr  lcd_clr
+                ldab #$03
+                pshb
+                ldx  #test_str
+                jsr  printf
+                ins
+bla
+                bra  bla
 
                 jsr  freq_offset_print      ; Frequenz anzeigen
 
@@ -108,8 +118,8 @@ ui_loop                                     ; komplette Display Kommunikation
 
 
 ;*******************************************
-qrg
-                .db "QRG?",0
+test_str
+                .db "X%0xZ",0
 dg1yfe_str
                 .db "DG1YFE",0
 mc70_str

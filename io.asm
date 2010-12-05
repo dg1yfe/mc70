@@ -1109,6 +1109,7 @@ udecout
                psha                    ; Minimum digits to Stack
                pshx                    ; Zeiger auf Longint auf Stack
                andb #7                 ; max. 7 Stellen abschneiden
+               beq  ulo2_notrunc       ; wenn nichts abzuschneiden, Division �berspringen
                pshb                    ; Exponent auf stack
                tsx
                ldab #9                 ; index für 10^x Tabelle berechnen
@@ -1127,6 +1128,7 @@ udecout
                jsr  divide3232         ; 32 Bit Division durchführen
                pulx
                pulx                    ; Rest löschen
+ulo2_notrunc
                pulx                    ; Zeiger holen
                ldab #$ff
                pshb
@@ -1142,25 +1144,21 @@ ulo2_divloop
                orab 1,x
                orab 0,x
                xgdx
-               subd #6
+               subd #5
                xgdx
-               ldaa 0,x
-               anda #$7f
-               tpa
-               beq  ulo2_nodecr
+               ldaa 0,x                ; get min digit counter/fill char
+               anda #$7f               ; ignore fill bit
+               tpa                     ; save result
+               beq  ulo2_nodecr        ; already at zero? Then branch and dont
                dec  0,x                ; decrement min number of digits
 ulo2_nodecr
                xgdx
-               addd #6
-               xgdx
+               addd #5
+               xgdx                    ; move pointer back to integer
                tstb                    ; Prüfen ob Quotient = 0
                bne  ulo2_divloop       ; Wenn nicht, dann erneut teilen
-               tap
+               tap                     ; Pr�fen ob Mindestzahl an digits erreicht
                bne  ulo2_divloop       ; Mindestanzahl noch nicht erreicht
-               xgdx
-               subd #6
-               xgdx
-               ldaa 0,x
 ulo2_prntloop
                pulb
                cmpb #$ff               ; Prüfen ob alle Ergebniswerte vom Stack gelesen wurden
@@ -1233,10 +1231,10 @@ printf
                ; changed Regs: X
                pshb
                psha
-               clra
+               clra                 ; clear Arg Offset
+               psha                 ; push to stack
                psha
-               des
-               des
+               psha                 ; clear modifier variables
 print_loop
                ldab 0,x             ; Zeichen holen
                beq  end_printf      ; =$00 ? Dann String zu Ende -> Return
@@ -1263,15 +1261,15 @@ end_printf
                pulb
                rts
 print_escape
-               pula
-               ins
-               psha
-               pshb                    ; remember the 2 bytes read before
+               pula                    ; get modifier 2
+               ins                     ; discard modifier 1
+               psha                    ; make modifier 2 new modifier 1
+               pshb                    ; store new char as modifier 2
                ldab 0,x                ; read next byte
                beq  print_end
                inx
                tba
-               anda #~$20              ; ignore case
+               oraa #$20               ; ignore case - make everything upper case
                cmpa #'x'
                beq  pes_hex
                cmpa #'i'
@@ -1323,18 +1321,18 @@ pst_return
                bra  print_loop         ; print as character
 ;**********
 pes_hex
-               pshx
+               pshx                    ; save pointer to string
                tsx
                ldab 2+PES_ARG_OFS,x    ; get Offset of next Variable
                inc  2+PES_ARG_OFS,x    ; increment offset
                abx
                ldab 2+PES_ARG,x        ; get variable
-               pshb
+               pshb                    ; save variable
                tsx
                ldaa 3+PES_MODIF2,x     ; get modifier 2
 phx_print
                tsx
-               ldab 1,x
+               ldab 0,x
                lsrb
                lsrb
                lsrb
