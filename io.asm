@@ -1353,7 +1353,7 @@ phx_lonib
                jmp  print_loop         ; continue
 ;**********
 pes_dec
-               pshx
+               pshx                    ; put String pointer onto stack
                tsx
                ldab 2+PES_ARG_OFS,x    ; get Offset of next Variable
                tba
@@ -1378,24 +1378,59 @@ pdc_modif1
                beq  pdc_zero           ; fill with '0'
 pdc_fws
                ldab #$80               ; load 'fill with space' modifier bit
-               suba #'0'
+               suba #'0'               ; convert ascii char to number of digits to print
                aba                     ; add number of digits to print
                bra  pdc_print
 pdc_zero
-               suba #'0'               ; number of digits to print
+               suba #'0'               ; convert ascii char to number of digits to print
 pdc_print
-               pshb
-               psha
                pulx
+               psha
                pshx
-               ldx  0,x                ; test sign of longint
+               ldd  0,x                ; test sign of longint
                bpl  pdc_chksprint      ; if positive, check if sign should be shown
-               
+               jsr  sig_inv32s         ; invert sign
+               ldab #'-'
+               ldaa #'c'
+               jsr  putchar
+
                clrb                    ; do not truncate printout
                pulx                    ; get longint pointer from stack
+               pula
+               pshx
+               jsr  uintdec
+               pulx
+               jsr  sig_inv32s         ; invert sign back
+               pulx                    ; get pointer to next char from stack
+               jmp  print_loop         ; continue
+pdc_chksprint
+               tsx
+               ldab 3+2+PES_MODIF2,x   ; get modifier 2
+               beq  pdc_noprintsign    ; if it was unset, continue with printing
+               cmpb #'+'               ; if it was '+',
+               beq  pdc_printsign      ; print the sign char
+               ldab 3+2+PES_MODIF1,x   ; get modifier 1
+               beq  pdc_noprintsign    ; if it was unset, continue with printing
+               cmpb #'+'               ; if it was '+'
+               beq  pdc_printsign      ; print the sign char
+               tsx
+               ldd  3,x                ; get pointer to next string char
+               subd #4                 ; point to char before modifier 1
+               ldab 0,x                ; get char befor Modifier 1
+               cmpb #'+'               ; check if this was a '+'
+               bne  pdc_noprintsign    ; if not, branch and dont print the sign
+pdc_printsign
+               ldab #'+'               ; print the sign
+               ldaa #'c'
+               jsr  putchar
+pdc_noprintsign
+               clrb                    ; do not truncate printout
+               pulx                    ; get longint pointer from stack
+               pula                    ; get min. digit count and digit fill indicator
                jsr  uintdec
                pulx                    ; get pointer to next char from stack
                jmp  print_loop         ; continue
+
 ;*************
 pdc_sign
                tsx

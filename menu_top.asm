@@ -340,19 +340,23 @@ mts_end
 ; TX Shift per Digit Eingabe setzen
 ;
 mts_digit
-                ldx  offset
-                bne  mts_ed_digit
-                ldx  offset+2
-                bne  mts_ed_digit
-                ldab #0
+                clrb
                 jsr  cpos
+                ldx  #offset          ; get pointer to offset
+                pshx                  ; push to stack (variable 1)
                 ldx  #str_mts_zero
                 jsr  printf
-mts_ed_digit
-                ldab #DM_SHIFT
-                stab DIGIT_MODE
-                jmp  m_digit_start
-str_mts_zero    .db  "-0000",0
+                jsr  lcd_fill         ; fill lcd
+                pulx
+                ldaa #(1<<4)+2        ; digits 1 & 2 editable
+                clrb                  ; decimal mode
+                jsr  m_digit_editor   ; call digit editor
+                tsta                  ; test for Abort condition
+                bne  mts_abort
+                bra  msh_set_str      ; set shift
+mts_abort
+                jmp  m_end
+str_mts_zero    .db  "%+04i",0
 ;**************************************
 ; M   S E T   S H I F T
 ;
@@ -364,9 +368,9 @@ m_set_shift
                 ldx  #f_in_buf
                 abx
                 clr  0,x              ; Eingabe mit 0 terminieren
+msh_set_str
                 pshx                  ; 32 Bit Platz schaffen auf Stack
                 pshx                  ; für Ergebnis der Frequenzberechnung
-
                 tsx                   ; Zeiger auf Zwischenspeicher (Stack) nach X
                 ldd  #f_in_buf        ; Zeiger auf Eingabestring holen
                 jsr  frq_calc_freq    ; Frequenz berechnen

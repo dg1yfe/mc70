@@ -142,8 +142,8 @@ msf_end
 ;
 ; Editiert einen Bereich im Display
 ;
-; Parameter: A - Erstes Digit  (Bit 0-3)
-;                Letztes Digit (Bit 4-7)
+; Parameter: A - Niedrigstes/Erstes Digit  (Bit 0-3)
+;                Höchstes/Letztes Digit (Bit 4-7)
 ;            B - Mode :  0 - Dezimal
 ;                        1 - Alphanumerisch
 ;                        2 - Alphabet
