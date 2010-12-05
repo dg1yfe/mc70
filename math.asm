@@ -643,6 +643,42 @@ add32
                staa 4,x             ; HiWord/HiByte speichern
 
                rts
+;*************
+; A D D 3 2 S
+;*************
+; Parameter:
+;           X     *Summand (32Bit)
+;           Stack  Summand (32Bit)
+; Ergebnis:
+;           X     *Summe   (32Bit)
+;
+; changed Regs: A,B
+;
+; changed Mem : X
+;
+;
+; 4 - Summand2
+; 2 - *Return
+; 0 - *Summand1
+add32s
+               pshx                 ; Pointer auf 1. Summanden sichern
+               ldd  2,x             ; LoWord/1. Summand
+               tsx                  ; Stackpointer nach X
+               addd 6,x             ; LoWord / 1.Summand + LoWord / 2.Summand
+               ldx  0,x             ; Pointer auf 1. Summanden holen
+               std  2,x             ; LoWord speichern
+               ldd  0,x             ; HiWord 1. Summand holen
+               tsx
+               adcb 5,x             ; + HiWord/LoByte 2. Summand
+               ldx  0,x             ; Pointer auf 1. Summanden holen
+               stab 1,x             ; HiWord/LoByte speichern
+               tsx
+                                    ; HiWord/HiByte 1. Summand
+               adca 4,x             ; + HiWord/HiByte 2. Summand
+               ldx  0,x             ; Pointer auf 1. Summanden holen
+               staa 0,x             ; HiWord/HiByte speichern
+               pulx
+               rts
 
 ;***********
 ; S U B 3 2
@@ -703,7 +739,42 @@ sig_inv32
                pulb
 
                rts
-
+;*********************
+; S I G   I N V 3 2 S
+;*********************
+;
+; Vorzeichenumkehr
+;
+; Parameter:
+;           X   Pointer to int32_t
+; Ergebnis:
+;           -1*(*X)
+;
+; changed Regs: A,B
+;
+; changed Mem : X
+sig_inv32s
+               pshx
+               ldd  2,x
+               coma
+               comb                 ; LoWord invertieren
+               std  2,x
+               ldd  0,x
+               coma
+               comb                 ; HiWord invertieren
+               std  0,x
+               clrb
+               pshb
+               pshb
+               ldd  #1
+               psha
+               pshb
+               jsr  add32s
+               pulx
+               pula
+               pulb
+               pulx
+               rts
 ;************
 ; R A I S E
 ;************

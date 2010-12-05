@@ -1364,21 +1364,61 @@ pes_dec
                tsx
                ldaa 4+PES_MODIF2,x     ; get modifier 2
                beq  pdc_print          ; if there is no modifier 2, print unmodified
+               cmpa #'+'               ; sign modifier?
+               beq  pdc_print          ; then start print
+; "%+02i"->print at least 2 digits, use 0 to prepend, always print sign
+; "%02i"-> print at least 2 digits, use 0 to prepend, print sign for neg. values
+; "%+2i"-> print at least 2 digits with sign, use space to prepend
+; "%2i" -> print at least 2 digits, use space to prepend
+; "%+i" -> print w sign
+pdc_modif1
                ldab 4+PES_MODIF1,x     ; get modifier 1
+               beq  pdc_fws            ; if there is none, start print, fill with space
                cmpb #'0'
-               beq  pdc_singlemod
+               beq  pdc_zero           ; fill with '0'
+pdc_fws
                ldab #$80               ; load 'fill with space' modifier bit
                suba #'0'
                aba                     ; add number of digits to print
                bra  pdc_print
-pdc_singlemod
+pdc_zero
                suba #'0'               ; number of digits to print
 pdc_print
+               pshb
+               psha
+               pulx
+               pshx
+               ldx  0,x                ; test sign of longint
+               bpl  pdc_chksprint      ; if positive, check if sign should be shown
+               
                clrb                    ; do not truncate printout
                pulx                    ; get longint pointer from stack
                jsr  uintdec
                pulx                    ; get pointer to next char from stack
                jmp  print_loop         ; continue
+;*************
+pdc_sign
+               tsx
+               ldx  2,x                ; get pointer to long
+               ldx  0,x                ; get hi word of long
+               pshb
+               psha
+               xgdx
+               tsta                    ; test sign bit
+               bmi  pds_neg
+               tstb                    ; test if pos sign should be printed
+               beq  pds_end            ; exit if not
+               ldab #'+'
+               bra  pds_print
+pds_neg
+               ldab #'-'
+pds_print
+               ldaa #'c'
+               jsr  putchar            ; print sign
+pds_end
+               pula
+               pulb
+               rts                     ; return
 
 
 
