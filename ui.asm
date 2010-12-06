@@ -87,12 +87,17 @@ ui
                 WAIT(150)
 no_intro
                 ldx  #frequency
-                jsr  freq_print             ; Frequenz anzeigen
+;                jsr  freq_print             ; Frequenz anzeigen
                 WAIT(150)
                 clra
                 jsr  lcd_clr
-                ldab #$03
+                ldx  #42
+                pshx
+                clrb
                 pshb
+                pshb
+                tsx
+                pshx
                 ldx  #test_str
                 jsr  printf
                 ins
@@ -119,7 +124,8 @@ ui_loop                                     ; komplette Display Kommunikation
 
 ;*******************************************
 test_str
-                .db "X%0xZ",0
+                .db "X 42Z",0
+                .db "X%3iZ",0
 dg1yfe_str
                 .db "DG1YFE",0
 mc70_str

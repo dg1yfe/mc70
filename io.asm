@@ -1130,53 +1130,63 @@ udecout
                pulx                    ; Rest löschen
 ulo2_notrunc
                pulx                    ; Zeiger holen
+               pula
                ldab #$ff
                pshb
 ulo2_divloop
+               psha
                pshx                    ; Zeiger auf Longint Kopie auf Stack legen (Dividend)
                ldd  #10
                jsr  divide32s          ; Longint durch 10 dividieren
                xgdx                    ; Rest (0-9) nach D
                pulx                    ; Zeiger auf Quotient holen
+               pula
                pshb                    ; Rest auf Stack
                ldab 3,x
                orab 2,x
                orab 1,x
-               orab 0,x
-               xgdx
-               subd #5
-               xgdx
-               ldaa 0,x                ; get min digit counter/fill char
+               orab 0,x                ; Prepare Quotient for test if zero
+
+               pshx                    ; Save Pointer
+               psha                    ; Save Digit counter
                anda #$7f               ; ignore fill bit
-               tpa                     ; save result
                beq  ulo2_nodecr        ; already at zero? Then branch and dont
+               tsx
                dec  0,x                ; decrement min number of digits
 ulo2_nodecr
-               xgdx
-               addd #5
-               xgdx                    ; move pointer back to integer
+               pula                    ; Digit Counter nach A
+               pulx                    ; Pointer nach X
                tstb                    ; Prüfen ob Quotient = 0
-               bne  ulo2_divloop       ; Wenn nicht, dann erneut teilen
-               tap                     ; Pr�fen ob Mindestzahl an digits erreicht
+               bne  ulo2_divloop       ; Wenn Quotient >0, dann erneut teilen
+               tab
+               andb #7f                ; Test digit counter
                bne  ulo2_divloop       ; Mindestanzahl noch nicht erreicht
+;************
 ulo2_prntloop
                pulb
                cmpb #$ff               ; Prüfen ob alle Ergebniswerte vom Stack gelesen wurden
                beq  ulo2_end           ; Ja, dann Ende
-               tstb
-               beq  ulo_zero           ; print accorcing to modifier if digit is 0
+               tstb                    ; Digit = 0?
+               beq  ulo_zero           ; print according to modifier if digit is 0
                clra                    ; print everything from 1st non-zero digit
 ulo_zero
                tsta                    ; print zero (A=0) or space (A!=0)
                beq  ulo_print
+               pshb
+               tsx
+               ldab 1,x                ; get next digit
+               cmpb #$ff               ; check for end marker
+               pulb
+               beq  ulo_print          ; print zero if it is the last digit
                ldab #$f0
 ulo_print
+               psha
                addb #$30               ; $30 addieren
                ldaa #'c'
                jsr  putchar            ; Zeichen ausgeben
+               pula
                bra  ulo2_prntloop      ;
 ulo2_end
-               ins
                rts
 
 ;**********************
@@ -1240,7 +1250,7 @@ print_loop
                beq  end_printf      ; =$00 ? Dann String zu Ende -> Return
                inx                  ; Zeiger auf nächstes Zeichen
                cmpb #'%'            ; auf "%" testen
-               beq  print_escape    ;
+               beq  print_esc       ;
 print_char
                ldaa #'c'
 print_put
@@ -1260,6 +1270,8 @@ end_printf
                pula
                pulb
                rts
+print_esc
+               clrb                    ; delete "%" character
 print_escape
                pula                    ; get modifier 2
                ins                     ; discard modifier 1
@@ -1283,6 +1295,8 @@ print_escape
                cmpb #'%'
                beq  print_char         ; print "%"
                                        ; all types have been checked
+               cmpb #'+'
+               beq  print_escape
                cmpb #'9'+1             ; check possible modifiers for sanity
                bcc  print_loop         ; (only numeric values allowed)
                cmpb #'0'
@@ -1356,8 +1370,9 @@ pes_dec
                ldab 2+PES_ARG_OFS,x    ; get Offset of next Variable
                tba
                adda #4
-               staa 2+PES_ARG_OFS,x    ; increment offset
+               staa 2+PES_ARG_OFS,x    ; increment offset by 4 byte
                abx
+               ldx  2+PES_ARG,x        ; get pointer to long
                pshx                    ; push pointer to long onto stack
                tsx
                ldaa 4+PES_MODIF2,x     ; get modifier 2
@@ -1385,7 +1400,7 @@ pdc_print
                pulx
                psha
                pshx
-               ldd  0,x                ; test sign of longint
+               ldab 0,x                ; test sign of longint
                bpl  pdc_chksprint      ; if positive, check if sign should be shown
                jsr  sig_inv32s         ; invert sign
                ldab #'-'
@@ -1396,24 +1411,25 @@ pdc_print
                pulx                    ; get longint pointer from stack
                pula
                pshx
-               jsr  uintdec
+               jsr  udecout
                pulx
                jsr  sig_inv32s         ; invert sign back
                pulx                    ; get pointer to next char from stack
                jmp  print_loop         ; continue
 pdc_chksprint
                tsx
-               ldab 3+2+PES_MODIF2,x   ; get modifier 2
+               ldab 4+1+PES_MODIF2,x   ; get modifier 2
                beq  pdc_noprintsign    ; if it was unset, continue with printing
                cmpb #'+'               ; if it was '+',
                beq  pdc_printsign      ; print the sign char
-               ldab 3+2+PES_MODIF1,x   ; get modifier 1
+               ldab 4+1+PES_MODIF1,x   ; get modifier 1
                beq  pdc_noprintsign    ; if it was unset, continue with printing
                cmpb #'+'               ; if it was '+'
                beq  pdc_printsign      ; print the sign char
                tsx
                ldd  3,x                ; get pointer to next string char
                subd #4                 ; point to char before modifier 1
+               xgdx
                ldab 0,x                ; get char befor Modifier 1
                cmpb #'+'               ; check if this was a '+'
                bne  pdc_noprintsign    ; if not, branch and dont print the sign
@@ -1425,7 +1441,7 @@ pdc_noprintsign
                clrb                    ; do not truncate printout
                pulx                    ; get longint pointer from stack
                pula                    ; get min. digit count and digit fill indicator
-               jsr  uintdec
+               jsr  udecout
                pulx                    ; get pointer to next char from stack
                jmp  print_loop         ; continue
 
