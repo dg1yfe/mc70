@@ -752,7 +752,7 @@ sig_inv32
 ;
 ; changed Regs: A,B
 ;
-; changed Mem : X
+; changed Mem : *X
 sig_inv32s
                pshx
                ldd  2,x
@@ -763,11 +763,11 @@ sig_inv32s
                coma
                comb                 ; HiWord invertieren
                std  0,x
+               ldab  #1
+               pshb
                clrb
                pshb
                pshb
-               ldd  #1
-               psha
                pshb
                jsr  add32s
                pulx

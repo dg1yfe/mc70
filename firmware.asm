@@ -25,6 +25,9 @@ rom
                 .ORG $C000                 ;
 reset
                 lds  #STACK1               ; Stackpointer 1 setzen
+#ifdef SIM
+                jmp  ui_test
+#endif
                 jsr  io_init               ; I/O initialisieren (Ports, I2C, etc...)
 ;                jsr  chk_debug             ; Debugmodus ?
 ;                jsr  chk_isu               ; In System Update? ?

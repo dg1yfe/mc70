@@ -91,13 +91,14 @@ no_intro
                 WAIT(150)
                 clra
 ;                jsr  lcd_clr
+ui_test
                 ldx  #42
                 pshx
                 clrb
                 pshb
                 pshb
-
                 tsx
+                jsr  sig_inv32s
                 pshx
                 ldx  #test_str
                 jsr  printf
@@ -126,7 +127,7 @@ ui_loop                                     ; komplette Display Kommunikation
 ;*******************************************
 test_str
 ;                .db "x30 Z",0
-                .db "X%4xZ",0
+                .db "X%3iZ",0
 dg1yfe_str
                 .db "DG1YFE",0
 mc70_str

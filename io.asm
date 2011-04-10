@@ -804,6 +804,9 @@ mbw_end
 ;
 ;
 putchar
+#ifdef SIM
+               rts
+#endif
                cmpa #'u'
                bne  pc_testlong
                jsr  uintdec
@@ -1126,6 +1129,15 @@ udecout
 ulo2_notrunc
                pulx                    ; get pointer to long
                pula                    ; get no. of digits to print
+               tab
+               andb #$40               ; check if sign should be printed
+               bne  ulo2_nosign
+               tab
+               anda #$3f               ; check min number of digits is given
+               beq  ulo2_nosign        ; dont change anything if it isn't
+               deca                    ; decrease number of digits if sign
+                                       ; is to be printed
+ulo2_nosign
                ldab #$da
                pshb                    ; push end marker to stack
 ulo2_divloop
@@ -1144,7 +1156,7 @@ ulo2_divloop
 
                pshx                    ; Save Pointer
                psha                    ; Save Digit counter
-               anda #$7f               ; ignore fill bit
+               anda #$3f               ; ignore fill bit
                beq  ulo2_nodecr        ; already at zero? Then branch and dont
                tsx
                dec  0,x                ; decrement min number of digits
@@ -1154,7 +1166,7 @@ ulo2_nodecr
                tstb                    ; Prüfen ob Quotient = 0
                bne  ulo2_divloop       ; Wenn Quotient >0, dann erneut teilen
                tab
-               andb #$7f               ; Test digit counter
+               andb #$3f               ; Test digit counter
                beq  ulo2_prntloop      ; Mindestanzahl erreicht, Zahl ausgeben
                ldx  #0                 ;
 ulo2_fill_loop
@@ -1290,9 +1302,13 @@ print_escape
                cmpa #'x'
                beq  pes_hex            ; check for Hex
                cmpa #'i'
-               beq  pes_dec            ; check for Integer (decimal)
+               bne  pes_chkd           ; check for Integer (decimal)
+               jmp  pes_dec
+pes_chkd
                cmpa #'d'
-               beq  pes_dec            ; check for Integer (decimal)
+               bne  pes_chks           ; check for Integer (decimal)
+               jmp  pes_dec
+pes_chks
                cmpa #'s'
                beq  pes_str            ; check for string
                cmpa #'c'
@@ -1340,33 +1356,111 @@ pst_return
                bra  print_loop         ; print as character
 ;**********
 pes_hex
-               pshx                    ; save pointer to string
+               pshx                    ; put String pointer onto stack
                tsx
                ldab 2+PES_ARG_OFS,x    ; get Offset of next Variable
-               inc  2+PES_ARG_OFS,x    ; increment offset
+               tba
+               inca
+               inca
+               staa 2+PES_ARG_OFS,x    ; increment offset by 2 byte
                abx
-               ldab 2+PES_ARG,x        ; get variable
-               pshb                    ; save variable
+               ldx  2+PES_ARG,x        ; get pointer to long
+               pshx                    ; push pointer to long onto stack
                tsx
-               ldaa 3+PES_MODIF2,x     ; get modifier 2
-phx_print
+               ldaa 4+PES_MODIF2,x     ; get modifier 2
+               beq  phx_print          ; if there is no modifier 2, print unmodified
+;               cmpa #'+'               ; sign modifier? (dont care, hex will be printed without sign)
+;               beq  phx_print          ; then start print
+               ldab 4+PES_MODIF1,x     ; get modifier 1
+               beq  phx_fws            ; if there is none, start print, fill with space
+               cmpb #'0'
+               beq  phx_zero           ; fill with '0'
+phx_fws
+               adda #$80               ; load 'fill with space' modifier bit
+phx_zero
+               suba #'0'               ; convert ascii char to number of digits to print
+               psha
+phx_count
+               ldab #8                 ; maximum number of digits to print
                tsx
-               ldab 0,x
-               lsrb
-               lsrb
-               lsrb
-               lsrb
-               cmpa #'0'               ; check if '0' modifier was given
-               beq  phx_hinib          ; if it was, print both nibbles
-               tstb                    ; if not, test hi nibble
-               beq  phx_lonib          ; omit printout if it is zero
-phx_hinib
-               jsr  sendnibble         ; print hi nibble
-phx_lonib
+               ldx  1,x                ; get pointer to long
+phx_count_lp
+               ldaa 0,x                ; get byte from long (start with MSB)
+               anda #$f0               ; isolate hi nibble
+               bne  phx_fill           ; end counting, if != 0
+               decb                    ; decrease counter if == 0
+               ldaa 0,x
+               anda #$0f               ; isolate lo nibble
+               bne  phx_fill           ; end counting if != 0
+               inx                     ; point to next byte of long
+               decb                    ; decrease counter if == 0
+               bne  phx_count_lp       ; loop through all 4 bytes / 8 nibbles
+               ldab #1                 ; print at least "0" if long was 0
+phx_fill
+               pshb                    ; save number of relevant digits of long
+               tba                     ; A = number of non-zero digits of long
+               tsx
+               ldab 1,x                ; B = number of digits to print at least
+               andb #$7f               ; mask space/zero indicator bit
+               sba                     ; (A - B) if A >= B
+               bcc  phx_print          ; print everything, dont prepend anything
+               nega                    ; invert result
+                                       ; A = digits to prepend
+               ldab #'0'
+               tst  1,x                ; check if to prepend with 0 or space
+               bpl  phx_fill_lp
+               ldab #' '
+phx_fill_lp
+               psha
+               pshb
+               ldaa #'c'
+               jsr  putchar            ; print fill char
                pulb
-               andb #$0f
-               jsr  sendnibble         ; print lo nibble
-               pulx
+               pula
+               deca
+               bne  phx_fill_lp        ; repeat for required number of digits
+phx_print
+               pulb                    ; get number of digits to print
+               tba
+               ins                     ; discard numer of digits to prepend
+               tsx
+               ldx  0,x                ; get pointer to long
+               subb #8                 ; digits to print - 8 (gives negative digits to skip)
+               negb                    ; invert sign
+               pshb
+               lsrb                    ; divide by two
+               abx                     ; add to pointer
+               pulb
+               ins
+               ins                     ; remove old pointer to long from stack
+               pshx                    ; store altered pointer to stack
+phx_loop
+               andb #1                 ; check if hi nibble shall be skipped
+               bne  phx_lonib
+               tsx
+               ldx  0,x                ; get pointer to long
+               ldab 0,x                ; get byte
+               lsrb
+               lsrb
+               lsrb
+               lsrb                    ; isolate hi nibble
+               bra  phx_put
+phx_lonib
+               pulx                    ; get pointer to long
+               ldab 0,x                ; get byte from long
+               inx                     ; increment pointer
+               pshx                    ; store to stack
+               andb #$0f               ; isolate lo-nibble
+phx_put
+               psha
+               jsr  sendnibble         ; print nibble
+               pula
+               deca                    ; decrement digit counter
+               tab                     ; transfer to a (for nibble selection)
+               bne  phx_loop
+               ins
+               ins                     ; remove pointer to long from stack
+               pulx                    ; get string pointer back to X
                jmp  print_loop         ; continue
 ;**********
 pes_dec
@@ -1374,8 +1468,9 @@ pes_dec
                tsx
                ldab 2+PES_ARG_OFS,x    ; get Offset of next Variable
                tba
-               adda #4
-               staa 2+PES_ARG_OFS,x    ; increment offset by 4 byte
+               inca
+               inca
+               staa 2+PES_ARG_OFS,x    ; increment offset by 2 byte
                abx
                ldx  2+PES_ARG,x        ; get pointer to long
                pshx                    ; push pointer to long onto stack
@@ -1415,6 +1510,11 @@ pdc_print
                clrb                    ; do not truncate printout
                pulx                    ; get longint pointer from stack
                pula
+               tsta                    ; test for zero digit count
+               beq  pdc_putneg         ; if it is zero, print the number
+               deca                    ; else reduce digit count by one
+                                       ; (account for sign)
+pdc_putneg
                pshx
                jsr  udecout
                pulx
@@ -1424,12 +1524,12 @@ pdc_print
 pdc_chksprint
                tsx
                ldab 4+1+PES_MODIF2,x   ; get modifier 2
-               beq  pdc_noprintsign    ; if it was unset, continue with printing
-               cmpb #'+'               ; if it was '+',
+               beq  pdc_noprintsign    ; if it is unset, continue with printing
+               cmpb #'+'               ; if it is '+',
                beq  pdc_printsign      ; print the sign char
                ldab 4+1+PES_MODIF1,x   ; get modifier 1
-               beq  pdc_noprintsign    ; if it was unset, continue with printing
-               cmpb #'+'               ; if it was '+'
+               beq  pdc_noprintsign    ; if it is unset, continue with printing
+               cmpb #'+'               ; if it is '+'
                beq  pdc_printsign      ; print the sign char
                tsx
                ldd  3,x                ; get pointer to next string char
@@ -1442,6 +1542,11 @@ pdc_printsign
                ldab #'+'               ; print the sign
                ldaa #'c'
                jsr  putchar
+               tsx
+               tst  3,x                ; test for zero digit count
+               beq  pdc_noprintsign    ; if it is zero, print the number
+               dec  3,x                ; otherwise decrease by one
+                                       ; (account for sign)
 pdc_noprintsign
                clrb                    ; do not truncate printout
                pulx                    ; get longint pointer from stack

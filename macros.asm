@@ -31,6 +31,7 @@
 ;************************
 #DEFINE TONE_DPHASE SYSCLK/(2*1750)-1  ; Tone Phase Delta (Xtal/4/2 /Tone -1)
 ;
+;#define SIM
 ;
 ;************************
 ; Frequenzkram
@@ -84,7 +85,7 @@
 
 
 #DEFINE WAIT(ms)    pshx \ ldx  #ms \ jsr wait_ms \ pulx
-#DEFINE LCDDELAY  42     ; 41ms
+#DEFINE LCDDELAY  43     ; 41ms
 
 #DEFINE PCHAR(cmd)  ldaa #'c' \ ldab #cmd \ jsr putchar
 #DEFINE PUTCHAR     ldaa #'c' \ jsr putchar
