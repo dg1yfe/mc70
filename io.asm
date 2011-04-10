@@ -822,14 +822,9 @@ pc_testchar
                cmpa #'c'
                bne  pc_testplain
                jmp  pc_char_out
-;               ldx  char_vector
-;               jmp  0,x
-;               pc_char_out
 pc_testplain
                cmpa #'p'
                bne  pc_to_end
-;               ldx  plain_vector
-;               jmp  0,x
                jmp  pc_ext_send2    ; Plain - sende Bytevalue wie erhalten
 pc_to_end
                jmp  pc_end          ; unsupported mode, abort/ignore
@@ -1106,9 +1101,9 @@ ulongout
                inx
                inx
 udecout
-               psha                    ; Minimum digits to Stack
-               pshx                    ; Zeiger auf Longint auf Stack
-               andb #7                 ; max. 7 Stellen abschneiden
+               psha                    ; Put minimum number of digits to print to Stack
+               pshx                    ; Put pointer to longint to stack
+               andb #7                 ; truncate at max. 7 digits
                beq  ulo2_notrunc       ; wenn nichts abzuschneiden, Division �berspringen
                pshb                    ; Exponent auf stack
                tsx
@@ -1129,18 +1124,18 @@ udecout
                pulx
                pulx                    ; Rest löschen
 ulo2_notrunc
-               pulx                    ; Zeiger holen
-               pula
-               ldab #$ff
-               pshb
+               pulx                    ; get pointer to long
+               pula                    ; get no. of digits to print
+               ldab #$da
+               pshb                    ; push end marker to stack
 ulo2_divloop
-               psha
+               psha                    ; put number of digits to print to stack
                pshx                    ; Zeiger auf Longint Kopie auf Stack legen (Dividend)
                ldd  #10
                jsr  divide32s          ; Longint durch 10 dividieren
                xgdx                    ; Rest (0-9) nach D
                pulx                    ; Zeiger auf Quotient holen
-               pula
+               pula                    ; get no. of digits to print from stack
                pshb                    ; Rest auf Stack
                ldab 3,x
                orab 2,x
@@ -1159,29 +1154,37 @@ ulo2_nodecr
                tstb                    ; Prüfen ob Quotient = 0
                bne  ulo2_divloop       ; Wenn Quotient >0, dann erneut teilen
                tab
-               andb #7f                ; Test digit counter
-               bne  ulo2_divloop       ; Mindestanzahl noch nicht erreicht
+               andb #$7f               ; Test digit counter
+               beq  ulo2_prntloop      ; Mindestanzahl erreicht, Zahl ausgeben
+               ldx  #0                 ;
+ulo2_fill_loop
+               xgdx                    ; save AB to X
+               pshb                    ; push zero to stack
+               xgdx                    ; restore AB
+               decb                    ; decrement digit count
+               bne  ulo2_fill_loop     ; loop until zero
+               anda #$80               ; mask digit count, keep Space/Zero marker
 ;************
 ulo2_prntloop
-               pulb
-               cmpb #$ff               ; Prüfen ob alle Ergebniswerte vom Stack gelesen wurden
-               beq  ulo2_end           ; Ja, dann Ende
-               tstb                    ; Digit = 0?
+               pulb                    ; Rest vom Stack holen
+               cmpb #$da               ; test for end marker
+               beq  ulo2_end           ; Escape here, if marker found
+               tstb                    ; test if digit = 0?
                beq  ulo_zero           ; print according to modifier if digit is 0
                clra                    ; print everything from 1st non-zero digit
 ulo_zero
-               tsta                    ; print zero (A=0) or space (A!=0)
+               tsta                    ; print zero (A=0) or space (A=$80)
                beq  ulo_print
-               pshb
+               pshb                    ; push digit to stack
                tsx
                ldab 1,x                ; get next digit
-               cmpb #$ff               ; check for end marker
-               pulb
+               cmpb #$da               ; check for end marker
+               pulb                    ; get current digit from stack
                beq  ulo_print          ; print zero if it is the last digit
-               ldab #$f0
+               subb #$10               ; load -16
 ulo_print
-               psha
-               addb #$30               ; $30 addieren
+               psha                    ; save type of fill char to print
+               addb #'0'               ; $30 addieren
                ldaa #'c'
                jsr  putchar            ; Zeichen ausgeben
                pula
@@ -1273,35 +1276,37 @@ end_printf
 print_esc
                clrb                    ; delete "%" character
 print_escape
+                                       ; shift modifier FiFo
                pula                    ; get modifier 2
                ins                     ; discard modifier 1
                psha                    ; make modifier 2 new modifier 1
                pshb                    ; store new char as modifier 2
+
                ldab 0,x                ; read next byte
-               beq  print_end
-               inx
+               beq  print_end          ; check for end of string
+               inx                     ; set pointer to next char
                tba
                oraa #$20               ; ignore case - make everything upper case
                cmpa #'x'
-               beq  pes_hex
+               beq  pes_hex            ; check for Hex
                cmpa #'i'
-               beq  pes_dec
+               beq  pes_dec            ; check for Integer (decimal)
                cmpa #'d'
-               beq  pes_dec
+               beq  pes_dec            ; check for Integer (decimal)
                cmpa #'s'
-               beq  pes_str
+               beq  pes_str            ; check for string
                cmpa #'c'
-               beq  pes_char
+               beq  pes_char           ; check for char
                cmpb #'%'
-               beq  print_char         ; print "%"
+               beq  print_char         ; check for "%" -> print "%"
                                        ; all types have been checked
-               cmpb #'+'
-               beq  print_escape
+               cmpb #'+'               ; check for + (print pos. sign)
+               beq  print_escape       ; loop (put + modifier in FiFo)
                cmpb #'9'+1             ; check possible modifiers for sanity
-               bcc  print_loop         ; (only numeric values allowed)
+               bcc  print_loop         ; only numeric values allowed, exit from Escape on error
                cmpb #'0'
-               bcs  print_loop
-               bra  print_escape
+               bcs  print_loop         ; only numeric values allowed, exit from Escape on error
+               bra  print_escape       ; modifier is numeric, loop (shift it into FiFo)
 ;**********
 pes_char
                pshx

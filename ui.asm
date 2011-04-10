@@ -90,12 +90,13 @@ no_intro
 ;                jsr  freq_print             ; Frequenz anzeigen
                 WAIT(150)
                 clra
-                jsr  lcd_clr
+;                jsr  lcd_clr
                 ldx  #42
                 pshx
                 clrb
                 pshb
                 pshb
+
                 tsx
                 pshx
                 ldx  #test_str
@@ -124,8 +125,8 @@ ui_loop                                     ; komplette Display Kommunikation
 
 ;*******************************************
 test_str
-                .db "X 42Z",0
-                .db "X%3iZ",0
+;                .db "x30 Z",0
+                .db "X%4xZ",0
 dg1yfe_str
                 .db "DG1YFE",0
 mc70_str
