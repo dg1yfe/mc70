@@ -127,7 +127,7 @@ ui_loop                                     ; komplette Display Kommunikation
 ;*******************************************
 test_str
 ;                .db "x30 Z",0
-                .db "X%3iZ",0
+                .db "X%04i Z",0
 dg1yfe_str
                 .db "DG1YFE",0
 mc70_str

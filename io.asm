@@ -1274,15 +1274,18 @@ store_dbuf_end
 ;
 ;
 ;
-; 7 - Arg
-#define PES_ARG      7
-; 5 - Return
-; 4 - B
-; 3 - A
-; 2 - ARG Offset
-#define PES_ARG_OFS  2
+; 8 - Arg
+#define PES_ARG      8
+; 7 - Return L
+; 6 - Return H
+; 5 - B
+; 4 - A
+; 3 - ARG Offset
+#define PES_ARG_OFS  3
+; 2 - Modifier2
 ; 1 - Modifier2
 ; 0 - Modifier1
+#define PES_MODIF0   2
 #define PES_MODIF1   1
 #define PES_MODIF2   0
 
@@ -1294,6 +1297,7 @@ printf
                psha
                clra                 ; clear Arg Offset
                psha                 ; push to stack
+               psha
                psha
                psha                 ; clear modifier variables
 print_loop
@@ -1318,17 +1322,22 @@ end_printf
                ins
                ins
                ins
+               ins
                pula
                pulb
                rts
 print_esc
                clrb                    ; delete "%" character
 print_escape
+               pshx
                                        ; shift modifier FiFo
-               pula                    ; get modifier 2
-               ins                     ; discard modifier 1
-               psha                    ; make modifier 2 new modifier 1
-               pshb                    ; store new char as modifier 2
+               tsx
+               ldaa 2+PES_MODIF1,x
+               staa 2+PES_MODIF0,x     ; make modifier 1 new modifier 0
+               ldaa 2+PES_MODIF2,x
+               staa 2+PES_MODIF1,x     ; make modifier 2 new modifier 1
+               stab 2+PES_MODIF2,x     ; store new char as modifier 2
+               pulx
 
                ldab 0,x                ; read next byte
                beq  print_end          ; check for end of string
@@ -1389,7 +1398,7 @@ pst_loop
                bra  pst_loop           ; loop
 pst_return
                pulx
-               bra  print_loop         ; print as character
+               jmp  print_loop         ; print as character
 ;**********
 pes_hex
                pshx                    ; put String pointer onto stack
@@ -1514,8 +1523,8 @@ pes_dec
                ldaa 4+PES_MODIF2,x     ; get modifier 2
                beq  pdc_print          ; if there is no modifier 2, print unmodified
                cmpa #'+'               ; sign modifier?
-               bne  pdc_modif1         ; then start print
-               ldaa #$40               ; print sign
+               bne  pdc_modif1         ; no? Assume number, check modifier 1
+               ldaa #$40               ; force print with sign
                bra  pdc_print
 ; "%+02i"->print at least 2 digits, use 0 to prepend, always print sign
 ; "%02i"-> print at least 2 digits, use 0 to prepend, print sign for neg. values
@@ -1523,83 +1532,31 @@ pes_dec
 ; "%2i" -> print at least 2 digits, use space to prepend
 ; "%+i" -> print w sign
 pdc_modif1
+               suba #'0'               ; convert ascii char to number of digits to print
+                                       ; (silently assume modifier is a numeric char)
                ldab 4+PES_MODIF1,x     ; get modifier 1
-               bne  pdc_m1chk          ; if there is none, start print, fill with space
-               oraa #$80               ; prepend with space
+               bne  pdc_m1chk          ; if there is a modifier 1, check which one
+               oraa #$80               ; else (no modifier 1) -> prepend with space
                bra  pdc_print
 pdc_m1chk
-               cmpb #'0'
-               bne  pdc_m1chks
-               anda #$0f               ; fill with '0'
-               bra  pdc_print
+               cmpb #'0'               ; Is modifier 1 '0' ?
+               bne  pdc_m1chks         ; If not, perform another check
+               anda #$0f               ; modifier is '0', set flags to prepend with '0'
+                                       ; ( assume valid numer is given by modifier 2)
+               ldab 4+PES_MODIF0,x     ; check if modifier 0
 pdc_m1chks
-
-pdc_fws
-               ldab #$80               ; load 'fill with space' modifier bit
-               suba #'0'               ; convert ascii char to number of digits to print
-               aba                     ; add number of digits to print
-               bra  pdc_print
-pdc_zero
-               suba #'0'               ; convert ascii char to number of digits to print
+               cmpb #'+'               ; is a '+'
+               bne  pdc_print          ; if not, then print
+               anda #$0f               ; apply mask again, in case we came here by branch from pdc_m1chk
+               oraa #$40               ; else make sure the sign gets printed too
 pdc_print
                clrb                    ; do not truncate printout
                pulx                    ; get longint pointer from stack
                jsr  udecout
-               jmp  print_loop         ; continue
-
-
-pdc_chksprint
-               tsx
-               ldab 4+1+PES_MODIF2,x   ; get modifier 2
-               beq  pdc_noprintsign    ; if it is unset, continue with printing
-               cmpb #'+'               ; if it is '+',
-               beq  pdc_printsign      ; print the sign char
-               ldab 4+1+PES_MODIF1,x   ; get modifier 1
-               beq  pdc_noprintsign    ; if it is unset, continue with printing
-               cmpb #'+'               ; if it is '+'
-               beq  pdc_printsign      ; print the sign char
-               tsx
-               ldd  3,x                ; get pointer to next string char
-               subd #4                 ; point to char before modifier 1
-               xgdx
-               ldab 0,x                ; get char befor Modifier 1
-               cmpb #'+'               ; check if this was a '+'
-               bne  pdc_noprintsign    ; if not, branch and dont print the sign
-pdc_printsign
-               ldaa #$40               ; print the sign
-               clrb
-pdc_noprintsign
-               clrb                    ; do not truncate printout
-               pulx                    ; get longint pointer from stack
-               pula                    ; get min. digit count and digit fill indicator
-               jsr  udecout
-               pulx                    ; get pointer to next char from stack
+               pulx
                jmp  print_loop         ; continue
 
 ;*************
-pdc_sign
-               tsx
-               ldx  2,x                ; get pointer to long
-               ldx  0,x                ; get hi word of long
-               pshb
-               psha
-               xgdx
-               tsta                    ; test sign bit
-               bmi  pds_neg
-               tstb                    ; test if pos sign should be printed
-               beq  pds_end            ; exit if not
-               ldab #'+'
-               bra  pds_print
-pds_neg
-               ldab #'-'
-pds_print
-               ldaa #'c'
-               jsr  putchar            ; print sign
-pds_end
-               pula
-               pulb
-               rts                     ; return
-
 
 
 ;*********
