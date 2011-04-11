@@ -1078,8 +1078,11 @@ einer
 ; Formatiert einen 32 Bit Integer für Dezimale Darstellung um und gibt ihn aus
 ;
 ; Parameter : B - Anzahl der vom Ende der Zahl abzuschneidenden Ziffern
-;             A - Anzahl der mindestens auszugebenden Stellen (MSB = fill with space)
-;
+;             A - Anzahl der mindestens auszugebenden Stellen (Bit 0-3)
+;                 force sign inversion on return (Bit 4)
+;                 force negative sign (Bit 5)
+;                 Force sign print (Bit 6)
+;                 Prepend space instead of zero (Bit 7)
 ;             Stack - 32 Bit Integer
 ;
 ; Ergebnis : none
@@ -1106,6 +1109,14 @@ ulongout
 udecout
                psha                    ; Put minimum number of digits to print to Stack
                pshx                    ; Put pointer to longint to stack
+               pshb                    ; save digits to truncate
+               ldaa 0,x
+               bpl  ulo2_ispositive    ; check for sign of long
+               jsr  sig_inv32s         ; invert longint
+               tsx
+               oim  #$70,3,x           ; add flag for "print sign, sign negative, sign inversion"
+ulo2_ispositive
+               pulb
                andb #7                 ; truncate at max. 7 digits
                beq  ulo2_notrunc       ; wenn nichts abzuschneiden, Division �berspringen
                pshb                    ; Exponent auf stack
@@ -1131,13 +1142,14 @@ ulo2_notrunc
                pula                    ; get no. of digits to print
                tab
                andb #$40               ; check if sign should be printed
-               bne  ulo2_nosign
+               beq  ulo2_nosign        ; branch if not
                tab
-               anda #$3f               ; check min number of digits is given
+               anda #$0f               ; check min number of digits is given
                beq  ulo2_nosign        ; dont change anything if it isn't
                deca                    ; decrease number of digits if sign
                                        ; is to be printed
 ulo2_nosign
+               pshx
                ldab #$da
                pshb                    ; push end marker to stack
 ulo2_divloop
@@ -1156,7 +1168,7 @@ ulo2_divloop
 
                pshx                    ; Save Pointer
                psha                    ; Save Digit counter
-               anda #$3f               ; ignore fill bit
+               anda #$0f               ; extract counter bits
                beq  ulo2_nodecr        ; already at zero? Then branch and dont
                tsx
                dec  0,x                ; decrement min number of digits
@@ -1166,7 +1178,25 @@ ulo2_nodecr
                tstb                    ; Prüfen ob Quotient = 0
                bne  ulo2_divloop       ; Wenn Quotient >0, dann erneut teilen
                tab
-               andb #$3f               ; Test digit counter
+               andb #$40               ; test if sign should be shown
+               bne  ulo2_testfill      ; if not, check for number of prepend digits
+               tab
+               andb #$20               ; test for negative sign
+               beq  ulo2_putpos
+               ldab #'-'-'0'
+               bra  ulo2_signdec
+ulo2_putpos
+               ldab #'+'-'0'
+ulo2_signdec
+               pshb
+               tab
+               andb #$0f               ; isolate counter bits
+               beq  ulo2_prntloop      ; if they're already zero, start print
+               deca                    ; else decrement by one
+                                       ; (account for sign)
+ulo2_testfill
+               tab
+               andb #$0f               ; Test digit counter
                beq  ulo2_prntloop      ; Mindestanzahl erreicht, Zahl ausgeben
                ldx  #0                 ;
 ulo2_fill_loop
@@ -1175,7 +1205,7 @@ ulo2_fill_loop
                xgdx                    ; restore AB
                decb                    ; decrement digit count
                bne  ulo2_fill_loop     ; loop until zero
-               anda #$80               ; mask digit count, keep Space/Zero marker
+               anda #$e0               ; mask digit count, keep Space/Zero marker
 ;************
 ulo2_prntloop
                pulb                    ; Rest vom Stack holen
@@ -1183,10 +1213,10 @@ ulo2_prntloop
                beq  ulo2_end           ; Escape here, if marker found
                tstb                    ; test if digit = 0?
                beq  ulo_zero           ; print according to modifier if digit is 0
-               clra                    ; print everything from 1st non-zero digit
+               anda #$70               ; print everything from 1st non-zero digit
 ulo_zero
-               tsta                    ; print zero (A=0) or space (A=$80)
-               beq  ulo_print
+               tsta                    ; print zero (MSB=0) or space (MSB=1)
+               bpl  ulo_print
                pshb                    ; push digit to stack
                tsx
                ldab 1,x                ; get next digit
@@ -1202,6 +1232,12 @@ ulo_print
                pula
                bra  ulo2_prntloop      ;
 ulo2_end
+               pulx
+               tab
+               andb #$10               ; check for sign inversion bit
+               beq  ulo2_return
+               jsr  sig_inv32s         ; invert sign (again)
+ulo2_return
                rts
 
 ;**********************
@@ -1478,7 +1514,9 @@ pes_dec
                ldaa 4+PES_MODIF2,x     ; get modifier 2
                beq  pdc_print          ; if there is no modifier 2, print unmodified
                cmpa #'+'               ; sign modifier?
-               beq  pdc_print          ; then start print
+               bne  pdc_modif1         ; then start print
+               ldaa #$40               ; print sign
+               bra  pdc_print
 ; "%+02i"->print at least 2 digits, use 0 to prepend, always print sign
 ; "%02i"-> print at least 2 digits, use 0 to prepend, print sign for neg. values
 ; "%+2i"-> print at least 2 digits with sign, use space to prepend
@@ -1486,9 +1524,16 @@ pes_dec
 ; "%+i" -> print w sign
 pdc_modif1
                ldab 4+PES_MODIF1,x     ; get modifier 1
-               beq  pdc_fws            ; if there is none, start print, fill with space
+               bne  pdc_m1chk          ; if there is none, start print, fill with space
+               oraa #$80               ; prepend with space
+               bra  pdc_print
+pdc_m1chk
                cmpb #'0'
-               beq  pdc_zero           ; fill with '0'
+               bne  pdc_m1chks
+               anda #$0f               ; fill with '0'
+               bra  pdc_print
+pdc_m1chks
+
 pdc_fws
                ldab #$80               ; load 'fill with space' modifier bit
                suba #'0'               ; convert ascii char to number of digits to print
@@ -1497,30 +1542,12 @@ pdc_fws
 pdc_zero
                suba #'0'               ; convert ascii char to number of digits to print
 pdc_print
-               pulx
-               psha
-               pshx
-               ldab 0,x                ; test sign of longint
-               bpl  pdc_chksprint      ; if positive, check if sign should be shown
-               jsr  sig_inv32s         ; invert sign
-               ldab #'-'
-               ldaa #'c'
-               jsr  putchar
-
                clrb                    ; do not truncate printout
                pulx                    ; get longint pointer from stack
-               pula
-               tsta                    ; test for zero digit count
-               beq  pdc_putneg         ; if it is zero, print the number
-               deca                    ; else reduce digit count by one
-                                       ; (account for sign)
-pdc_putneg
-               pshx
                jsr  udecout
-               pulx
-               jsr  sig_inv32s         ; invert sign back
-               pulx                    ; get pointer to next char from stack
                jmp  print_loop         ; continue
+
+
 pdc_chksprint
                tsx
                ldab 4+1+PES_MODIF2,x   ; get modifier 2
@@ -1539,14 +1566,8 @@ pdc_chksprint
                cmpb #'+'               ; check if this was a '+'
                bne  pdc_noprintsign    ; if not, branch and dont print the sign
 pdc_printsign
-               ldab #'+'               ; print the sign
-               ldaa #'c'
-               jsr  putchar
-               tsx
-               tst  3,x                ; test for zero digit count
-               beq  pdc_noprintsign    ; if it is zero, print the number
-               dec  3,x                ; otherwise decrease by one
-                                       ; (account for sign)
+               ldaa #$40               ; print the sign
+               clrb
 pdc_noprintsign
                clrb                    ; do not truncate printout
                pulx                    ; get longint pointer from stack

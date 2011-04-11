@@ -715,7 +715,7 @@ sub32
 ; S I G   I N V 3 2
 ;*******************
 ;
-; Vorzeichenumkehr
+; Vorzeichenumkehr / Two's complement
 ;
 ; Parameter:
 ;           X:D   Zahl  (32Bit)
@@ -723,20 +723,33 @@ sub32
 ;           Not(Zahl)+1 (Vorzeichenumkehr)
 ;
 sig_inv32
+               pshx
                coma
                comb                 ; LoWord invertieren
+               addd #1              ; add 1
                xgdx
-               pshx                 ; und auf Stack schieben
-               coma
-               comb                 ; HiWord invertieren
-               xgdx
-               pshx                 ; und auf Stack schieben
-               ldd  #1
-               ldx  #0              ; 1 addieren
-               jsr  add32
-               pulx
+               pshx
+               tpa
+               psha                 ; save Status
+               tsx
+               ldab 4,x             ; get 3rd Byte
+               comb                 ; invert it
+               pula
+               tap                  ; Get status (Carry) back
+               adcb #0              ; add carry
+               tpa
+               psha                 ; save status
+               stab 4,x             ; save 3rd byte
+               ldab 3,x             ; get 4th byte
+               comb                 ; invert it
+               pula
+               tap
+               adcb #0              ; add carry
+               stab 3,x             ; save 4th byte
+
                pula                 ; Ergebnis holen
                pulb
+               pulx
 
                rts
 ;*********************
@@ -758,22 +771,26 @@ sig_inv32s
                ldd  2,x
                coma
                comb                 ; LoWord invertieren
+               addd #1              ; add #1
                std  2,x
-               ldd  0,x
-               coma
-               comb                 ; HiWord invertieren
-               std  0,x
-               ldab  #1
-               pshb
-               clrb
-               pshb
-               pshb
-               pshb
-               jsr  add32s
-               pulx
+               tpa
+               psha                 ; save Status
+               ldab 1,x             ; get 3rd Byte
+               comb                 ; invert it
                pula
-               pulb
-               pulx
+               tap                  ; Get status (Carry) back
+               adcb #0              ; add carry
+               tpa
+               psha                 ; save status
+               stab 1,x             ; save 3rd byte
+               ldab 0,x             ; get 4th byte
+               comb                 ; invert it
+               pula
+               tap
+               adcb #0              ; add carry
+               stab 0,x             ; save 4th byte
+
+               pulx                 ; get x back
                rts
 ;************
 ; R A I S E
