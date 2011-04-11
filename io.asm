@@ -1144,7 +1144,7 @@ ulo2_notrunc
                andb #$40               ; check if sign should be printed
                beq  ulo2_nosign        ; branch if not
                tab
-               anda #$0f               ; check min number of digits is given
+               andb #$0f               ; check min number of digits is given
                beq  ulo2_nosign        ; dont change anything if it isn't
                deca                    ; decrease number of digits if sign
                                        ; is to be printed
@@ -1179,7 +1179,7 @@ ulo2_nodecr
                bne  ulo2_divloop       ; Wenn Quotient >0, dann erneut teilen
                tab
                andb #$40               ; test if sign should be shown
-               bne  ulo2_testfill      ; if not, check for number of prepend digits
+               beq  ulo2_testfill      ; if not, check for number of prepend digits
                tab
                andb #$20               ; test for negative sign
                beq  ulo2_putpos
@@ -1188,12 +1188,7 @@ ulo2_nodecr
 ulo2_putpos
                ldab #'+'-'0'
 ulo2_signdec
-               pshb
-               tab
-               andb #$0f               ; isolate counter bits
-               beq  ulo2_prntloop      ; if they're already zero, start print
-               deca                    ; else decrement by one
-                                       ; (account for sign)
+               pshb                    ; push sign to stack
 ulo2_testfill
                tab
                andb #$0f               ; Test digit counter
