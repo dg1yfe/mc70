@@ -1145,7 +1145,7 @@ ulo2_notrunc
                beq  ulo2_nosign        ; branch if not
                tab
                andb #$0f               ; check min number of digits is given
-               beq  ulo2_nosign        ; dont change anything if it isn't
+               beq  ulo2_nosign        ; dont change anything if it isn't given
                deca                    ; decrease number of digits if sign
                                        ; is to be printed
 ulo2_nosign
@@ -1181,57 +1181,70 @@ ulo2_nodecr
                andb #$40               ; test if sign should be shown
                beq  ulo2_testfill      ; if not, check for number of prepend digits
                tab
+               andb #$80               ; check for "fill with space" (sign at end of spaces, before 1st digit)
+               beq  ulo2_testfill      ; start prepend action if it is "fill with 0" (sign in front of zeros)
+               tab
                andb #$20               ; test for negative sign
-               beq  ulo2_putpos
+               beq  ulo2_putposbk
                ldab #'-'-'0'
-               bra  ulo2_signdec
-ulo2_putpos
+               bra  ulo2_signputbk
+ulo2_putposbk
                ldab #'+'-'0'
-ulo2_signdec
+ulo2_signputbk
                pshb                    ; push sign to stack
 ulo2_testfill
                tab
                andb #$0f               ; Test digit counter
-               beq  ulo2_prntloop      ; Mindestanzahl erreicht, Zahl ausgeben
-               ldx  #0                 ;
+               beq  ulo2_tstsignfr     ; Mindestanzahl erreicht, Zahl ausgeben
+               tsta
+               bmi  ulo2_pp_space
+               ldx  #0                 ; use zero to fill
+               bra  ulo2_fill_loop
+ulo2_pp_space
+               ldx  #' '-'0'           ; use Space to fill
 ulo2_fill_loop
                xgdx                    ; save AB to X
                pshb                    ; push zero to stack
                xgdx                    ; restore AB
                decb                    ; decrement digit count
                bne  ulo2_fill_loop     ; loop until zero
-               anda #$e0               ; mask digit count, keep Space/Zero marker
+               anda #$f0               ; mask digit count, keep Space/Zero marker
+ulo2_tstsignfr
+               tab
+               andb #$40               ; test if sign should be shown
+               beq  ulo2_prntloop      ; if not, start print
+               tab
+               andb #$80               ; check for "fill with space" (sign at end of spaces, before 1st digit)
+               bne  ulo2_prntloop      ; start printout if it is "fill with space" (sign in front of zeros)
+               tab
+               andb #$20               ; test for negative sign
+               beq  ulo2_putposfr      ; if sign is positive, branch
+               ldab #'-'-'0'           ; else load "-", subtract '0' because it is added later
+                                       ; again (conversion 'number' to 'char')
+               bra  ulo2_signputfr
+ulo2_putposfr
+               ldab #'+'-'0'           ; load "+" sign
+ulo2_signputfr
+               pshb                    ; push sign to stack
+
 ;************
 ulo2_prntloop
                pulb                    ; Rest vom Stack holen
                cmpb #$da               ; test for end marker
                beq  ulo2_end           ; Escape here, if marker found
-               tstb                    ; test if digit = 0?
-               beq  ulo_zero           ; print according to modifier if digit is 0
-               anda #$70               ; print everything from 1st non-zero digit
-ulo_zero
-               tsta                    ; print zero (MSB=0) or space (MSB=1)
-               bpl  ulo_print
-               pshb                    ; push digit to stack
-               tsx
-               ldab 1,x                ; get next digit
-               cmpb #$da               ; check for end marker
-               pulb                    ; get current digit from stack
-               beq  ulo_print          ; print zero if it is the last digit
-               subb #$10               ; load -16
-ulo_print
-               psha                    ; save type of fill char to print
-               addb #'0'               ; $30 addieren
+
+               psha                    ; save flags
+               addb #'0'               ; add $30 (num to char conversion)
                ldaa #'c'
-               jsr  putchar            ; Zeichen ausgeben
-               pula
+               jsr  putchar            ; print char
+               pula                    ; restore flags
                bra  ulo2_prntloop      ;
 ulo2_end
-               pulx
+               pulx                    ; restore pointer to long
                tab
-               andb #$10               ; check for sign inversion bit
+               andb #$10               ; check if long was inverted
                beq  ulo2_return
-               jsr  sig_inv32s         ; invert sign (again)
+               jsr  sig_inv32s         ; eventually invert sign (again)
 ulo2_return
                rts
 
@@ -1527,23 +1540,23 @@ pes_dec
 ; "%2i" -> print at least 2 digits, use space to prepend
 ; "%+i" -> print w sign
 pdc_modif1
-               suba #'0'               ; convert ascii char to number of digits to print
+               anda #$0f
+;               suba #'0'               ; convert ascii char to number of digits to print
                                        ; (silently assume modifier is a numeric char)
                ldab 4+PES_MODIF1,x     ; get modifier 1
-               bne  pdc_m1chk          ; if there is a modifier 1, check which one
-               oraa #$80               ; else (no modifier 1) -> prepend with space
-               bra  pdc_print
+               beq  pdc_ppsel          ; if there is none, prepend with space
 pdc_m1chk
                cmpb #'0'               ; Is modifier 1 '0' ?
                bne  pdc_m1chks         ; If not, perform another check
-               anda #$0f               ; modifier is '0', set flags to prepend with '0'
+               oraa #$80               ; modifier is '0', set (inverted) flags to prepend with '0'
                                        ; ( assume valid numer is given by modifier 2)
                ldab 4+PES_MODIF0,x     ; check if modifier 0
 pdc_m1chks
                cmpb #'+'               ; is a '+'
-               bne  pdc_print          ; if not, then print
-               anda #$0f               ; apply mask again, in case we came here by branch from pdc_m1chk
+               bne  pdc_ppsel          ; if not, then print
                oraa #$40               ; else make sure the sign gets printed too
+pdc_ppsel
+               eora #$80               ; invert flag to select prepend char (space or zero)
 pdc_print
                clrb                    ; do not truncate printout
                pulx                    ; get longint pointer from stack
