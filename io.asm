@@ -1077,8 +1077,10 @@ einer
 ;
 ; Formatiert einen 32 Bit Integer für Dezimale Darstellung um und gibt ihn aus
 ;
-; Parameter : B - Anzahl der vom Ende der Zahl abzuschneidenden Ziffern
+; Parameter : B - Anzahl der vom Ende der Zahl abzuschneidenden Ziffern (Bit 0-3)
+;                 Flags (Bit 4-7, only ulongout -> see below)
 ;             A - Anzahl der mindestens auszugebenden Stellen (Bit 0-3)
+;                 Flags (udecout)
 ;                 force sign inversion on return (Bit 4)
 ;                 force negative sign (Bit 5)
 ;                 Force sign print (Bit 6)
@@ -1100,7 +1102,9 @@ einer
 ; 0 R-Adresse1 hi
 ;
 ulongout
-               clra
+               tba
+               andb #$0f
+               anda #$f0
                tsx
                inx
                inx
@@ -1540,9 +1544,9 @@ pes_dec
 ; "%2i" -> print at least 2 digits, use space to prepend
 ; "%+i" -> print w sign
 pdc_modif1
-               anda #$0f
-;               suba #'0'               ; convert ascii char to number of digits to print
+               anda #$0f               ; convert ascii char to number of digits to print
                                        ; (silently assume modifier is a numeric char)
+                                       ; simultaneously reset hi nibble to zero (used for flags)
                ldab 4+PES_MODIF1,x     ; get modifier 1
                beq  pdc_ppsel          ; if there is none, prepend with space
 pdc_m1chk

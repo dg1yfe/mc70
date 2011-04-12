@@ -225,25 +225,8 @@ mts_nosave
 mts_print
                 clrb
                 jsr  lcd_cpos
-                pulb
-                pshb
-                tstb
-                bpl  mts_pos_shift    ; Vorzeichen prüfen
-                pulx
-                pula
-                pulb
-                jsr  sig_inv32        ; Vorzeichen umkehren
-                pshb
-                psha
-                pshx                  ; Offset auf Stack speichern
-                ldab #'+'
-                bra  mts_print_offset
-mts_pos_shift
-                ldab #'-'
-mts_print_offset
-                ldaa #'c'
-                jsr  putchar          ; Vorzeichen ausgeben
-                ldab #3
+
+                ldab #3+$40           ; cut 3 digits, force display of sign
                 ldaa #'l'
                 jsr  putchar          ; aktuelle TX Shift ausgeben
                 pulx
@@ -319,17 +302,19 @@ mts_to_zero
                 pshx
                 jmp  mts_print
 mts_chg_sign
-                ldx  offset
+                ldx  #offset
+                jsr  sig_inv32s       ; Vorzeichen umkehren
                 ldd  offset+2
-                jsr  sig_inv32        ; Vorzeichen umkehren
                 std  txshift+2
-                stx  txshift
                 std  ui_txshift+2
-                stx  ui_txshift
-                swi
                 pshb
                 psha
-                pshx                  ; Offset auf Stack speichern
+                ldd  offset
+                std  txshift
+                std  ui_txshift
+                pshb
+                psha                  ; Offset auf Stack speichern
+                swi
                 jmp  mts_print
 mts_end
                 jmp  m_end

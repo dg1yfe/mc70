@@ -722,6 +722,7 @@ sub32
 ; Ergebnis:
 ;           Not(Zahl)+1 (Vorzeichenumkehr)
 ;
+; required Stack Space : 7 Byte
 sig_inv32
                pshx
                coma
@@ -766,6 +767,8 @@ sig_inv32
 ; changed Regs: A,B
 ;
 ; changed Mem : *X
+;
+; required Stack Space : 5 Byte
 sig_inv32s
                pshx
                ldd  2,x

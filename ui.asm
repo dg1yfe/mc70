@@ -87,24 +87,10 @@ ui
                 WAIT(150)
 no_intro
                 ldx  #frequency
-;                jsr  freq_print             ; Frequenz anzeigen
+                jsr  freq_print             ; Frequenz anzeigen
                 WAIT(150)
                 clra
 ;                jsr  lcd_clr
-ui_test
-                ldx  #42
-                pshx
-                clrb
-                pshb
-                pshb
-                tsx
-;                jsr  sig_inv32s
-                pshx
-                ldx  #test_str
-                jsr  printf
-                ins
-bla
-                bra  bla
 
                 jsr  freq_offset_print      ; Frequenz anzeigen
 
