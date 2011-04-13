@@ -99,7 +99,7 @@ no_intro
 
                 jsr  menu_init
 ui_loop                                     ; komplette Display Kommunikation
-                bsr  menu                   ; Menü für Frequenzeingabe etc.
+                jsr  menu                   ; Menü für Frequenzeingabe etc.
 #define UI_UPD_LOOP jsr  sci_trans_cmd          ; Eingabe prüfen und ggf. in Menü Puffer legen
 #defcont      \ clrb
 #defcont      \ jsr  pll_led                ; PLL Lock Status auf rote LED ausgeben

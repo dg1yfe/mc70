@@ -156,7 +156,7 @@ msf_end
 ;
 ; required Stack Space : 8+Subroutines
 ;
-; Stack depth on entry : 3
+; Stack depth on entry : 4
 ;
 ; 4 - first pos
 ; 3 - last pos
@@ -171,20 +171,18 @@ msf_end
 ;
 m_digit_editor
                 pshb
-                pshb
 
                 tab
                 anda #$0f
+                psha                       ; save first digit pos / back
 
                 lsrb
                 lsrb
                 lsrb
                 lsrb
-                pshb                       ; save last digit pos
+                pshb                       ; save last digit pos / front
 
                 tsx
-                staa MDE_FIRST_POS-3,x     ; save first digit pos
-
                 ldab 2,x                   ; get mode back
 
                 tstb                       ; test mode (decimal/alphanum/alphabet)
@@ -216,12 +214,16 @@ mde_chkspace
                 jsr  lcd_chr_mode       ; let digit blink
 mde_loop
                 jsr  m_reset_timer      ; Eingabe Timeout zurücksetzen
-
+mde_key_loop
                 UI_UPD_LOOP             ; run UI update loop (transfer new keys to menu buffer, update LEDs, etc.)
+                jsr  sci_rx_m           ; check for keypress
 
-                jsr  sci_read_m
+                ldx  m_timer            ; check m_timer
+                beq  mde_exit
+
                 tsta
-                bmi  mde_exit
+                bmi  mde_key_loop
+
                 ldaa cfg_head
                 cmpa #3
                 beq  mde_hd3sel
@@ -277,8 +279,6 @@ mdu_store
                 orab #$80             ; set blink bit
                 ldaa #'c'
                 jsr  putchar          ; print char
-bla
-                bra  bla
                 jmp  mde_loop         ; wait for upcoming action
 ;*************
 mde_down
@@ -290,60 +290,60 @@ mde_down
                 anda #~CHR_BLINK             ; ignore blink bit
                 deca
                 tsx
-                cmpa 1+MDE_UPPER_LIM,x       ; compare to upper limit
-                bcs  mdu_wrap
+                cmpa MDE_LOWER_LIM,x         ; compare to upper limit
+                bcs  mdd_wrap
                 bra  mdu_store
 mdd_wrap
-                ldaa 1+MDE_UPPER_LIM,x       ; set upper limit
+                ldaa MDE_UPPER_LIM,x         ; set upper limit
                 bra  mdu_store
 ;----------------
 mde_next
-                pulb
-                pshb
-                clra
-                jsr  lcd_chr_mode
                 tsx
-                cmpb 3,x              ; check if first pos reached
-                beq  mdn_wrap         ; then wrap
+                pulb                         ; get current position
+                clra
+                jsr  lcd_chr_mode            ; set current char to solid
+                cmpb MDE_LAST_POS,x          ; check if first pos reached
+                beq  mdn_wrap                ; then wrap
                 decb
                 bra  mdn_cont
 mdn_wrap
-                ldab MDE_FIRST_POS,x  ; load first position
+                ldab MDE_FIRST_POS,x         ; load first position
 mdn_cont
+                pshb                         ; write new position
                 inca
-                jsr  lcd_chr_mode     ; let digit blink
+                jsr  lcd_chr_mode            ; let digit blink
                 jmp  mde_loop
 ;----------------
 mde_enter
-                pulb
+                pulb                         ; get current position
                 clra
-                jsr  lcd_chr_mode
-                pulx
-                pulb
-                clra
+                jsr  lcd_chr_mode            ; set char to solid
+                pulx                         ; delete upper & lower limit from stack
+                pulb                         ; sorce pointer - get last pos / highest digit
+                clra                         ; dest. pointer
 mee_loop
                 ldx  #dbuf
-                abx
+                abx                          ; set X to string in dbuf
                 pshb
                 psha
-                ldaa 0,x
+                ldaa 0,x                     ; get first char from string
                 ldx  #f_in_buf
                 pulb
                 abx
-                staa 0,x
-                incb
+                staa 0,x                     ; save as first char in f_in buf
+                incb                         ; increment dest. pointer
                 inx
-                clr  0,x         ; set next byte to "Null"
-                tba
-                pulb
+                clr  0,x                     ; set next byte to "Null"
+                tba                          ; return dest pointer to A
+                pulb                         ; get source pointer back
                 tsx
-                cmpb 0,x
-                beq  mee_end
-                incb
-                bra  mee_loop
+                cmpb 0,x                     ; check if lowest digit is reached
+                beq  mee_end                 ; if so - end here
+                incb                         ; else increment source pointer
+                bra  mee_loop                ; loop
 mee_end
-                ins
-                pulb
-                clra
-                ldx  #f_in_buf
-                rts
+                ins                          ; delete first pos from stack
+                pulb                         ; get b back
+                clra                         ; return success
+                ldx  #f_in_buf               ; return pointer to buffer
+                rts                          ; return

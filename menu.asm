@@ -91,18 +91,15 @@ menu_init
 ;
 ;
 ;************************
-; Stack depth on entry: 1
+; Stack depth on entry: 2
 ;
 menu
                 jsr  sci_rx_m
                 tsta
-                beq  m_keypressed
+                bpl  m_keypressed
                 jmp  m_end
 m_keypressed
-                ldx  #key_convert                ; index key convert table
-                abx
-                ldaa 0,x                         ; Key übersetzen
-                psha                             ; Wert speichern
+                pshb                             ; save key
 
 		        ldab m_state                     ; Status holen
                 aslb

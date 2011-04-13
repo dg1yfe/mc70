@@ -240,10 +240,10 @@ mts_nosave
 mts_print
                 clrb
                 jsr  lcd_cpos
-
-                ldab #3+$40           ; cut 3 digits, force display of sign
-                ldaa #'l'
-                jsr  putchar          ; aktuelle TX Shift ausgeben
+                tsx
+                ldaa #$45
+                ldab #3
+                jsr  decout
                 pulx
                 pulx
                 jsr  lcd_fill
@@ -344,14 +344,6 @@ mts_end
 ; Stack depth on entry: 1
 ;
 mts_digit
-                clrb
-                jsr  cpos
-                ldx  #offset          ; get pointer to offset
-                pshx                  ; push to stack (variable 1)
-                ldx  #str_mts_zero
-                jsr  printf
-                jsr  lcd_fill         ; fill lcd
-                pulx
                 ldaa #(1<<4)+2        ; digits 1 & 2 editable
                 clrb                  ; decimal mode
                 jsr  m_digit_editor   ; call digit editor
@@ -360,7 +352,6 @@ mts_digit
                 bra  msh_set_str      ; set shift
 mts_abort
                 jmp  m_end
-str_mts_zero    .db  "%+04i",0
 ;**************************************
 ; M   S E T   S H I F T
 ;
@@ -377,7 +368,7 @@ msh_set_str
                 pshx                  ; für Ergebnis der Frequenzberechnung
                 tsx                   ; Zeiger auf Zwischenspeicher (Stack) nach X
                 ldd  #f_in_buf        ; Zeiger auf Eingabestring holen
-                jsr  frq_calc_freq    ; Frequenz berechnen
+                jsr  atoi             ; Frequenz berechnen
                 ldd  #100             ; durch 100 teilen, da erste Ziffer der Eingabe als *10^8 (100 Mio) betrachtet wird
                 jsr  divide32
                 ldab cpos
@@ -510,7 +501,7 @@ m_menu_str     .db "MENU",0
 ;
 ; select frequency digit to alter using up/down
 ;
-; Stack depth on entry: 1
+; Stack depth on entry: 2
 ;
 m_digit_start
                 ldab m_timer_en       ; Falls Roundcount noch angezeigt wird, Displayinhalt NICHT speichern

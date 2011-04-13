@@ -436,25 +436,19 @@ sci_read
 ;
 ; Echo/Kommandobestätigung lesen
 ;
-;                         A : Status (0=RX ok, 1=no RX)
-;                         B : rxd Byte
+; Parameter:  none
+;
+;                         A : raw value ( Bit 0-6)
+;                             Status  (Bit 7) (0=RX ok, 1=no RX)
+;                         B : converted Byte (Key convert Table)
+;
 ;              changed Regs : A, B
 ;
 sci_rx_m
                 ldab io_menubuf_r         ; Zeiger auf Leseposition holen
                 cmpb io_menubuf_w         ; mit Schreibposition vergleichen
-                beq  srm_no_data          ; Wenn gleich sind keine Daten gekommen
-                ldx  #io_menubuf          ; Basisadresse holen
-                abx                       ; Zeiger addieren, Leseadresse berechnen
-                ldaa 0,x                  ; Datenbyte aus Puffer lesen
-                incb                      ; Zeiger++
-                andb #io_menubuf_mask     ; Im Bereich 0-7 bleiben
-                stab io_menubuf_r         ; neue Zeigerposition speichern
-                tab                       ; Datenbyte nach B
-                clra                      ; A = 0
-                rts
-srm_no_data
-                ldaa #1
+                bne  srdm_cont
+                ldaa #-1
                 clrb
                 rts
 
@@ -1170,6 +1164,7 @@ ulongout
                inx
                inx
 udecout
+decout
                psha                    ; Put minimum number of digits to print to Stack
                pshx                    ; Put pointer to longint to stack
                pshb                    ; save digits to truncate
