@@ -13,7 +13,7 @@
 ;
 ; mathematische Funktionen, die nicht direkt von der CPU zur Verfügung gestellt werden
 ;
-; last change : 02/2009
+; last change : 04/2011
 ;
 ;***********************
 ; DIVIDE:
@@ -98,6 +98,8 @@
 ;
 ; changed Regs: A,B,X
 ;
+; required Stack Space : 10 Byte
+;
 divide
                pshb
                psha                        ; Dividend speichern
@@ -154,6 +156,8 @@ divide_cont
 ;
 ;
 ; changed Regs: A,B,X
+;
+; required Stack Space : 10 Byte
 ;
 divide32
                tsx
@@ -231,6 +235,8 @@ divide32_cont
 ;
 ;
 ; changed Regs: A,B,X
+;
+; required Stack Space : 10 Byte
 ;
 divide32s
                tsx
@@ -316,6 +322,8 @@ divide32s_cont
 ;
 ;
 ; changed Regs: A,B,X
+;
+; required Stack Space : 10 Byte
 ;
 divide3232
                tsx
@@ -437,6 +445,7 @@ div3232_cont
 ;
 ; changed Regs: A,B,X
 ;
+; required Stack Space : 10 Byte
 ;
 multiply
                pshb                 ; Faktor 1 LoByte auf Stack
@@ -496,6 +505,9 @@ multiply_end
 ;           Stack Produkt(32Bit)
 ;
 ; changed Regs: A,B,X
+;
+; required Stack Space : 10 Byte
+;
 multiply32
 ;        a4  a3  a2  a1 *b4  b3  b2  b1
 ;   ------------------------------------
@@ -627,6 +639,8 @@ exp10          ; Tabelle um 10 zu potenzieren - 32Bit Einträge
 ;
 ; changed Regs: A,B,X
 ;
+; required Stack Space : 4 Byte
+;
 add32
                pshx                 ; HiWord des 1. Summanden sichern
                tsx                  ; Stackpointer nach X
@@ -656,6 +670,7 @@ add32
 ;
 ; changed Mem : X
 ;
+; required Stack Space : 4 Byte
 ;
 ; 4 - Summand2
 ; 2 - *Return
@@ -688,6 +703,8 @@ add32s
 ;           X:D   Subtrahend (32Bit)
 ; Ergebnis:
 ;           Stack Differenz  (32Bit)
+;
+; required Stack Space : 6 Byte
 ;
 sub32
                pshb
@@ -723,6 +740,7 @@ sub32
 ;           Not(Zahl)+1 (Vorzeichenumkehr)
 ;
 ; required Stack Space : 7 Byte
+;
 sig_inv32
                pshx
                coma
@@ -769,6 +787,7 @@ sig_inv32
 ; changed Mem : *X
 ;
 ; required Stack Space : 5 Byte
+;
 sig_inv32s
                pshx
                ldd  2,x
@@ -805,6 +824,7 @@ sig_inv32s
 ;
 ; Ergebnis:  B - Potenz (Bereich 1 - 128, 2^0 - 2^7 )
 ;
+; required Stack Space : 3 Byte
 ;
 raise
                psha

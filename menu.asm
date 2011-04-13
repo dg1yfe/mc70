@@ -91,6 +91,7 @@ menu_init
 ;
 ;
 ;************************
+; Stack depth on entry: 1
 ;
 menu
                 jsr  sci_rx_m

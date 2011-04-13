@@ -23,6 +23,7 @@
 ;
 ;
 ;************************
+; Stack depth on entry: 1
 ;
 ;*******************************
 ; M   T O P
@@ -48,6 +49,15 @@ mto_tabjmp
                 lsrb                  ; undo left-shift
                 jmp  0,x              ; Funktion aufrufen
 
+; Control Head 3
+;     ---------------------------  1   2   3
+;     !                         !
+; D1  !                         !  4   5   6
+;     !                         !
+; D2  !                         !  7   8   9
+;     ---------------------------
+;     D3  (D4)  D5  (D6)  D7  (D8) *   0   #
+;
 m_top_h3
 m_top_tab
 ;               Funktion                Taste
@@ -74,7 +84,15 @@ m_top_tab
                 .dw m_sel_mbank       ; D8 - Speicherbank wählen
                 .dw m_frq_store       ; #
 ;                .dw m_sel_mbank       ; #
-
+; Control Head 2
+;     ---------------------------
+;     !                         !
+; D1  !                         !    5
+;     !                         !
+; D2  !                         !    8
+;     ---------------------------
+;     D3   D4   D5   D6   D7   D8
+;
 m_top_h2
 ;               Funktion                Taste
                 .dw m_none            ; - (0)
@@ -91,15 +109,12 @@ m_top_h2
                 .dw m_frq_up          ; D1 - Kanal+
                 .dw m_frq_down        ; D2 - Kanal-
                 .dw m_sql_switch      ; D3 - Squelch ein/aus
-;                .dw m_none            ; D4 - none
-;                .dw m_prnt_rc         ; D4 - Control Task Schleifendurchläuft per sek. ausgeben
                 .dw m_prnt_tc         ; D4 - Taskswitches/s anzeigen
                 .dw m_tone            ; D5 - 1750 Hz Ton
                 .dw m_digit_start     ; D6 - Select Digit
                 .dw m_txshift         ; D7 - TX Shift ändern
                 .dw m_sel_mbank       ; D8 - Speicherbank wählen
                 .dw m_none            ; -
-
 
 ;*******************************
 ; M   F R Q   U P
@@ -249,7 +264,7 @@ mts_switch
                 beq  mts_hd2
                 bra  mts_hd3
 mts_hd1
-
+;******* HD 2
 mts_hd2
                 cmpb #5
                 beq  mts_chg_sign
@@ -264,6 +279,7 @@ mts_hd2
                 jmp  m_end
 mts_jdigit
                 jmp  mts_digit
+;******* HD 3
 mts_hd3
                 cmpb #KC_STERN
                 beq  mts_chg_sign
@@ -274,6 +290,7 @@ mts_hd3
                 ldx  #0
                 stx  m_timer
                 jmp  m_end
+;******* COMMON
 mts_to_idle
                 pshb
                 jsr  restore_dbuf     ; Displayinhalt wiederherstellen
@@ -323,6 +340,8 @@ mts_end
 ; M T S   D I G I T
 ;
 ; TX Shift per Digit Eingabe setzen
+;
+; Stack depth on entry: 1
 ;
 mts_digit
                 clrb
@@ -490,6 +509,8 @@ m_menu_str     .db "MENU",0
 ; M   D I G I T   S T A R T
 ;
 ; select frequency digit to alter using up/down
+;
+; Stack depth on entry: 1
 ;
 m_digit_start
                 ldab m_timer_en       ; Falls Roundcount noch angezeigt wird, Displayinhalt NICHT speichern

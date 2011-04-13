@@ -154,30 +154,40 @@ msf_end
 ;
 ; changed Regs : A,X
 ;
+; required Stack Space : 8+Subroutines
+;
+; Stack depth on entry : 3
+;
 ; 4 - first pos
 ; 3 - last pos
 ; 2 - lower limit
 ; 1 - upper limit
 ; 0 - current pos
+#define MDE_FIRST_POS 4
+#define MDE_LAST_POS  3
+#define MDE_LOWER_LIM 2
+#define MDE_UPPER_LIM 1
+#define MDE_CUR_POS   0
+;
 m_digit_editor
                 pshb
                 pshb
 
                 tab
-                anda #$f
+                anda #$0f
 
                 lsrb
                 lsrb
                 lsrb
                 lsrb
-                pshb                  ; save last digit pos
+                pshb                       ; save last digit pos
 
                 tsx
-                staa 1,x              ; save first digit pos
+                staa MDE_FIRST_POS-3,x     ; save first digit pos
 
-                ldab 2,x
+                ldab 2,x                   ; get mode back
 
-                tstb
+                tstb                       ; test mode (decimal/alphanum/alphabet)
                 beq  mde_numeric
                 cmpb #1
                 beq  mde_alphanum
@@ -199,13 +209,16 @@ mde_numeric
                 pshb
 mde_chkspace
                 tsx
-                ldab 3,x              ; get first pos
-                pshb                  ; store as current position
-;                andb #~CHR_BLINK      ; ignore blink bit
+                ldab MDE_FIRST_POS-1,x  ; get first pos
+                pshb                    ; store as current position
+;                andb #~CHR_BLINK       ; ignore blink bit
                 ldaa #1
-                jsr  lcd_chr_mode     ; let digit blink
+                jsr  lcd_chr_mode       ; let digit blink
 mde_loop
                 jsr  m_reset_timer      ; Eingabe Timeout zurücksetzen
+
+                UI_UPD_LOOP             ; run UI update loop (transfer new keys to menu buffer, update LEDs, etc.)
+
                 jsr  sci_read_m
                 tsta
                 bmi  mde_exit
@@ -252,34 +265,36 @@ mde_up
                 ldaa 0,x              ; get char at digit
                 anda #~CHR_BLINK      ; ignore blink bit
                 tsx
-                cmpa 1,x              ; compare to upper limit
+                cmpa MDE_UPPER_LIM,x  ; compare to upper limit
                 bcc  mdu_wrap
                 inca                  ; increment
                 bra  mdu_store
 mdu_wrap
-                ldaa 2,x              ; set lower limit
+                ldaa MDE_LOWER_LIM,x  ; set lower limit
 mdu_store
                 jsr  lcd_cpos         ; move cursor to digit position
                 tab
                 orab #$80             ; set blink bit
                 ldaa #'c'
                 jsr  putchar          ; print char
+bla
+                bra  bla
                 jmp  mde_loop         ; wait for upcoming action
 ;*************
 mde_down
                 pulb
                 pshb
-                ldx  #dbuf            ; use as index for display buffer
+                ldx  #dbuf                   ; use as index for display buffer
                 abx
-                ldaa 0,x              ; get char at digit
-                anda #~CHR_BLINK      ; ignore blink bit
+                ldaa 0,x                     ; get char at digit
+                anda #~CHR_BLINK             ; ignore blink bit
                 deca
                 tsx
-                cmpa 2,x              ; compare to upper limit
+                cmpa 1+MDE_UPPER_LIM,x       ; compare to upper limit
                 bcs  mdu_wrap
                 bra  mdu_store
 mdd_wrap
-                ldaa 1,x              ; set upper limit
+                ldaa 1+MDE_UPPER_LIM,x       ; set upper limit
                 bra  mdu_store
 ;----------------
 mde_next
@@ -293,7 +308,7 @@ mde_next
                 decb
                 bra  mdn_cont
 mdn_wrap
-                ldab 4,x              ; load first position
+                ldab MDE_FIRST_POS,x  ; load first position
 mdn_cont
                 inca
                 jsr  lcd_chr_mode     ; let digit blink

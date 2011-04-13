@@ -597,6 +597,66 @@ stw_end
                 pulb
                 rts
 
+;
+;************************
+; S C I   T X   W   N B
+;************************
+;
+; Sendet Zeichen in B nach Ablauf des LCD_TIMER. Setzt abhängig von gesendeten
+; Zeichen den Timer neu. Berücksichtigt unterschiedliche Timeouts für $78, $4F/$5F und Rest
+;
+; NON BLOCKING
+;
+; Parameter    : B - zu sendendes Zeichen
+;
+; Ergebnis     : A - 0 = Zeichen geschrieben
+;                    1 = Timer noch nicht abgelaufen
+;
+; changed Regs : None
+;
+sci_tx_w_nb
+;                 pshb
+;                 psha
+;                 pshx                       ; x sichern
+; stw_chk_lcd_timer
+;                 ldx  lcd_timer             ; lcd_timer holen
+;                 beq  stw_wait_tdr_empty1   ; warten falls dieser >0 (LCD ist noch nicht bereit)
+;                 swi                        ; Taskswitch
+;                 bra  stw_chk_lcd_timer
+; stw_wait_tdr_empty1
+;                 ldaa TRCSR1
+;                 anda #%00100000
+;                 beq  stw_wait_tdr_empty1
+; stw_writereg
+;                 stab TDR
+; stw_wait_tdr_empty2
+;                 ldaa TRCSR1
+;                 anda #%00100000
+;                 swi
+;                 beq  stw_wait_tdr_empty2
+; 
+;                 tba
+;                 oraa #$10
+;                 cmpa #$5D              ; auf 4D/5D prüfen - extended char
+;                 beq  stw_end           ; nächstes Zeichen OHNE Delay senden
+;                 oraa #$01
+;                 cmpa #$5F              ; auf 4E/4F/5E/5F prüfen - extended char
+;                 beq  stw_end           ; nächstes Zeichen OHNE Delay senden
+; 
+;                 cmpb #$78              ; LCD Clear Zeichen?
+;                 bcs  stw_10ms          ; Alles was <$78 ist mit normalem Delay
+;                 ldx  #LCDDELAY*4       ; vierfacher Timeout für Clear & Reset Befehle
+;                 stx  lcd_timer
+;                 bra  stw_end
+; stw_10ms
+;                 ldx  #LCDDELAY         ; normaler Timeout für Rest (außer 4f/5f)
+;                 stx  lcd_timer
+; stw_end
+;                 pulx
+;                 pula
+;                 pulb
+                rts
+
 ;************************
 ; C H E C K   I N B U F
 ;************************
@@ -631,6 +691,8 @@ check_outbuf
 ;
 ; Result    : A - 0 = OK
 ;                 1 = Error / Timeout
+;
+; changed Regs: X
 ;
 sci_ack
                 pshb                   ; Zeichen sichern
@@ -728,6 +790,8 @@ stc_clear_buf
                 jsr  check_inbuf       ; Prüfen wieviele Byte im Input Speicher sind
                 beq  stc_ack           ; Wenn das letzte gerade gelesen wurde, ACK senden
                 jsr  sci_read          ; nächstes Zeichen lesen
+; TODO: Handle collision between ack & next repetition
+; Possible solution: Discard any char for the menu buffer arriving within the next 2 ms
                 bra  stc_clear_buf     ; loop
 stc_ack
                 jsr  sci_tx_w          ; Sonst Bestätigung senden
@@ -748,9 +812,6 @@ stc_end
 ;
 ;
 men_buf_write
-                pshb
-                psha
-                pshx
                 tba
                 ldab io_menubuf_w          ; Zeiger auf Schreibadresse holen
                 incb                       ; prüfen ob Puffer schon voll
@@ -765,9 +826,6 @@ men_buf_write
                 andb #io_menubuf_mask      ;
                 stab io_menubuf_w          ; und speichern
 mbw_end
-                pulx
-                pula
-                pulb
                 rts
 
 ;
@@ -801,6 +859,7 @@ mbw_end
 ; changed Mem : CPOS,
 ;               DBUF,
 ;               Stack (longint)
+;
 ;
 ;
 putchar
