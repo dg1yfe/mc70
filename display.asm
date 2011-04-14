@@ -620,6 +620,7 @@ aws_end
 ;
 ; Returns : nothing
 ;
+; required Stack Space : 6+Subroutines
 ;
 ;
 lcd_chr_mode

@@ -152,9 +152,9 @@ msf_end
 ;            A - Status :  0 - OK
 ;                          1 - Abbruch
 ;
-; changed Regs : A,X
+; changed Regs : A,B,X
 ;
-; required Stack Space : 8+Subroutines
+; required Stack Space : 7+Subroutines
 ;
 ; Stack depth on entry : 4
 ;
@@ -173,9 +173,6 @@ m_digit_editor
                 pshb
 
                 tab
-                anda #$0f
-                psha                       ; save first digit pos / back
-
                 lsrb
                 lsrb
                 lsrb
@@ -183,7 +180,10 @@ m_digit_editor
                 pshb                       ; save last digit pos / front
 
                 tsx
-                ldab 2,x                   ; get mode back
+                ldab 1,x                   ; get mode back
+
+                anda #$0f
+                staa 1,x                   ; save first digit pos / back
 
                 tstb                       ; test mode (decimal/alphanum/alphabet)
                 beq  mde_numeric
@@ -253,9 +253,10 @@ mde_exit
                 pulb
                 clra
                 jsr  lcd_chr_mode     ; let digit be solid
-                pulx
-                pulx                  ; clean stack
                 ins
+                ins
+                ins
+                ins                   ; clean stack
                 ldaa #1
                 rts
 ;*************

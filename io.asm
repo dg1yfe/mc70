@@ -386,9 +386,12 @@ sci_init
 ;************************
 ; S C I   R X
 ;************************
-;                        A : Status (0=RX ok, 3=no RX)
-;                        B : rxd Byte
-;             changed Regs : A, B, X
+; Parameter: A - Status (0=RX ok, 3=no RX)
+;            B - rxd Byte
+;
+; changed Regs : A, B, X
+;
+; required Stack Space : 2
 ;
 sci_rx
                 ldab io_inbuf_r           ; Zeiger auf Leseposition holen
@@ -413,8 +416,11 @@ src_no_data
 ;
 ; Zeichen vom serieller Schnittstelle lesen (blocking)
 ;
-;                         B : rxd Byte
-;              changed Regs : A, B, X
+; Parameter : B - rxd Byte
+;
+; changed Regs : A, B, X
+;
+; required Stack Space : 2
 ;
 sci_read
                 ldab io_inbuf_r           ; Zeiger auf Leseposition holen
@@ -434,15 +440,17 @@ sci_read
 ; S C I   R X   M
 ;************************
 ;
-; Echo/Kommandobestätigung lesen
+; Echo/Kommandobest�tigung lesen
 ;
 ; Parameter:  none
 ;
-;                         A : raw value ( Bit 0-6)
-;                             Status  (Bit 7) (0=RX ok, 1=no RX)
-;                         B : converted Byte (Key convert Table)
+; Returns: A - raw value ( Bit 0-6)
+;              Status  (Bit 7) (0=RX ok, 1=no RX)
+;          B - converted Byte (Key convert Table)
 ;
-;              changed Regs : A, B
+; changed Regs : A, B
+;
+; required Stack Space : 2
 ;
 sci_rx_m
                 ldab io_menubuf_r         ; Zeiger auf Leseposition holen
@@ -463,8 +471,9 @@ sci_rx_m
 ; Ergebnis :  A : raw data
 ;             B : converted data
 ;
-;  changed Regs : A, B
+; changed Regs : A, B
 ;
+; required Stack Space : 4
 ;
 sci_read_m
                 ldab io_menubuf_r         ; Zeiger auf Leseposition holen
@@ -493,9 +502,19 @@ srdm_cont
 ;************************
 ; S C I   T X   B U F
 ;************************
+;
+; Put char to TX buffer (for irq driven tx)
+;
+; Parameter:  none
+;
+; Ergebnis : A - Status (0=ok, 1=buffer full)
+;            B - TX Byte
+;
+; changed Regs : A, B
+;
+; required Stack Space : 2
+;
 sci_tx_buf
-                ;B : TX Byte
-                ;A : Status (0=ok, 1=buffer full)
                 tab
                 ldab io_outbuf_w          ; Zeiger auf Schreibposition holen
                 incb                      ; erhöhen
@@ -518,9 +537,19 @@ stb_full
 ;************************
 ; S C I   T X
 ;************************
+;
+; Transfer char to/via SCI
+;
+; Parameter:  none
+;
+; Returns : A - Status (0=ok, 1=buffer full)
+;           B - TX Byte
+;
+; changed Regs : none
+;
+; required Stack Space : 3
+;
 sci_tx
-                ;B : TX Byte
-                ;changed Regs: none
                 psha
 stx_wait_tdr_empty1
                 ldaa TRCSR1
@@ -547,6 +576,8 @@ stx_wait_tdr_empty2
 ; Ergebnis     : Nichts
 ;
 ; changed Regs : None
+;
+; required Stack Space : 6
 ;
 sci_tx_w
                 pshb
@@ -591,66 +622,6 @@ stw_end
                 pulb
                 rts
 
-;
-;************************
-; S C I   T X   W   N B
-;************************
-;
-; Sendet Zeichen in B nach Ablauf des LCD_TIMER. Setzt abhängig von gesendeten
-; Zeichen den Timer neu. Berücksichtigt unterschiedliche Timeouts für $78, $4F/$5F und Rest
-;
-; NON BLOCKING
-;
-; Parameter    : B - zu sendendes Zeichen
-;
-; Ergebnis     : A - 0 = Zeichen geschrieben
-;                    1 = Timer noch nicht abgelaufen
-;
-; changed Regs : None
-;
-sci_tx_w_nb
-;                 pshb
-;                 psha
-;                 pshx                       ; x sichern
-; stw_chk_lcd_timer
-;                 ldx  lcd_timer             ; lcd_timer holen
-;                 beq  stw_wait_tdr_empty1   ; warten falls dieser >0 (LCD ist noch nicht bereit)
-;                 swi                        ; Taskswitch
-;                 bra  stw_chk_lcd_timer
-; stw_wait_tdr_empty1
-;                 ldaa TRCSR1
-;                 anda #%00100000
-;                 beq  stw_wait_tdr_empty1
-; stw_writereg
-;                 stab TDR
-; stw_wait_tdr_empty2
-;                 ldaa TRCSR1
-;                 anda #%00100000
-;                 swi
-;                 beq  stw_wait_tdr_empty2
-; 
-;                 tba
-;                 oraa #$10
-;                 cmpa #$5D              ; auf 4D/5D prüfen - extended char
-;                 beq  stw_end           ; nächstes Zeichen OHNE Delay senden
-;                 oraa #$01
-;                 cmpa #$5F              ; auf 4E/4F/5E/5F prüfen - extended char
-;                 beq  stw_end           ; nächstes Zeichen OHNE Delay senden
-; 
-;                 cmpb #$78              ; LCD Clear Zeichen?
-;                 bcs  stw_10ms          ; Alles was <$78 ist mit normalem Delay
-;                 ldx  #LCDDELAY*4       ; vierfacher Timeout für Clear & Reset Befehle
-;                 stx  lcd_timer
-;                 bra  stw_end
-; stw_10ms
-;                 ldx  #LCDDELAY         ; normaler Timeout für Rest (außer 4f/5f)
-;                 stx  lcd_timer
-; stw_end
-;                 pulx
-;                 pula
-;                 pulb
-                rts
-
 ;************************
 ; C H E C K   I N B U F
 ;************************
@@ -681,12 +652,15 @@ check_outbuf
 ; S C I   A C K
 ;****************
 ;
-; Parameter : B - gesendetes Zeichen, das bestätigt werden soll
+; Parameter : B - gesendetes Zeichen, das best�tigt werden soll
 ;
 ; Result    : A - 0 = OK
 ;                 1 = Error / Timeout
 ;
 ; changed Regs: X
+;
+; required Stack Space : 13 / 4 + putchar 'p'
+;
 ;
 sci_ack
                 pshb                   ; Zeichen sichern
@@ -694,7 +668,7 @@ sci_ack
                 psha
 
 sak_empty_buf
-                jsr  check_inbuf       ; Empfangspuffer überprüfen
+                jsr  check_inbuf       ; Empfangspuffer �berpr�fen
                 tsta
                 beq  sak_start_chk     ; Wenn kein Zeichen
                 decb
@@ -748,6 +722,8 @@ sak_unlock
 ; Parameter : B - Kommando / Eingabe Byte
 ;
 ; Returns : nothing
+;
+; required Stack Space : 9
 ;
 ;
 sci_read_cmd
@@ -803,7 +779,9 @@ stc_end
 ;
 ; Returns : nothing
 ;
+; changed Regs: A,B,X
 ;
+; Required Stack Space : 2
 ;
 men_buf_write
                 tba
@@ -854,7 +832,12 @@ mbw_end
 ;               DBUF,
 ;               Stack (longint)
 ;
-;
+; required Stack Space : 'c' - 15
+;                        'u' - 23
+;                        'l' - 33
+;                        'x' - 23
+;                        'p' - 15
+;                        jeweils +15 bei Keylock
 ;
 putchar
 #ifdef SIM
@@ -904,8 +887,8 @@ pc_char_out    ; ASCII Zeichen in B
                psha                 ; save character to print
                clra                 ; HiByte = 0
 
-               lsld                 ; Index für Word Einträge berechnen
-               addd #char_convert   ; Basisadresse hinzufügen
+               lsld                 ; Index f�r Word Eintr�ge berechnen
+               addd #char_convert   ; Basisadresse hinzuf�gen
                xgdx
                ldd  0,x             ; D=Eintrag in char_convert Tabelle
 
@@ -1037,6 +1020,8 @@ pcc_end
 ;
 ; changed Regs : A,B,X
 ;
+; Required Stack Space : 21
+;
 uinthex
                pshb                               ; Wert sichern
                lsrb
@@ -1084,10 +1069,12 @@ snb_numeric
 ;
 ; Parameter : B - 8 Bit Integer
 ;
-; Ergebnis : none
+; Returns : nothing
 ;
 ; changed Regs : A,B,X
 ;
+; Required Stack Space : 21
+;                        36 (bei keylock)
 ;
 uintdec
                cmpb #10
@@ -1144,6 +1131,7 @@ einer
 ;
 ; changed Regs : A,B,X
 ;
+; Required Stack Space : 31
 ;
 ; 7 Long LoWord,LoByte
 ; 6 Long LoWord,HiByte
@@ -1233,7 +1221,7 @@ ulo2_divloop
 ulo2_nodecr
                pula                    ; Digit Counter nach A
                pulx                    ; Pointer nach X
-               tstb                    ; Prüfen ob Quotient = 0
+               tstb                    ; Pr�fen ob Quotient = 0
                bne  ulo2_divloop       ; Wenn Quotient >0, dann erneut teilen
                tab
                andb #$40               ; test if sign should be shown
@@ -1314,6 +1302,8 @@ ulo2_return
 ; stores Byte from B in Display Buffer - if Space left
 ;
 ; changed Regs: NONE
+;
+; required Stack Space : 6
 ;
 store_dbuf
                pshb
