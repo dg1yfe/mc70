@@ -250,7 +250,7 @@ mde_sel
                 bra  mde_loop
 ;*************
 mde_exit
-                pulb
+                pulb                  ; get digit position
                 clra
                 jsr  lcd_chr_mode     ; let digit be solid
                 ins
@@ -319,7 +319,8 @@ mde_enter
                 pulb                         ; get current position
                 clra
                 jsr  lcd_chr_mode            ; set char to solid
-                pulx                         ; delete upper & lower limit from stack
+                ins
+                ins                          ; delete upper & lower limit from stack
                 pulb                         ; sorce pointer - get last pos / highest digit
                 clra                         ; dest. pointer
 mee_loop
@@ -344,7 +345,6 @@ mee_loop
                 bra  mee_loop                ; loop
 mee_end
                 ins                          ; delete first pos from stack
-                pulb                         ; get b back
                 clra                         ; return success
                 ldx  #f_in_buf               ; return pointer to buffer
                 rts                          ; return
