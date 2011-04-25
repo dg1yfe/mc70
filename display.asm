@@ -73,16 +73,18 @@ lcd_s_reset
                addd #20               ; 2 Sek Timeout
                xgdx
 lcs_wait_res
-			   pshx
+		pshx
                jsr  check_inbuf        ; get number of bytes in inbuf
-               tsta
-			   beq  lcs_wait_count     ; if zero, loop until time's up
-               psha
+		pulx
+		tsta
+		beq  lcs_wait_count     ; if zero, loop until time's up
+		pshx
+		psha
                jsr  sci_read           ; read char from inbuf
                pula
                pulx
-			   deca
-			   beq  lcs_chk            ; if there was only one byte left, respond
+		deca
+		beq  lcs_chk            ; if there was only one byte left, respond
                bra  lcs_wait_count     ; loop until time is up
 lcs_chk
                cmpb #$7E               ; Reset Poll Char received?
