@@ -40,6 +40,9 @@
 #DEFINE HD2_ENTER 8
 #DEFINE HD2_EXIT  5
 ;
+#DEFINE HD2_UP 11
+#DEFINE HD2_DN 12
+;
 #DEFINE HD3_ENTER KC_RAUTE
 #DEFINE HD3_EXIT  KC_STERN
 ;
@@ -119,7 +122,6 @@ m_state_tab
                 .dw m_sel_slot        ; Memory Slot auswählen
                 .dw m_store
                 .dw m_txshift
-                .dw m_digit
 m_state_tab_end
 
 ;*************
@@ -140,6 +142,7 @@ m_end
 
                 ldx  m_timer      ; menu timer holen
                 bne  m_return     ; timer nicht abgelaufen, dann return
+m_end_restore
                 clr  m_timer_en   ; timer disable
                 jsr  restore_dbuf ; Displayinhalt wiederherstellen
                 ldab #IDLE        ; Zurück zum Idle State

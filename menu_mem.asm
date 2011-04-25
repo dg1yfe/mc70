@@ -53,6 +53,7 @@ msm_show_bank
                 ldab mem_bank         ; ausgewählte Bank holen
                 ldaa #'u'             ; Bank1
                 jsr  putchar
+
                 jmp  m_end
 
 ;**************************************
@@ -107,6 +108,61 @@ msl_store
                 PRINTF(m_slot_str)     ; "SLOT?" ausgeben
                 jmp  m_end
 ;**************************************
+; M   S E L   S L O T   H D 2
+;
+; Frequenzspeicherplatz aus EEPROM lesen
+;
+m_sel_slot_hd2
+                jsr  m_reset_timer     ; Menü-Timer Reset (Timeout für Eingabe setzen)
+                cmpb #HD2_ENTER
+                beq  msl_store         ; # = Eingestellte Frequenz und Offset speichern
+                cmpb #HD2_UP
+                beq  msl2_up
+                cmpb #HD2_DN
+                beq  msl2_dn
+                jmp  m_end_restore
+msl2_up
+                ldaa mem_bank          ; Bank holen (0 oder 1)
+                tab
+                cmpa #$20
+                bcs  ml2u_bnk01
+                adda #$04
+ml2u_bnk01
+                clr  mem_bank
+                anda #$0f
+                inca
+                cmpa #$0a              ;
+                beq  msl2_print
+                incb
+                stab mem_bank
+msl2_print
+                ldab mem_bank
+                pshb
+                ldab #6
+                jsr  lcd_set_cpos
+                pulb
+                ldaa #'u'
+                jsr  putchar
+                jmp  m_end
+;******
+msl2_down
+                ldaa mem_bank          ; Bank holen (0 oder 1)
+                beq  ml2d_bnk
+                deca
+ml2d_store
+                staa mem_bank
+                bra  msl2_print
+ml2d_bnk
+                cmpa #$20
+                bcs  ml2d_bnk01
+                ldaa #$25
+                bra  ml2d_store
+ml2d_bnk01
+                anda #$30
+                oraa #$09
+                bra  ml2d_store
+
+;**************************************
 ; M   S T O R E
 ;
 ; aktuell eingestellte Frequenz und Ablage im EEPROM speichern
@@ -141,5 +197,9 @@ mst_end
                 stx  m_timer
                 jmp  m_end
 ;
-m_slot_str      .db "SLOT? ",0
-m_membank_str   .db "MEMBNK ",0
+m_slot_str      
+                .db "SLOT? ",0
+m_membank_str
+                .db "MEMBNK ",0
+m_slot_str_hd2
+                .db "SLOT %x",0

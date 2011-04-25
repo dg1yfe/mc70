@@ -111,7 +111,7 @@ m_top_h2
                 .dw m_sql_switch      ; D3 - Squelch ein/aus
                 .dw m_prnt_tc         ; D4 - Taskswitches/s anzeigen
                 .dw m_tone            ; D5 - 1750 Hz Ton
-                .dw m_digit_start     ; D6 - Select Digit
+                .dw m_digit           ; D6 - Select Digit
                 .dw m_txshift         ; D7 - TX Shift ändern
                 .dw m_sel_mbank       ; D8 - Speicherbank wählen
                 .dw m_none            ; -
@@ -351,6 +351,8 @@ mts_digit
                 bne  mts_abort
                 bra  msh_set_str      ; set shift
 mts_abort
+                clr  m_timer+1
+                clr  m_timer
                 jmp  m_end
 ;**************************************
 ; M   S E T   S H I F T
@@ -494,16 +496,16 @@ mmn_nosave
                 jsr  printf
                 jmp  m_end
 
-m_menu_str     .db "MENU",0
+m_menu_str     .db "MENU    ",0
 
 ;***************************
-; M   D I G I T   S T A R T
+; M   D I G I T
 ;
 ; select frequency digit to alter using up/down
 ;
 ; Stack depth on entry: 2
 ;
-m_digit_start
+m_digit
                 ldab m_timer_en       ; Falls Roundcount noch angezeigt wird, Displayinhalt NICHT speichern
                 bne  mds_nosave       ; Sondern Zahl erneut ausgeben
 
@@ -516,11 +518,5 @@ mds_nosave
                 bne  mds_end
                 jmp  m_set_freq_x     ; set frequency
 mds_end
-                jmp  m_end
+                jmp  m_end_restore
 
-;****************
-; M   D I G I T
-;
-m_digit
-                jsr  m_reset_timer    ; Menü-Timer Reset (Timeout für Eingabe setzen)
-                jmp  m_end
