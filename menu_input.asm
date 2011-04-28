@@ -28,7 +28,7 @@ m_print
 ; Frequenzeingabe, Eingabe entgegennehmen
 ;
 m_f_in
-                cmpb #KC_NONE_NUMERIC      ; Zahl?
+                cmpb #KC_NON_NUMERIC       ; Zahl?
                 bcc  m_non_numeric         ; Wenn nicht, dann entsprechende Funktionen ausführen
                 ldaa cpos                  ; sonst nachsehen
                 cmpa #08 		           ; ob noch Platz im Display

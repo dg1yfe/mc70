@@ -812,13 +812,14 @@ mbw_end
 ; Parameter : A - Modus
 ;                 'c' - ASCII Char, Char in B (ASCII $20-$7F, $A0-$FF = char + Blink)
 ;                 'x' - unsigned int (hex, 8 Bit)
+;                 'd' - unsinged int (dezimal, 8 Bit) (0-99, value is printed with leading zero)
 ;                 'u' - unsinged int (dezimal, 8 Bit)
 ;                 'l' - longint (dezimal, 32 Bit)
 ;                 'p' - PLAIN, gibt Zeichen unverändert aus, speichert es NICHT im Puffer
 ;                       Anwendung von 'p' : Senden von Display Befehlen (Setzen des Cursors, Steuern der LEDs, etc.)
 ;
 ;
-;             B - Zeichen in Modus c,x,u,p
+;             B - Zeichen in Modus c,x,u,p,d
 ;                 Anzahl nicht darzustellender Ziffern in Modus 'l' (gezählt vom Ende! - 1=Einer, 2=Zehner+Einer, etc...)
 ;
 ;             Stack - Longint in Modus l
@@ -833,6 +834,7 @@ mbw_end
 ;               Stack (longint)
 ;
 ; required Stack Space : 'c' - 15
+;                        'd' - 24
 ;                        'u' - 23
 ;                        'l' - 33
 ;                        'x' - 23
@@ -844,8 +846,13 @@ putchar
                rts
 #endif
                cmpa #'u'
-               bne  pc_testlong
+               bne  pc_testdecd
                jsr  uintdec
+               jmp  pc_end
+pc_testdecd
+               cmpa #'d'
+               bne  pc_testlong
+               jsr  uintdecd
                jmp  pc_end
 pc_testlong
                cmpa #'l'
@@ -1060,6 +1067,37 @@ snb_numeric
                jsr  putchar                     ; Char ausgeben
                rts
 
+;*****************
+; U I N T D E C D
+;
+; Putchar Subroutine
+;
+; Prints 2 decimal digits
+;
+; Parameter : B - 8 Bit Integer
+;
+; Ergebnis : none
+;
+; changed Regs : A,B,X
+;
+; Required Stack Space : 21
+;
+uintdecd
+               pshb                               ; Wert sichern
+               cmpb #100
+               bne  udd_cont
+               subb #100
+udd_cont
+               cmpb #10
+               bcs  udd_print_zero
+               pulb
+               bra  uintdec
+udd_print_zero
+               ldab #'0'
+               ldaa #'c'
+               jsr  putchar
+               pulb
+               bra  uintdec
 ;****************
 ; U I N T   D E C
 ;
@@ -1327,6 +1365,23 @@ store_dbuf_end
 ;************************************
 ; P R I N T F
 ;************************************
+;
+; Print formatted string including variables
+;
+; Parameter : X - Poiter to zero terminated String
+;
+;             Stack - Variables:
+;                     %x - Pointer to long (32 Bit)
+;                     %d - Pointer to long (32 Bit)
+;                     %c - Char
+;                     %s - Pointer to string
+;
+; Returns : nothing
+;
+; changed Regs : X
+;
+; Required Stack Space :
+;                           (bei keylock)
 ;
 ;
 ;
