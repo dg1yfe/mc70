@@ -120,7 +120,8 @@ OCI1_SR
 ;***********
 oci_no_wd_reset
 ; General Purpose Timer
-                dec  gp_timer              ; Universalvtimer--
+                dec  gp_timer              ; Universaltimer-- / HW Task
+                dec  ui_timer              ; Universaltimer-- / UI Task
 ; Basis Tick Counter
                 ldx  tick_ms
                 inx                        ; 1ms Tick-Counter erhöhen

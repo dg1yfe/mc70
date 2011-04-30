@@ -316,7 +316,7 @@ eep_write
                 jsr  i2c_stop           ; Kein Fehler -> STOP Condition senden
 
                 ldab #11
-                stab gp_timer           ; maximal 11ms warten
+                stab ui_timer           ; maximal 11ms warten
                 tsx
 epw_ack_poll
                 jsr  i2c_start
@@ -325,7 +325,7 @@ epw_ack_poll
                 jsr  i2c_tstack
                 tsta
                 beq  epw_end            ; ACK empfangen, Byte erfolgreich geschrieben
-                ldaa gp_timer
+                ldaa ui_timer
                 bne  epw_ack_poll       ; maximal 11ms warten
                 ldaa #4                 ; Timeout
 epw_end

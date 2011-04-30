@@ -36,10 +36,26 @@ mfs_fail
 ;
 ;
 ; Neues Vorgehen für Speicherwahl:
+; HD3:
 ; B wählt Bank, Ziffer selektiert slot (wie bisher)
-; Aber: Anzeige BS (BankSlot)
-; Up/down schaltet weiter
+; Aber:
+; - Anzeige BS (BankSlot)
+; - Anzeige Frequenz
+; - Übernahme erfordert "Enter"
 ;
+;
+; HD2:
+; B aktiviert Slotwahl:
+; - Anzeige BS
+; - Anzeige Frequenz
+; - Up/down schaltet weiter
+; - Übernahme erfordert "Enter"
+;
+; Speichern:
+; - erneuter Druck auf B
+; - NAME ?
+; - Digit Editor für Namen
+; - Enter speichert
 ;
 ;**************************************
 ; M   S E L   M B A N K
@@ -71,6 +87,11 @@ msm_show_bank
 ;
 m_sel_slot
                 jsr  m_reset_timer     ; Menü-Timer Reset (Timeout für Eingabe setzen)
+                ldaa cfg_head
+                cmpa #3
+                beq  msl_hd3
+                cmpa #2
+                beq  msl_hd2
 msl_hd3
                 cmpb #KC_NON_NUMERIC
                 bcs  msl_sel_slot      ; numerische Eingabe? Dann Kanal holen
@@ -80,13 +101,33 @@ msl_hd3
                 cmpb #KC_RAUTE
                 beq  msl_store         ; # = Eingestellte Frequenz und Offset speichern
 
+
                 cmpb #KC_D1
-                beq  msl2_up           ; Up = Slot wählen und eingestellte Frequenz und Offset speichern
+                bne  msl_chk_dn        ; Up = Slot wählen und eingestellte Frequenz und Offset speichern
+                jmp  msl2_up
+msl_chk_dn
                 cmpb #KC_D2
                 bne  msl_return        ; Down = Slot wählen und eingestellte Frequenz und Offset speichern
+
                 jmp  msl2_down
 msl_return
                 jmp  m_end
+;**************************************
+msl_hd2
+                cmpb #HD2_ENTER
+                beq  msl_store         ; Enter -> store frequency & offset
+
+                cmpb #KC_D8
+                beq  msl_sel_slot      ; "Mem" -> read mem channel
+
+                cmpb #KC_D1
+                beq  msl2_up           ; Up = Cycle Slots
+
+                cmpb #KC_D2
+                bne  msl_return        ;
+
+                jmp  msl2_down
+;***************
 msl_sel_slot
                 ldaa mem_bank          ; Speicherplatz holen
                 cmpa #10
@@ -130,7 +171,7 @@ mnb_add10
                 addb #10
 mnb_cont
                 stab mem_bank          ; Bank speichern
-                bra  msm_show_bank     ; und anzeigen lassen
+                jmp  msm_show_bank     ; und anzeigen lassen
 ;***************
 msl_store
                 ldab #MEM_STORE
@@ -151,6 +192,7 @@ msls_hd2
                 jsr  putchar
 msls_hd3
                 jmp  m_end
+
 ;**************************************
 ; M   S E L   S L O T   H D 2
 ;

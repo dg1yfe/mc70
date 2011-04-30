@@ -677,9 +677,9 @@ sak_empty_buf
                 bra  sak_empty_buf
 sak_start_chk
                 ldab #LCDDELAY
-                stab gp_timer          ; Timer setzen
+                stab ui_timer          ; Timer setzen
 sak_loop
-                ldab gp_timer          ; Timer abgelaufen?
+                ldab ui_timer          ; Timer abgelaufen?
                 beq  sak_end           ; Dann Fehler ausgeben
                 jsr  check_inbuf       ; Ist was im Ack Buffer?
                 tsta

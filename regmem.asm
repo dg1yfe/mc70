@@ -233,6 +233,7 @@ f_step          .dw                        ; Schrittweite in Hz
 tick_ms         .dw                                  ; 1ms Increment
 tick_hms        .dw                                  ; 100ms Increment
 gp_timer        .db                                  ; General Purpose Timer, 1ms Decrement
+ui_timer        .db
 next_hms        .dw
 lcd_timer       .dw                                  ; 1ms
 
