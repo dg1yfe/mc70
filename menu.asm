@@ -50,6 +50,7 @@
 #DEFINE IDLE  	     0
 #DEFINE F_IN 	     1
 #DEFINE MEM_SEL_SLOT 2
+#DEFINE MEM_RECALL   2
 #DEFINE MEM_STORE    3
 #DEFINE TXSHIFT_SW   4
 ;#DEFINE DIGIT        5
@@ -64,6 +65,9 @@ menu_init
                 staa m_state         ; begin in IDLE state
                 clr  m_timer_en      ; disable menu timer
 
+		clr  m_svar1
+		clr  m_svar2
+	
                 clr  io_menubuf_r
                 clr  io_menubuf_w    ; Zeiger von Eingabepuffer auf 0
 

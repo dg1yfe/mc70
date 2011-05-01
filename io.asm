@@ -822,6 +822,8 @@ mbw_end
 ;             B - Zeichen in Modus c,x,u,p,d
 ;                 Anzahl nicht darzustellender Ziffern in Modus 'l' (gezählt vom Ende! - 1=Einer, 2=Zehner+Einer, etc...)
 ;
+;             X - Pointer auf longint in Modus L
+; 
 ;             Stack - Longint in Modus l
 ;
 ;
@@ -843,124 +845,130 @@ mbw_end
 ;
 putchar
 #ifdef SIM
-               rts
+                rts
 #endif
-               cmpa #'u'
-               bne  pc_testdecd
-               jsr  uintdec
-               jmp  pc_end
+                cmpa #'u'
+                bne  pc_testdecd
+                jsr  uintdec
+                jmp  pc_end
 pc_testdecd
-               cmpa #'d'
-               bne  pc_testlong
-               jsr  uintdecd
-               jmp  pc_end
+                cmpa #'d'
+                bne  pc_testlong
+                jsr  uintdecd
+                jmp  pc_end
 pc_testlong
-               cmpa #'l'
-               bne  pc_testhex
-               jsr  ulongout
-               jmp  pc_end
+                cmpa #'l'
+                bne  pc_testhex
+                jsr  ulongout
+                jmp  pc_end
+pc_testlong_ind
+                cmpa #'L'
+                bne  pc_testhex
+		clra
+		jsr  decout
+                jmp  pc_end
 pc_testhex
-               cmpa #'x'
-               bne  pc_testchar
-               jsr  uinthex
-               jmp  pc_end
+                cmpa #'x'
+                bne  pc_testchar
+                jsr  uinthex
+                jmp  pc_end
 pc_testchar
-               cmpa #'c'
-               bne  pc_testplain
-               jmp  pc_char_out
+                cmpa #'c'
+                bne  pc_testplain
+                jmp  pc_char_out
 pc_testplain
-               cmpa #'p'
-               bne  pc_to_end
-               jmp  pc_ext_send2    ; Plain - sende Bytevalue wie erhalten
+                cmpa #'p'
+                bne  pc_to_end
+                jmp  pc_ext_send2    ; Plain - sende Bytevalue wie erhalten
 pc_to_end
-               jmp  pc_end          ; unsupported mode, abort/ignore
+                jmp  pc_end          ; unsupported mode, abort/ignore
 
 pc_char_out    ; ASCII Zeichen in B
-               ldaa cpos            ; Cursorposition holen
-               cmpa #8              ; Cursorpos >=8?
-               bcc  pc_end          ; Dann ist das Display voll, nix ausgeben (geht auch viel schneller)
-               jsr  pc_cache        ; Prüfen ob Zeichen schon an dieser Position geschrieben wurde
-               tsta                 ; Wenn ja,
-               beq  pc_end          ; dann nichts ausgeben
-               jsr  store_dbuf      ; Zeichen in Displaybuffer speichern (ASCII)
+                ldaa cpos            ; Cursorposition holen
+                cmpa #8              ; Cursorpos >=8?
+                bcc  pc_end          ; Dann ist das Display voll, nix ausgeben (geht auch viel schneller)
+                jsr  pc_cache        ; Prüfen ob Zeichen schon an dieser Position geschrieben wurde
+                tsta                 ; Wenn ja,
+                beq  pc_end          ; dann nichts ausgeben
+                jsr  store_dbuf      ; Zeichen in Displaybuffer speichern (ASCII)
 
 ;pc_convert_out
-               tba                  ; save character to print
-               andb #~CHR_BLINK     ; exclude Blink Bit
+                tba                  ; save character to print
+                andb #~CHR_BLINK     ; exclude Blink Bit
 
-               subb #$20            ; ASCII chars <$20 not supported
-               pshb                 ; Index merken
+                subb #$20            ; ASCII chars <$20 not supported
+                pshb                 ; Index merken
 
-               psha                 ; save character to print
-               clra                 ; HiByte = 0
+                psha                 ; save character to print
+                clra                 ; HiByte = 0
 
-               lsld                 ; Index f�r Word Eintr�ge berechnen
-               addd #char_convert   ; Basisadresse hinzuf�gen
-               xgdx
-               ldd  0,x             ; D=Eintrag in char_convert Tabelle
+                lsld                 ; Index f�r Word Eintr�ge berechnen
+                addd #char_convert   ; Basisadresse hinzuf�gen
+                xgdx
+                ldd  0,x             ; D=Eintrag in char_convert Tabelle
 
-               xgdx
-               pulb                 ; restore character to print
-               andb #CHR_BLINK      ; check if should be printed blinking
-               xgdx
-               beq  pc_sendchar     ; if not, print plain
-               tsta                 ; check if it is an extended or a single char
-               beq  pc_blink_single
-               oraa #$10            ; include blink bit in extended char code
-               bra  pc_sendchar
+                xgdx
+                pulb                 ; restore character to print
+                andb #CHR_BLINK      ; check if should be printed blinking
+                xgdx
+                beq  pc_sendchar     ; if not, print plain
+                tsta                 ; check if it is an extended or a single char
+                beq  pc_blink_single
+                oraa #$10            ; include blink bit in extended char code
+                bra  pc_sendchar
 pc_blink_single
-               orab #$10            ; include blink bit in single char code
+                orab #$10            ; include blink bit in single char code
 
 pc_sendchar
-               pshb
-               psha                   ; Tabellenzeichen merken
-               tsta
-               beq  pc_single         ; Zeichencode mit 1 Bytes?
-               tab
+                pshb
+                psha                   ; Tabellenzeichen merken
+                tsta
+                beq  pc_single         ; Zeichencode mit 1 Bytes?
+                tab
 pc_double
-               jsr  sci_tx_w          ; Zeichen senden
-               jsr  sci_ack           ; Auf Bestätigung warten
-               tsta                   ; Zeichen erfolgreich gesendet?
-               bne  pc_double         ; Wenn nicht, nochmal senden
-               tsx
-               ldab 1,x               ; 2. Byte vom Tabelleneintrag holen
+                jsr  sci_tx_w          ; Zeichen senden
+                jsr  sci_ack           ; Auf Bestätigung warten
+                tsta                   ; Zeichen erfolgreich gesendet?
+                bne  pc_double         ; Wenn nicht, nochmal senden
+                tsx
+                ldab 1,x               ; 2. Byte vom Tabelleneintrag holen
 pc_single                             ; Ausgabe von Zeichencodes mit 1 Byte
-               jsr  sci_tx_w          ; send char from table
-               jsr  sci_ack           ; Auf Quittung warten
-               tsta                   ; Erfolgreich gesendet?
-               bne  pc_single         ; Nein? Dann nochmal probieren
-               pula                   ; gemerkten Tabelleneintrag holen
-               ins                    ; lower char aus Tabelle wird nicht mehr benötigt,
-               tab                    ; Blink Status ($4x / $5x) aber schon
+                jsr  sci_tx_w          ; send char from table
+                jsr  sci_ack           ; Auf Quittung warten
+                tsta                   ; Erfolgreich gesendet?
+                bne  pc_single         ; Nein? Dann nochmal probieren
+                pula                   ; gemerkten Tabelleneintrag holen
+                ins                    ; lower char aus Tabelle wird nicht mehr benötigt,
+                tab                    ; Blink Status ($4x / $5x) aber schon
 
-               orab #$10
-               cmpb #$5D              ; War Byte 1 = $4D oder $5D?
-               beq  pc_extended       ; dann müssen wir noch ein $4E Char senden
-               pulb                   ; gemerkten Index vom Stack löschen
-               bra  pc_end
+                orab #$10
+                cmpb #$5D              ; War Byte 1 = $4D oder $5D?
+                beq  pc_extended       ; dann müssen wir noch ein $4E Char senden
+                pulb                   ; gemerkten Index vom Stack löschen
+                bra  pc_end
 pc_extended
-               anda #$10              ; Blink Bit isolieren
-               ldx  #e_char_convert
-               pulb                   ; gemerkten index vom Stack holen
-               abx                    ; Tabelle indizieren
-               ldab 0,x               ; extended character holen
-               pshb                   ; Character sichern
-               adda #$4E              ; Extended Zeichen senden, zu Blink Bit addieren
-               tab                    ; nach B transferieren
+                anda #$10              ; Blink Bit isolieren
+                ldx  #e_char_convert
+                pulb                   ; gemerkten index vom Stack holen
+                abx                    ; Tabelle indizieren
+                ldab 0,x               ; extended character holen
+                pshb                   ; Character sichern
+                adda #$4E              ; Extended Zeichen senden, zu Blink Bit addieren
+                tab                    ; nach B transferieren
 pc_ext_send1
-               jsr  sci_tx_w          ; send char
-               jsr  sci_ack           ; Bestätigen lassen
-               tsta
-               bne  pc_ext_send1      ; nochmal senden, falls erfolglos gesendet
+                jsr  sci_tx_w          ; send char
+                jsr  sci_ack           ; Bestätigen lassen
+                tsta
+                bne  pc_ext_send1      ; nochmal senden, falls erfolglos gesendet
 
-               pulb                   ; Character senden
+                pulb                   ; Character senden
 pc_ext_send2
-               jsr  sci_tx_w          ; send char
-               jsr  sci_ack           ; Echo Char lesen
-               tsta                   ; bei Fehler
-               bne  pc_ext_send2      ; wiederholen
+                jsr  sci_tx_w          ; send char
+                jsr  sci_ack           ; Echo Char lesen
+                tsta                   ; bei Fehler
+                bne  pc_ext_send2      ; wiederholen
 pc_end
-               rts
+                rts
 
 pc_terminal
                jsr  sci_tx

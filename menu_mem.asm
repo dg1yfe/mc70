@@ -14,7 +14,7 @@ mfs_nosave
                 bne  mfs_fail
 
                 clrb
-                jsr  lcd_cpos            ; Display löschen
+                jsr  lcd_cpos            ; Display lÃ¶schen
                 PRINTF(m_stored)         ; 'STORED' ausgeben
                 jsr  lcd_fill
                 WAIT(1000)               ; 1sek warten
@@ -23,7 +23,7 @@ mfs_nosave
 mfs_fail
                 psha                     ; Fehlerstatus sichern
                 clra
-                jsr  lcd_clr             ; Display löschen
+                jsr  lcd_clr             ; Display lÃ¶schen
                 PRINTF(m_failed)         ; 'FAILED' ausgeben
                 WAIT(500)                ; 500 ms warten
                 pulb
@@ -35,46 +35,81 @@ mfs_fail
 
 ;
 ;
-; Neues Vorgehen für Speicherwahl:
-; HD3:
-; B wählt Bank, Ziffer selektiert slot (wie bisher)
-; Aber:
-; - Anzeige BS (BankSlot)
-; - Anzeige Frequenz
-; - Übernahme erfordert "Enter"
 ;
-;
-; HD2:
-; B aktiviert Slotwahl:
-; - Anzeige BS
-; - Anzeige Frequenz
-; - Up/down schaltet weiter
-; - Übernahme erfordert "Enter"
-;
-; Speichern:
-; - erneuter Druck auf B
-; - NAME ?
-; - Digit Editor für Namen
+; Neues Vorgehen fÃ¼r Speicherwahl:
+; Eingestellten Kanal speichern:
+; HD2/HD3:
+; - "Enter" fÃ¼r Menu
+; - "Mem Button" fÃ¼r "Store" oder per Up/Down "Store" auswÃ¤hlen
+; - Per Up/Down oder "Button"/Taste Mem Channel auswÃ¤hlen
 ; - Enter speichert
 ;
+; Kanal laden:
+; - "Mem Button" (oder Menu & per up/down "Recall" auswÃ¤hlen
+; - "Mem Button" wÃ¤hlt Bank, Ziffer wird hinzugefÃ¼gt
+;   alternativ: Weiterschalten per up/down
+; - Anzeige: Frequenz (wenn vorhanden Name und Frequenz im Wechsel) und Mem Channel (Pos 7/8)
+; - Enter Ã¼bernimmt Kanal
+; 
+;
+;**************************************
+; M   R E C A L L
+;
+; Speicherbank fÃ¼r FrequenzspeicherplÃ¤tze wÃ¤hlen
+;
+m_recall
+                ldab m_timer_en       ;
+                bne  mre_nosave       ;
+                jsr  save_dbuf        ; Displayinhalt in dbuf2 sichern
+        	clrb
+                jsr  lcd_cpos         ; Cursor Position 0
+                PRINTF(m_recall_str)  ;
+		WAIT(100)
+		ldab #MEM_RECALL_SELECT
+		stab m_state
+mre_nosave
+		ldab #MEM_RECALL_LOAD
+		stab m_svar1
+mre_show_slot
+		clrb
+		jsr  lcd_cpos
+		ldx  #f_in_buf
+        	ldab mem_bank         ; ausgewÃ¤hlte Bank & Slot holen
+		jsr  eep_rd_ch_freq
+		ldx  #FBASE_MEM_RECALL%65536
+		pshx
+		ldx  #FBASE_MEM_RECALL>>16
+		pshx
+		ldx  #f_in_buf
+		jsr  sub32s
+		clra
+		ldab #3
+		jsr  decout
+		ldab #6
+		jsr  lcr_cpos
+		ldab mem_bank
+		ldaa #'d'             ;
+                jsr  putchar
+
+                jmp  m_end
 ;**************************************
 ; M   S E L   M B A N K
 ;
-; Speicherbank für Frequenzspeicherplätze wählen
+; Speicherbank fÃ¼r FrequenzspeicherplÃ¤tze wÃ¤hlen
 ;
 m_sel_mbank
                 ldab m_timer_en       ;
                 bne  msm_nosave       ;
                 jsr  save_dbuf        ; Displayinhalt in dbuf2 sichern
 msm_nosave
-                jsr  m_reset_timer    ; Menü-Timer Reset (Timeout für Eingabe setzen)
+                jsr  m_reset_timer    ; MenÃ¼-Timer Reset (Timeout fÃ¼r Eingabe setzen)
                 ldaa #MEM_SEL_SLOT    ; Memory Slot Auswahl beginnt
-		        staa m_state
+	        staa m_state
 msm_show_bank
                 clrb
                 jsr  lcd_cpos         ; Cursor Position 0
                 PRINTF(m_memch_str)   ;
-                ldab mem_bank         ; ausgewählte Bank & Slot holen
+                ldab mem_bank         ; ausgewÃ¤hlte Bank & Slot holen
                 ldaa #'d'             ;
                 jsr  putchar
 
@@ -86,7 +121,7 @@ msm_show_bank
 ; Frequenzspeicherplatz aus EEPROM lesen
 ;
 m_sel_slot
-                jsr  m_reset_timer     ; Menü-Timer Reset (Timeout für Eingabe setzen)
+                jsr  m_reset_timer     ; MenÃ¼-Timer Reset (Timeout fÃ¼r Eingabe setzen)
                 ldaa cfg_head
                 cmpa #3
                 beq  msl_hd3
@@ -97,17 +132,17 @@ msl_hd3
                 bcs  msl_sel_slot      ; numerische Eingabe? Dann Kanal holen
 
                 cmpb #KC_D8
-                beq  msl_nxt_bank      ; Bei D6 nächste Speicherbank wählen
+                beq  msl_nxt_bank      ; Bei D6 nÃ¤chste Speicherbank wÃ¤hlen
                 cmpb #KC_RAUTE
                 beq  msl_store         ; # = Eingestellte Frequenz und Offset speichern
 
 
                 cmpb #KC_D1
-                bne  msl_chk_dn        ; Up = Slot wählen und eingestellte Frequenz und Offset speichern
+                bne  msl_chk_dn        ; Up = Slot wÃ¤hlen und eingestellte Frequenz und Offset speichern
                 jmp  msl2_up
 msl_chk_dn
                 cmpb #KC_D2
-                bne  msl_return        ; Down = Slot wählen und eingestellte Frequenz und Offset speichern
+                bne  msl_return        ; Down = Slot wÃ¤hlen und eingestellte Frequenz und Offset speichern
 
                 jmp  msl2_down
 msl_return
@@ -149,12 +184,12 @@ mss_add_slot
                 jmp  m_end
 msl_read_eep
                 pshx
-                pshx                   ; DWord für Frequenz auf Stack reservieren
+                pshx                   ; DWord fÃ¼r Frequenz auf Stack reservieren
                 tsx
                 jsr  read_eep_ch       ; Kanal aus EEPROM holen
                 jsr  frq_update        ; Frequenz setzen
                 ldab #IDLE
-                stab m_state           ; nächster State ist wieder IDLE
+                stab m_state           ; nÃ¤chster State ist wieder IDLE
                 jmp  m_frq_prnt
 ;***************
 msl_nxt_bank
@@ -229,7 +264,7 @@ ml2d_nowrap
 ; aktuell eingestellte Frequenz und Ablage im EEPROM speichern
 ;
 m_store
-                jsr  m_reset_timer     ; Menü-Timer Reset (Timeout für Eingabe setzen)
+                jsr  m_reset_timer     ; MenÃ¼-Timer Reset (Timeout fÃ¼r Eingabe setzen)
                 ldaa cfg_head
                 cmpa #3
                 beq  mst_hd3
@@ -273,3 +308,102 @@ m_memch_str
                 .db "MEM CH",0
 m_slot_str_hd2
                 .db "SLOT %x",0
+
+;*******************************
+; E E P   G E T   C H   F R E Q
+;*******************************
+;
+; Frequenz fÃ¼r Slot aus EEPROM holen
+;
+; Parameter : B - zu lesender Speicherslot
+;             X - Zeiger auf Speicher für Frequenz
+;
+; Ergebnis : A - 0 = OK
+;
+; Changed Regs : A
+;
+;
+eep_get_ch_freq
+                pshb
+                pshx
+
+		des
+        	des                         ; 2 Byte Stackspeicher reservieren
+
+                ldaa #10                    ;
+                mul                         ; 10 Bytes pro Slot
+                ldx  #$0100                 ; Basisadresse $0100
+                abx                         ; Slot-Adresse im EEPROM berechnen (D)
+                xgdx                        ; Von X nach D
+
+                tsx                         ; Zieladresse = Stackspeicher
+                pshx                        ; Zieladresse auf Stack speichern
+                ldx  #2                     ; 2 Bytes lesen
+                jsr  eep_seq_read
+                pulx                        ; Adresse von Stack löschen
+                tsta
+                bne  egcf_end               ; Fehler zurückgeben
+                tsx
+                ldd  0,x                    ; Kanal holen
+                lsrd
+                lsrd
+                lsrd                        ; Nur obere 13 Bit berücksichtigen
+
+                ldx  #1250                  ; Frequenz berechnen
+                jsr  multiply               ; 16 Bit Multiply
+
+                pshb
+                psha
+                pshx                        ; 32 Bit Ergebnis sichern
+
+                ldd  #FBASE%65536       ; Basisfrequenz (unterste einstellbare Frequenz) holen
+                ldx  #FBASE>>16
+                jsr  add32                  ; Basisadresse addieren
+
+                tsx
+                ldx  2+4,x                   ; Zieladresse für Frequenz holen
+                pula
+                pulb
+                std  0,x                    ; HiWord speichern
+                pula
+                pulb
+                std  2,x                    ; LoWord speichern
+                clra
+egcf_end
+		ins
+                ins                         ; Stackspeicher freigeben
+
+                pulx
+                pulb
+                rts
+;*******************************
+; E E P   G E T   C H   N A M E
+;*******************************
+;
+; Namen fÃ¼r Slot aus EEPROM holen
+;
+; Parameter : B - zu lesender Speicherslot
+;             X - Zeiger auf Speicher fÃ¼r Namen
+;
+; Ergebnis : A - 0 = OK
+;
+; Changed Regs : A
+;
+;
+eep_get_ch_name
+                pshb
+                pshx
+	
+                ldaa #10                    ;
+                mul                         ; 10 Bytes pro Slot
+		addb #03		    ; 3 Byte Offset
+		ldx  #$0100                 ; Basisadresse $0100
+                abx                         ; Slot-Adresse im EEPROM berechnen (D)
+                xgdx                        ; Von X nach D
+
+        	ldx  #6                     ; 6 Bytes lesen
+                jsr  eep_seq_read
+                pulx
+                pulb
+                rts
+

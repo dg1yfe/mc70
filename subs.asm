@@ -548,7 +548,7 @@ read_eep_ch
                 ldd  0,x                    ; Kanal holen
                 lsrd
                 lsrd
-                lsrd                        ; Nur obere 12 Bit berücksichtigen
+                lsrd                        ; Nur obere 13 Bit berücksichtigen
 
                 ldx  #1250                  ; Frequenz berechnen
                 jsr  multiply               ; 16 Bit Multiply

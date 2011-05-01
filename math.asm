@@ -728,6 +728,39 @@ sub32
                pulb
                rts
 
+;*************
+; S U B 3 2 S
+;*************
+; Parameter:
+;           X     *Minuend   (32Bit)
+;           Stack Subtrahend (32Bit)
+; Ergebnis:
+;           X     *Differenz (32Bit)
+;
+; required Stack Space : 4 Byte
+;
+; 4 - Subtrahend2
+; 2 - *Return
+; 0 - *Minuend1
+sub32s
+               pshx                 ; Pointer auf Minuenden sichern
+               ldd  2,x             ; LoWord/Minuend
+               tsx                  ; Stackpointer nach X
+               subd 6,x             ; LoWord / Minuend - LoWord / Subtrahend
+               ldx  0,x             ; Pointer auf Minuend/Differenz holen
+               std  2,x             ; LoWord speichern
+               ldd  0,x             ; HiWord Minuend holen
+               tsx
+               sbcb 5,x             ; - HiWord/LoByte Subtrahend
+               ldx  0,x             ; Pointer auf Minuend/Differenz holen
+               stab 1,x             ; HiWord/LoByte speichern
+               tsx
+                                    ; HiWord/HiByte Minuend
+               sbca 4,x             ; - HiWord/HiByte Subtrahend
+               ldx  0,x             ; Pointer auf Minuend/Differenz holen
+               staa 0,x             ; HiWord/HiByte speichern
+               pulx
+               rts
 ;*******************
 ; S I G   I N V 3 2
 ;*******************

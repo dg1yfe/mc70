@@ -8,6 +8,10 @@
 ;
 ;
 ;****************************************************************************
+#DEFINE EVA5
+;#DEFINE EVA9
+;#DEFINE 2M
+;#DEFINE 70CM
 ;************************
 ; Stack
 ;
@@ -38,6 +42,8 @@
 ;
 ;#DEFINE FBASE 140000000         ; lowest frequency (for eeprom storage) = 140MHz (430 MHz with 70 cm)
 #DEFINE FBASE 430000000         ; lowest frequency (for eeprom storage) = 140MHz (430 MHz with 70 cm)
+#DEFINE FBASE_MEM_RECALL 400000000
+;#DEFINE FBASE_MEM_RECALL 140000000	
 ;
 ;#DEFINE FDEF  145500000         ; Default Frequency
 #DEFINE FDEF  433500000         ; Default Frequency
