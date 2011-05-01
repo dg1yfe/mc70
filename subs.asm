@@ -557,7 +557,7 @@ read_eep_ch
                 psha
                 pshx                        ; 32 Bit Ergebnis sichern
 
-                ldd  #FBASE%65536       ; Basisfrequenz (unterste einstellbare Frequenz) holen
+                ldd  #FBASE%65536           ; Basisfrequenz (unterste einstellbare Frequenz) holen
                 ldx  #FBASE>>16
                 jsr  add32                  ; Basisadresse addieren
 
@@ -640,7 +640,7 @@ store_eep_ch
                 ldx  offset
                 pshx
                 ldd  #25000
-                jsr  divide32               ; Shift durch 12500 teilen
+                jsr  divide32               ; Shift durch 25000 teilen
 
                 pulx
                 pulx

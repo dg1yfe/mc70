@@ -1,9 +1,9 @@
 ;****************************************************************************
 ;
-;    MC 70    v1.0.1 - Firmware for Motorola mc micro trunking radio
+;    MC 70    v1.2.0 - Firmware for Motorola mc micro trunking radio
 ;                      for use as an Amateur-Radio transceiver
 ;
-;    Copyright (C) 2004 - 2009  Felix Erckenbrecht, DG1YFE
+;    Copyright (C) 2004 - 2011  Felix Erckenbrecht, DG1YFE
 ;
 ;
 ;
@@ -68,7 +68,7 @@ Port2_DDR 	.db                         ; 20 - Pin 9 - Signalling Decode
                                         ; 25 - Pin14 - T/R Shift (VCO Select, 0=TX, 1=RX)
                                         ; 26 - Pin15 - Alert Tone
                                         ; 27 - Pin16 - Shift Reg Latch
-Port1_Data  .db
+Port1_Data  	.db
 Port2_Data 	.db                         ; 20 - Pin 9 - Signalling Decode
                                         ; 21 - Pin10 - Data (PLL, EEPROM)
                                         ; 22 - Pin11 - Clock (PLL, EEPROM)
@@ -79,10 +79,10 @@ Port2_Data 	.db                         ; 20 - Pin 9 - Signalling Decode
                                         ; 27 - Pin16 - Shift Reg Latch
 Port3_DDR 	.db
 Port4_DDR 	.db
-Port3_Data  .db
+Port3_Data  	.db
 Port4_Data 	.db
-TCSR1 		.db    	; Bit0 - OLVL Output Level 1 (P21)
-                    ; Bit1 - IEDG Input Edge (P20, 0 - falling, 1 - rising)
+TCSR1 		.db    			; Bit0 - OLVL Output Level 1 (P21)
+					; Bit1 - IEDG Input Edge (P20, 0 - falling, 1 - rising)
 					; Bit2 - ETOI enable timer overflow interrupt
 					; Bit3 - EOCI enable output compare interrupt
 					; Bit4 - EICI enable input capture interrupt
