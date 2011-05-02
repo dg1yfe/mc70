@@ -93,29 +93,6 @@ mre_show_slot
 
                 jmp  m_end
 ;**************************************
-; M   S E L   M B A N K
-;
-; Speicherbank für Frequenzspeicherplätze wählen
-;
-m_sel_mbank
-                ldab m_timer_en       ;
-                bne  msm_nosave       ;
-                jsr  save_dbuf        ; Displayinhalt in dbuf2 sichern
-msm_nosave
-                jsr  m_reset_timer    ; Menü-Timer Reset (Timeout für Eingabe setzen)
-                ldaa #MEM_SEL_SLOT    ; Memory Slot Auswahl beginnt
-	        staa m_state
-msm_show_bank
-                clrb
-                jsr  lcd_cpos         ; Cursor Position 0
-                PRINTF(m_memch_str)   ;
-                ldab mem_bank         ; ausgewählte Bank & Slot holen
-                ldaa #'d'             ;
-                jsr  putchar
-
-                jmp  m_end
-
-;**************************************
 ; M   S E L   S L O T
 ;
 ; Frequenzspeicherplatz aus EEPROM lesen
@@ -128,40 +105,81 @@ m_sel_slot
                 cmpa #2
                 beq  msl_hd2
 msl_hd3
-                cmpb #KC_NON_NUMERIC
-                bcs  msl_sel_slot      ; numerische Eingabe? Dann Kanal holen
-
                 cmpb #KC_D8
                 beq  msl_nxt_bank      ; Bei D6 nächste Speicherbank wählen
                 cmpb #KC_RAUTE
-                beq  msl_store         ; # = Eingestellte Frequenz und Offset speichern
-
-
-                cmpb #KC_D1
-                bne  msl_chk_dn        ; Up = Slot wählen und eingestellte Frequenz und Offset speichern
-                jmp  msl2_up
-msl_chk_dn
-                cmpb #KC_D2
-                bne  msl_return        ; Down = Slot wählen und eingestellte Frequenz und Offset speichern
-
-                jmp  msl2_down
-msl_return
-                jmp  m_end
+                beq  msl_execute       ; # = Eingestellte Frequenz und Offset speichern
+		cmpb #KC_D1
+		beq  msl_up
+		cmpb #KC_D2
+		beq  msl_down
+        	cmpb #KC_NON_NUMERIC
+                bcs  msl2_add_slot     ; numerische Eingabe? Dann Kanal holen
+		cmpb #KC_STERN
+		beq  msl_escape
+		jmp  m_end
+msl_escape
+		jmp  m_end_restore
+;**************************************
+msl2_add_slot
+		pshb
+		clrb
+		ldaa mem_bank
+		cmpa #10
+		bcs  msl_add_slot
+		ldab #10
+		cmpa #20
+		bcs  msl_add_slot
+		ldab #20
+		tsx
+		ldaa 0,x
+		cmpa #6
+		bcs  msl_add_slot
+		pulb
+		bra  msl_end	; ignore key if it would lead to memory slot >25
+msl_add_slot		
+		pula
+		aba
+		staa mem_bank
+		bra  mre_show_slot ; print frequency and slot number
+msl_nxt_bank
 ;**************************************
 msl_hd2
                 cmpb #HD2_ENTER
-                beq  msl_store         ; Enter -> store frequency & offset
+                beq  msl_execute       ; Enter -> recall or store
 
                 cmpb #KC_D8
-                beq  msl_sel_slot      ; "Mem" -> read mem channel
+                beq  msl_nxt_bank      ; "Mem" -> next bank
 
                 cmpb #KC_D1
                 beq  msl2_up           ; Up = Cycle Slots
 
                 cmpb #KC_D2
-                bne  msl_return        ;
+                bne  msl_down          ; Down = Cycle slots
 
                 jmp  msl2_down
+;**************************************
+; M   S E L   S L O T   H D 2
+;
+; Frequenzspeicherplatz aus EEPROM lesen
+;
+msl_up
+                ldab mem_bank          ; Bank holen (0 oder 1)
+                incb
+                cmpb #26               ; Bank 2?
+                bcs  ml2_store
+                clrb
+ml2_store
+                stab mem_bank
+                jmp  mre_show_slot
+;***************
+msl2_down
+                ldab mem_bank          ; Bank holen (0 oder 1)
+                bne  ml2d_nowrap
+                ldab #26
+ml2d_nowrap
+                decb
+                jmp  mre_show_slot
 ;***************
 msl_sel_slot
                 ldaa mem_bank          ; Speicherplatz holen
@@ -206,7 +224,7 @@ mnb_add10
                 addb #10
 mnb_cont
                 stab mem_bank          ; Bank speichern
-                jmp  msm_show_bank     ; und anzeigen lassen
+                jmp  mre_show_slot     ; und anzeigen lassen
 ;***************
 msl_store
                 ldab #MEM_STORE
@@ -229,34 +247,28 @@ msls_hd3
                 jmp  m_end
 
 ;**************************************
-; M   S E L   S L O T   H D 2
+; M   S E L   M B A N K
 ;
-; Frequenzspeicherplatz aus EEPROM lesen
+; Speicherbank für Frequenzspeicherplätze wählen
 ;
-msl2_up
-                ldab mem_bank          ; Bank holen (0 oder 1)
-                incb
-                cmpb #26               ; Bank 2?
-                bcs  ml2u_store
+m_sel_mbank
+                ldab m_timer_en       ;
+                bne  msm_nosave       ;
+                jsr  save_dbuf        ; Displayinhalt in dbuf2 sichern
+msm_nosave
+                jsr  m_reset_timer    ; Menü-Timer Reset (Timeout für Eingabe setzen)
+                ldaa #MEM_SEL_SLOT    ; Memory Slot Auswahl beginnt
+	        staa m_state
+msm_show_bank
                 clrb
-ml2u_store
-                stab mem_bank
-msl2_print
-                pshb
-                ldab #6
-                jsr  lcd_cpos
-                pulb
-                ldaa #'d'
+                jsr  lcd_cpos         ; Cursor Position 0
+                PRINTF(m_memch_str)   ;
+                ldab mem_bank         ; ausgewählte Bank & Slot holen
+                ldaa #'d'             ;
                 jsr  putchar
+
                 jmp  m_end
-;******
-msl2_down
-                ldab mem_bank          ; Bank holen (0 oder 1)
-                bne  ml2d_nowrap
-                ldab #26
-ml2d_nowrap
-                decb
-                bra  ml2u_store
+
 
 ;**************************************
 ; M   S T O R E
