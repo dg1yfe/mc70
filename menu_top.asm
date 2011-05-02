@@ -81,7 +81,7 @@ m_top_tab
                 .dw m_tone            ; D5 - 1750 Hz Ton
                 .dw m_none            ; D6 -
                 .dw m_txshift         ; D7 - TX Shift ändern
-                .dw m_sel_mbank       ; D8 - Speicherbank wählen
+                .dw m_recall          ; D8 - Recall vfo frequency from memory
                 .dw m_frq_store       ; #
 ;                .dw m_sel_mbank       ; #
 ; Control Head 2
@@ -113,7 +113,7 @@ m_top_h2
                 .dw m_tone            ; D5 - 1750 Hz Ton
                 .dw m_digit           ; D6 - Select Digit
                 .dw m_txshift         ; D7 - TX Shift ändern
-                .dw m_sel_mbank       ; D8 - Speicherbank wählen
+                .dw m_recall          ; D8 - Recall vfo frequency from memory
                 .dw m_none            ; -
 
 ;*******************************
@@ -491,13 +491,98 @@ mmn_nosave
                 jsr  m_reset_timer    ; Menü-Timer Reset (Timeout für Eingabe setzen)
                 clrb
                 jsr  lcd_cpos         ; Cursor Home
-
+                ldab #MENU_SELECT
+                stab m_state
+                clr  m_svar1
                 ldx  #m_menu_str
                 jsr  printf
                 jmp  m_end
 
-m_menu_str     .db "MENU    ",0
-
+#DEFINE M_MENU_ENTRIES 5
+m_menu_str     .db "MENU    ",0,m_recall_submenu
+               .db "RECALL  ",0,m_recall_submenu
+               .db "STORE   ",0,m_none
+               .db "TX CTCSS",0,m_none
+               .db "RX CTCSS",0,m_none
+               .db "POWER   ",0,m_none
+               .db 0
+;*************
+; M   M E N U
+;
+; Call Submenu
+;
+m_menu_select
+                jsr  m_reset_timer    ; Menü-Timer Reset (Timeout für Eingabe setzen)
+                ldaa cfg_head
+                cmpa #2
+                beq  mms_hd2
+                cmpa #3
+                beq  mms_hd3
+                bra  mms_hd3
+mms_hd3
+mms_hd2
+                cmpb #HD2_ENTER
+                beq  mms_execute
+                cmpb #HD2_EXIT
+                beq  mms_exit
+                ldaa m_svar1
+                cmpb #KC_D1
+                beq  mms_cycle_up
+                cmpb #KC_D2
+                beq  mms_cycle_down
+                jmp  m_end
+mms_cycle_down
+                deca
+                bne  mms_display
+                ldaa #M_MENU_ENTRIES
+                bra  mms_display
+mms_cycle_up
+                inca
+                cmpa #M_MENU_ENTRIES+1
+                bne  mms_display
+                ldaa #1
+;***************
+mms_display
+                staa m_svar1
+                clrb
+                jsr  lcd_cpos
+                ldx  #m_menu_str
+mmsd_loop
+                tsta
+                beq  mms_print
+mmsd_loop_str
+                inx
+                ldab 0,x
+                bne  mmsd_loop_str    ; search for end of string
+                inx
+                inx                   ; skip function pointer
+                deca
+                bra  mmsd_loop
+mms_print
+                jsr  printf           ; print selected menu entrie
+                jmp  m_end
+;***************
+mms_execute
+                ldx  #m_menu_str
+                ldaa m_svar1
+mmse_loop_str
+                inx
+                ldab 0,x
+                bne  mmse_loop_str
+                tsta
+                beq  mmse_jump
+                deca
+                inx
+                inx
+                inx
+                bra  mmse_loop_str
+mmse_jump
+                clr  m_svar1
+                ldx  1,x              ; get function pointer
+                jmp  0,x              ; goto function
+;***************
+mms_exit
+                jmp  m_end_restore
 ;***************************
 ; M   D I G I T
 ;

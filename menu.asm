@@ -49,11 +49,11 @@
 ; Menu
 #DEFINE IDLE  	     0
 #DEFINE F_IN 	     1
-#DEFINE MEM_SEL_SLOT 2
-#DEFINE MEM_RECALL   2
+#DEFINE MEM_SELECT   2
 #DEFINE MEM_STORE    3
-#DEFINE TXSHIFT_SW   4
-;#DEFINE DIGIT        5
+#DEFINE MEM_RECALL_LOAD 4
+#DEFINE TXSHIFT_SW   5
+#DEFINE MENU_SELECT  6
 ;#DEFINE MEM_SEL_DIGIT 5
 ;
 ;
@@ -124,9 +124,11 @@ m_break
 m_state_tab
                 .dw m_top             ; Top Menu
                 .dw m_f_in            ; Frequenzeingabe
-                .dw m_sel_slot        ; Memory Slot auswählen
+                .dw m_mem_select      ; Memory Slot auswählen
                 .dw m_store
+                .dw m_recall_load
                 .dw m_txshift
+                .dw m_menu_select
 m_state_tab_end
 
 ;*************
@@ -152,6 +154,8 @@ m_end_restore
                 jsr  restore_dbuf ; Displayinhalt wiederherstellen
                 ldab #IDLE        ; Zurück zum Idle State
                 stab m_state      ; State speichern
+                clr  m_svar1      ; clear menu state variables
+                clr  m_svar2
 m_return
                 rts
 
