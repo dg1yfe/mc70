@@ -499,12 +499,23 @@ mmn_nosave
                 jmp  m_end
 
 #DEFINE M_MENU_ENTRIES 5
-m_menu_str     .db "MENU    ",0,m_recall_submenu
-               .db "RECALL  ",0,m_recall_submenu
-               .db "STORE   ",0,m_none
-               .db "TX CTCSS",0,m_none
-               .db "RX CTCSS",0,m_none
-               .db "POWER   ",0,m_none
+m_menu_str	.db "MENU    ",0
+		.dw m_recall_submenu
+
+		.db "RECALL  ",0
+		.dw m_recall_submenu
+
+		.db "STORE   ",0
+		.dw m_none
+
+		.db "TX CTCSS",0
+		.dw m_none
+
+		.db "RX CTCSS",0
+		.dw m_none
+
+		.db "POWER   ",0
+		.dw m_none
                .db 0
 ;*************
 ; M   M E N U
@@ -532,7 +543,9 @@ mms_hd2
                 beq  mms_cycle_down
                 jmp  m_end
 mms_cycle_down
-                deca
+		tsta
+		bne  mms_display
+		deca
                 bne  mms_display
                 ldaa #M_MENU_ENTRIES
                 bra  mms_display
@@ -554,7 +567,8 @@ mmsd_loop_str
                 inx
                 ldab 0,x
                 bne  mmsd_loop_str    ; search for end of string
-                inx
+		inx
+		inx
                 inx                   ; skip function pointer
                 deca
                 bra  mmsd_loop

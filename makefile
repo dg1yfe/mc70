@@ -31,7 +31,7 @@ mc70: $(AFILES)
 
 sim: $(AFILES)
 	$(AS) $(OPTIONS) -dSIM $< firmware.bin
-	srec_cat firmware.bin -binary firmware.s -Motorola --Data_Only
+	srec_cat firmware.bin -binary -Output firmware.s -Motorola --Data_Only
 
 clean:
 	rm -rf *.bin

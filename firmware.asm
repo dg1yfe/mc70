@@ -26,7 +26,14 @@ rom
 reset
                 lds  #STACK1               ; Stackpointer 1 setzen
 #ifdef SIM
-                jmp  ui_test
+	ldaa #2
+	staa cfg_head
+        jsr  m_menu
+sim_menu_lp
+	jsr  menu
+	ldab #0
+	ldaa #0
+	bra  sim_menu_lp
 #endif
                 jsr  io_init               ; I/O initialisieren (Ports, I2C, etc...)
 ;                jsr  chk_debug             ; Debugmodus ?
