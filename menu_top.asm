@@ -7,6 +7,34 @@
 #DEFINE DM_SHIFT 1
 ;
 ;
+#ifdef EVA5
+#DEFINE M_MENU_ENTRIES 4
+#else
+#DEFINE M_MENU_ENTRIES 5
+#endif
+
+m_menu_str	.db "MENU    ",0
+		.dw m_recall_submenu
+
+		.db "RECALL  ",0
+		.dw m_recall_submenu
+
+		.db "STORE   ",0
+		.dw m_store_submenu
+
+		.db "TX CTCSS",0
+		.dw m_none
+
+		.db "RX CTCSS",0
+		.dw m_none
+
+		.db "DTMF",0
+		.dw m_none
+#ifdef EVA9
+		.db "POWER   ",0
+		.dw m_power_submenu
+#endif
+                .db 0
 ;*****************************
 ; M E N U   I D L E
 ;*****************************
@@ -498,25 +526,6 @@ mmn_nosave
                 jsr  printf
                 jmp  m_end
 
-#DEFINE M_MENU_ENTRIES 5
-m_menu_str	.db "MENU    ",0
-		.dw m_recall_submenu
-
-		.db "RECALL  ",0
-		.dw m_recall_submenu
-
-		.db "STORE   ",0
-		.dw m_store_submenu
-
-		.db "TX CTCSS",0
-		.dw m_none
-
-		.db "RX CTCSS",0
-		.dw m_none
-
-		.db "POWER   ",0
-		.dw m_none
-               .db 0
 ;*************
 ; M   M E N U
 ;

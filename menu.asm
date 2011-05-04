@@ -215,3 +215,4 @@ key_convert
 #INCLUDE        "menu_top.asm"
 #INCLUDE        "menu_mem.asm"
 #INCLUDE        "menu_input.asm"
+#INCLUDE        "menu_sub.asm"
