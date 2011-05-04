@@ -100,10 +100,10 @@ m_top_h2
                 .dw m_none            ; - (2)
                 .dw m_none            ; - (3)
                 .dw m_none            ; - (4)
-                .dw m_menu            ; upper / right side (5)
+                .dw m_none            ; upper / right side (5)
                 .dw m_none            ; - (6)
                 .dw m_none            ; - (7)
-                .dw m_frq_store       ; lower / right side (8)
+                .dw m_menu            ; lower / right side (8)
                 .dw m_none            ; - (9)
                 .dw m_none            ; - (*)
                 .dw m_frq_up          ; D1 - Kanal+
@@ -506,7 +506,7 @@ m_menu_str	.db "MENU    ",0
 		.dw m_recall_submenu
 
 		.db "STORE   ",0
-		.dw m_none
+		.dw m_store_submenu
 
 		.db "TX CTCSS",0
 		.dw m_none
@@ -544,9 +544,10 @@ mms_hd2
                 jmp  m_end
 mms_cycle_down
 		tsta
-		bne  mms_display
+		beq  mms_cd_wrap
 		deca
                 bne  mms_display
+mms_cd_wrap
                 ldaa #M_MENU_ENTRIES
                 bra  mms_display
 mms_cycle_up
@@ -573,7 +574,7 @@ mmsd_loop_str
                 deca
                 bra  mmsd_loop
 mms_print
-                jsr  printf           ; print selected menu entrie
+                jsr  printf           ; print selected menu entry
                 jmp  m_end
 ;***************
 mms_execute

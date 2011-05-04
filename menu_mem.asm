@@ -1,3 +1,4 @@
+#define MEM_SLOT_MAX 25
 ;**************************************
 ; M   F R Q   S T O R E
 ;
@@ -69,8 +70,8 @@ m_recall_submenu
                 ldab #MEM_SELECT
                 stab m_state
 mre_nosave
-                ldab #MEM_RECALL_LOAD
-                stab m_svar1
+                ldx  #m_recall_load
+                stx  m_svar1
 mre_show_slot
                 clrb
                 jsr  lcd_cpos
@@ -86,15 +87,41 @@ mre_show_slot
                 clra
                 ldab #3
                 jsr  decout
+                ldab #' '
+                ldaa #'c'
+                jsr  putchar
                 ldab #6
                 jsr  lcd_cpos
                 ldab mem_bank
                 ldaa #'d'             ;
                 jsr  putchar
-
+                pulx
+                pulx
                 jmp  m_end
 m_recall_str
                 .db "M RECALL",0
+;**************************************
+; M   S T O R E
+;
+; Speicherbank für Frequenzspeicherplätze wählen
+;
+m_store
+                ldab m_timer_en       ;
+                bne  mre_nosave       ;
+                jsr  save_dbuf        ; Displayinhalt in dbuf2 sichern
+m_store_submenu
+                clrb
+                jsr  lcd_cpos         ; Cursor Position 0
+                PRINTF(m_store_str)   ;
+                WAIT(100)
+                ldab #MEM_SELECT
+                stab m_state
+mst_nosave
+                ldx  #m_store_write
+                stx  m_svar1
+                jmp  mre_show_slot
+m_store_str
+                .db "M STORE ",0
 ;**************************************
 ; M   M E M   S E L E C T
 ;
@@ -136,15 +163,15 @@ msl2_add_slot
                 ldab #20
                 tsx
                 ldaa 0,x
-                cmpa #6
+                cmpa #5
                 bcs  msl_add_slot
                 pulb
-                jmp  m_end             ; ignore key if it would lead to memory slot >25
+                jmp  m_end             ; ignore key if it would lead to memory slot >24
 msl_add_slot
                 pula
                 aba
                 staa mem_bank
-                jmp  mre_show_slot ; print frequency and slot number
+                jmp  mre_show_slot     ; print frequency and slot number
 ;**************************************
 msl_hd2
                 cmpb #HD2_ENTER
@@ -171,7 +198,7 @@ msl_hd2
 msl_up
                 ldab mem_bank          ; Bank holen (0 oder 1)
                 incb
-                cmpb #26               ; Bank 2?
+                cmpb #MEM_SLOT_MAX     ; Bank 2?
                 bcs  ml_store
                 clrb
 ml_store
@@ -181,27 +208,27 @@ ml_store
 msl_down
                 ldab mem_bank          ; Bank holen (0 oder 1)
                 bne  mld_nowrap
-                ldab #26
+                ldab #MEM_SLOT_MAX
 mld_nowrap
                 decb
                 bra  ml_store
 ;***************
 msl_execute
-                ldab m_svar1
-                stab m_state
+                ldx  m_svar1
                 clr  m_svar1
-                jmp  m_end
+                clr  m_svar2
+                jmp  0,x
 ;***************
 msl_nxt_bank
                 ldab mem_bank          ; aktuelle Kanal-Speicherbank holen
-                cmpb #16
+                cmpb #MEM_SLOT_MAX-10
                 bcs  mnb_add10         ; add 10 if result is <=25
                 cmpb #20
                 bcs  mnb_saturate      ; saturate at 25 if result would be <30
                 subb #20
                 bra  mnb_cont          ; wrap around if result is >= 30
 mnb_saturate
-                ldab #15
+                ldab #MEM_SLOT_MAX-11
 mnb_add10
                 addb #10
 mnb_cont
@@ -214,8 +241,8 @@ mnb_cont
 ; load previously selected frequency & offset from EEPROM
 ;
 m_recall_load
-                ldaa mem_bank          ; Speicherplatz holen
-                cmpa #25
+                ldab mem_bank          ; Speicherplatz holen
+                cmpb #MEM_SLOT_MAX
                 bcc  msl_err           ; Invalid slot number (>25)
 msl_read_eep
                 pshx
@@ -241,21 +268,22 @@ msl_err_str
 ;
 ; store frequency & offset to previously selected slot in EEPROM
 ;
-m_store
-                jsr  m_reset_timer     ; Menü-Timer Reset (Timeout für Eingabe setzen)
+m_store_write
+                clrb
+                jsr  lcd_cpos
                 ldab mem_bank
                 cmpb #25
                 bcc  msl_err
                 jsr  store_eep_ch      ; Kanal speichern
                 tsta
                 beq  mst_end           ; Falls Fehler aufgetreten
-                clrb
-                jsr  lcd_cpos
                 PRINTF(m_failed)       ; "Failed" ausgeben
+                jsr  lcd_fill
                 WAIT(500)
                 bra  mst_return
 mst_end
                 PRINTF(m_stored)       ; "STORED" ausgeben
+                jsr  lcd_fill
                 WAIT(100)
 mst_return
                 jmp  m_end_restore
