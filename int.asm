@@ -106,12 +106,9 @@ ocf1_test
 ;************************************
 OCI_LCD
                 ldaa lcd_timer
-                beq  oci_dbg_lcd
+                beq  OCI1_WD_RESET
                 deca
                 staa lcd_timer
-oci_dbg_lcd
-                jmp  OCI1_MS
-;**********************************************************************
 ;
 ; OCI1 ISR (1 ms Interrupt)
 ;
@@ -135,28 +132,28 @@ OCI1_MS
 
 OCI_MAIN
 ; General Purpose Timer
-                dec  gp_timer              ; Universaltimer-- / HW Task
+                dec  gp_timer         ; +6  6  ; Universaltimer-- / HW Task
 ; Basis Tick Counter
-                ldx  tick_ms
-                inx                        ; 1ms Tick-Counter erhöhen
-                stx  tick_ms
+                ldx  tick_ms          ; +4 10
+                inx                   ; +1 11  ; 1ms Tick-Counter erhöhen
+                stx  tick_ms          ; +4 15
 ;
-                ldab tasksw_en             ; auf Taskswitch prüfen?
-                bne  end_int               ; Nein? Dann Ende
+                ldab tasksw_en        ; +3 18  ; auf Taskswitch prüfen?
+                bne  end_int          ; +3 21  ; Nein? Dann Ende
 
-                ldaa last_tasksw           ; Letzten Taskswitch Counter holen
-                ldab tasksw                ; Mit aktuellem Zählerstand vergleichen
-                stab last_tasksw           ; und merken
-                cba                        ; Gabs einen Taskswitch innerhalb der letzten Millisekunde?
-                bne  end_int               ; Ja, dann Int beenden
-                                           ; ansonsten Taskswitch durchführen
-                ldx  stackbuf              ; anderen Stackpointer holen
-                sts  stackbuf              ; aktuellen Stackpointer sichern
-                inx                        ; X anpassen für Transfer
-                txs                        ; anderen Stackpointer laden
-                inc  tasksw                ; Taskswitch Counter erhöhen
+                ldaa last_tasksw               ; Letzten Taskswitch Counter holen
+                ldab tasksw                    ; Mit aktuellem Zählerstand vergleichen
+                stab last_tasksw               ; und merken
+                cba                            ; Gabs einen Taskswitch innerhalb der letzten Millisekunde?
+                bne  end_int                   ; Ja, dann Int beenden
+                                               ; ansonsten Taskswitch durchführen
+                ldx  stackbuf                  ; anderen Stackpointer holen
+                sts  stackbuf                  ; aktuellen Stackpointer sichern
+                inx                            ; X anpassen für Transfer
+                txs                            ; anderen Stackpointer laden
+                inc  tasksw                    ; Taskswitch Counter erhöhen
 end_int
-                rti
+                rti                   ;+10 31
 
 ;************************************
 ;************************************

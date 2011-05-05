@@ -510,47 +510,63 @@ oos1_end
 ;digital double tone Oscillator
 ;
 OCI_OSC2                            ;   +19    Ausgabe Stream1 (Bit 0-2)
-               ldd  osc1_phase      ;+3  22    ; 16 Bit Phase 1 holen
-               addd osc1_pd         ;+4  26    ; 16 Bit delta phase 1 addieren
-               std  osc1_phase      ;+4  30    ; und neuen Phasenwert 1 speichern
-               ldx  #sin_tab8       ;+3  33    ; Sinustabelle indizieren
-               tab                  ;+1  34
-               abx                  ;+1  35
-               ldab 0,x             ;+4  39
-               pshb                 ;+4  43
+               ldd  osc1_phase      ;+4  23    ; 16 Bit Phase 1 holen
+               addd osc1_pd         ;+4  27    ; 16 Bit delta phase 1 addieren
+               std  osc1_phase      ;+4  31    ; und neuen Phasenwert 1 speichern
+               ldx  #sin_tab8       ;+3  34    ; Sinustabelle indizieren
+               tab                  ;+1  35
+               abx                  ;+1  36
 
-               ldd  osc2_phase      ;+3  46    ; 16 Bit Phase 2 holen
-               addd osc2_pd         ;+4  50    ; 16 Bit delta Phase 2 addieren
-               std  osc2_phase      ;+4  54    ; neuen Phasenwert 2 speichern
-               ldx  #sin_tab8       ;+3  57    ; Sinustabelle (Wertebereich 0-7)
-               tab                  ;+1  58
-               abx                  ;+1  59
-               ldab 0,x             ;+4  63    ; Tabelleneintrag 2 holen
+               ldd  osc2_phase      ;+4  40    ; 16 Bit Phase 2 holen
+               addd osc2_pd         ;+4  44    ; 16 Bit delta Phase 2 addieren
+               std  osc2_phase      ;+4  48    ; neuen Phasenwert 2 speichern
+               tab                  ;+1  49
 
-               pula                 ;+3  66    ; Tabellenindex 1 holen
-               aba                  ;+1  67    ; Tabelleneintrag 1 addieren
+               ldaa 0,x             ;+4  53    ; Tabelleneintrag 1 holen
 
-               andb #%1110          ;+2  69    ; Bits 3-1 filtern
-               ldx  #dac_out_tab    ;+3  72    ; DAC Werte ausgeben
-               abx                  ;+1  73
-               ldd  0,x             ;+5  78
-               orab Port6_DDR_buf   ;+3  81
-               stab Port6_DDR       ;+3  84
+               ldx  #sin_tab8       ;+3  56    ; Sinustabelle (Wertebereich 0-7)
+               abx                  ;+1  57
+               ldab 0,x             ;+4  61    ; Tabelleneintrag 2 holen
 
-               ldab Port6_Data      ;+3  87
-               andb #%10011111      ;+2  89
-               aba                  ;+1  90
-               staa Port6_Data      ;+3  93
+               aba                  ;+1  62    ; Tabelleneintrag 1 addieren
+               anda #%1110          ;+2  64    ; Bits 3-1 filtern
+               ldx  #dac_out_tab_rev;+3  67    ; DAC Werte ausgeben
+               tba                  ;+1  68
+               abx                  ;+1  69    ; Table entry address in X
 
-               ldab TCSR2           ;+3  96     ; Timer Control / Status Register 2 lesen
-               ldd  OCR1            ;+4 100
-               addd #249            ;+3 103     ; ca 8000 mal pro sek Int auslösen
-               std  OCR1            ;+4 107
-               rol  oci_int_ctr     ;+6 113
-               bne  oos2_end        ;+3 116
-               jmp  OCI_MAIN        ;+3 119
+               ldaa Port6_DDR_buf   ;+3  72
+               ldab Port6_Data      ;+3  75
+               andb #%10011111      ;+2  77
+               addd 0,x             ;+5  82    ; use ADD as OR
+               std  Port6_DDR       ;+4  86    ; Store to DDR & Data
+
+               ldab TCSR2           ;+3  89     ; Timer Control / Status Register 2 lesen
+               ldd  OCR1            ;+4  93
+               addd #249            ;+3  96     ; ca 8000 mal pro sek Int auslösen
+               std  OCR1            ;+4 100
+               rol  oci_int_ctr     ;+6 106
+               bne  oos2_end        ;+3 109
+               dec  gp_timer        ;+6 115    ; Universaltimer-- / HW Task
+; Basis Tick Counter
+               ldx  tick_ms         ;+4 119
+               inx                  ;+1 120    ; 1ms Tick-Counter erhöhen
+               stx  tick_ms         ;+4 124
+               ldab #1              ;+2 126
+               stab oci_int_ctr     ;+3 129
 oos2_end
-               rti                  ;+10 126
+               rti                  ;+10 119 / 139
+; CPU load with active NCO
+;
+; EVA5 / 7977600 Hz Xtal
+;     -> 1994400 Hz E2 clock
+;     -> 249 * 8000 Hz (NCO clock)       CPU load EVA5 = (1* 55,8 % + 7* 47,8 %) / 8 = 48,7 % average
+;                                        (reduces effective CPU speed for program to ~971 kHz)
+;
+; EVA9 / 4924600 Hz Xtal
+;     -> 1231150 Hz E2 clock
+;     -> 154 * 8000 Hz (NCO clock)       CPU load EVA9 = (1* 90,2 % + 7* 77,3 %) / 8 = 78,9 % average
+;                                        (reduces effective CPU speed for program to ~260 kHz)
+
 
 dac_out_tab
                .dw $0040 ; 1,25   0-  0
@@ -558,6 +574,15 @@ dac_out_tab
                .dw $2060 ; 2,0    01  2
                .dw $0000 ; 2,5    --  3
                .dw $4060 ; 3,0    10  4
+               .dw $2020 ; 3,33   -1  5
+               .dw $4040 ; 3,75   1-  6
+               .dw $6060 ; 4,00   11  7
+dac_out_tab_rev
+               .dw $4000 ; 1,25   0-  0
+               .dw $2000 ; 1,67   -0  1
+               .dw $6020 ; 2,0    01  2
+               .dw $0000 ; 2,5    --  3
+               .dw $6040 ; 3,0    10  4
                .dw $2020 ; 3,33   -1  5
                .dw $4040 ; 3,75   1-  6
                .dw $6060 ; 4,00   11  7
