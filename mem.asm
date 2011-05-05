@@ -52,27 +52,39 @@
 ;
 ;
 mem_trans
-               std  mem_tr_des
-               stx  mem_tr_src
+               pshb
+               psha
+               pshx
+
                tsx
-               ldx  2,x                  ; Bytecount
-               beq  mem_trans_ret        ; Wenn 0 Bytes zu kopieren sind -> Ende
+               ldx  2+4,x                  ; Bytecount
+               beq  mem_trans_ret          ; Wenn 0 Bytes zu kopieren sind -> Ende
 mem_trans_loop
-               pshx                      ; Bytecount speichern
+               pshx                        ; Bytecount speichern
 
-               ldx  mem_tr_src
+               tsx
+               ldx  2,x                    ; Get source address from stack
                ldab 0,x
-               inx
-               stx  mem_tr_src
+               pshb                        ; store byte on stack
+               inx                         ; Increment source address
+               xgdx
+               tsx
+               std  2+1,x                  ; store new source address
 
-               ldx  mem_tr_des
-               stab 0,x
-               inx
-               stx  mem_tr_des
+               ldx  4+1,x                  ; get destination address
+               pulb                        ; get byte to transfer from stack
+               stab 0,x                    ; store byte to destination
+               inx                         ; increment destination address
+               xgdx
+               tsx
+               std  4,x                    ; store destination address
 
-               pulx
-               dex
+               pulx                        ; get bytecount
+               dex                         ; increment bytecount
                bne  mem_trans_loop
 mem_trans_ret
+               pulx
+               pula
+               pulb
                rts
 

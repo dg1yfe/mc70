@@ -192,6 +192,7 @@ SR_data_buf     .db
                                                      ; 6 - /TX Power enable                (PIN 12)
                                                      ; 7 - Rx Audio enable (1=enable)      (PIN 11)
 stackbuf        .dw
+oci_vec         .dw
 tasksw          .db
 last_tasksw     .db
 tasksw_en       .db
@@ -216,28 +217,30 @@ arrow_buf       .dw                        ; Bit  0 - Arrow 0
                                            ; ...
                                            ; Bit 14 - Arrow 6 blink
 
-char_vector     .dw                        ; Vektor für Char Ausgabe
-plain_vector    .dw                        ; Vektor für unveränderte 8 Bit Ausgabe
 dbuf            .block 8                   ; Main Display Buffer
 cpos            .db                        ; Cursorposition
 
 dbuf2           .block 9                   ; Display Buffer2 + Byte für CPOS
 
-freq_dbuf       .block 9
 f_in_buf        .block 9
-f_base          .dw                        ; unterste Frequenz
-                .dw
 f_step          .dw                        ; Schrittweite in Hz
 
-
 tick_ms         .dw                                  ; 1ms Increment
+s_tick_ms       .dw                                  ; Software timer
 tick_hms        .dw                                  ; 100ms Increment
 gp_timer        .db                                  ; General Purpose Timer, 1ms Decrement
 ui_timer        .db
+;TODO make next hms 8 bit
 next_hms        .dw
+;TODO make lcd timer 8 bit
 lcd_timer       .dw                                  ; 1ms
 
-irq_wd_reset    .db
+#define TXRX       1
+#define PLL_LOCKED 2
+#define PTT_REQ  $40
+#define BUS_BUSY $80
+;trx_state       .db
+bus_busy        .db
 
 frequency       .dw                                  ; aktuelle Frequenz
                 .dw
@@ -265,13 +268,6 @@ m_state	        .db
 m_timer         .dw                                   ; 100ms
 m_timer_en      .db    $00
 
-mem_tr_src      .dw                                   ; Puffer für Quelladresse bei Speichertransfers
-mem_tr_des      .dw                                   ; Puffer für Zieladresse bei Speichertransfers
-
-last            .db
-blink           .db
-eep_size        .dw                                   ; Speicher für EEPROM Größe
-
 sql_timer       .db
 sql_mode        .db                                   ; Mode ($80 = Carrier, $40 = RSSI, 0 = off)
 sql_ctr         .db
@@ -288,9 +284,7 @@ oci_ctr         .db
 
 ts_count        .dw
 
-bank0           .block 4
-bank1           .block 4                              ; Platz für Routinen zur Bankumschaltung im ROM (Flash)
-
+bank0           .block 4                              ; Platz für Routinen zur Bankumschaltung im ROM (Flash)
 
 ;*****************************
 ; I O   R I N G B U F F E R

@@ -29,38 +29,31 @@
 ; W A T C H D O G   T O G G L E
 ;********************************
 watchdog_toggle
-                ldab Port2_DDR_buf               ; Port2 DDR lesen
-                eorb #%10                        ; Bit 1 invertieren
-                stab Port2_DDR_buf
-                stab Port2_DDR                   ; neuen Status setzen
-                aim  #%11111101,Port2_Data       ;Data auf 0
-                rts
-;************************
-; W A I T _ M S
-;************************
-wait_ms         ; X : Time to wait in ms
-                ; changed Regs: X
-
-                pshb
-                psha
-
-                xgdx                  ; Wartezeit nach D
-                addd tick_ms          ; aktuellen Tickzähler addieren
-                xgdx                  ; wieder nach X
-                bcc  wms_loop2        ; Kein Überlauf bei der Addition? Dann Sprung
-wms_loop1
-                cpx  tick_ms          ; Es gab einen Überlauf - Dann müssen wir warten
-                swi
-                bcs  wms_loop1        ; bis tick_ms auch überläuft
-wms_loop2
-                cpx  tick_ms          ; und dann noch solange bis tick_ms
-                swi
-                bcc  wms_loop2        ; größer ist als unsere Wartezeit
-
-                pula
-                pulb
-                rts
-
+               ldaa Port2_DDR_buf               ; Port2 DDR lesen
+               eora #2
+               staa Port2_DDR_buf
+               staa Port2_DDR                   ; neuen Status setzen
+               aim  #%11111101,Port2_Data       ;Data auf 0
+               rts
+watchdog_toggle_ms
+               ldab tick_ms+1                  ; toggle wd line every ms
+               andb #2                         ; even if called more often
+               ldaa Port2_DDR_buf               ; Port2 DDR lesen
+               anda #%11111101
+               aba
+               staa Port2_DDR_buf
+               staa Port2_DDR                   ; neuen Status setzen
+               aim  #%11111101,Port2_Data       ;Data auf 0
+               rts
+;******************
+; W D   R E S E T
+;******************
+wd_reset
+               tst  bus_busy                    ; währen I2C Zugriff,
+               bne  wd_reset_end                ; keinen Watchdog Reset durchführen
+               bra  watchdog_toggle_ms
+wd_reset_end
+               rts
 
 ;******************************
 ; P T T   G E T   S T A T U S

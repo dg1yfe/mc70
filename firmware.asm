@@ -73,8 +73,8 @@ Start
 
                 ldab #2
                 stab cfg_head
-
                 WAIT(500)
+                jsr  s_timer_init
 ;
 ;
 
@@ -105,11 +105,12 @@ trc_tx
                 jsr  transmit               ; Sender aktivieren
 trc_end
 ;****
-
                 jsr  squelch                ; Squelch bedienen
 ml_sql_end
                 swi
                 jsr  frq_check              ; Überprüfen ob Frequenz geändert werden soll
+                jsr  wd_reset
+                jsr  s_timer_update
                 jmp  loop
 
 
@@ -121,6 +122,7 @@ ml_sql_end
 #INCLUDE       "ui.asm"                    ; User Interface (2. Task)
 #INCLUDE       "menu.asm"                  ; Menü Steuerung
 #INCLUDE       "subs.asm"                  ; general Subroutine File
+#INCLUDE       "timer.asm"                 ; Time/Timer related subroutines
 #INCLUDE       "pll_freq.asm"              ; PLL & Frequency related Subroutines
 #INCLUDE       "display.asm"               ; LC Display related Subroutines
 #INCLUDE       "mem.asm"                   ; Memory related Subroutines

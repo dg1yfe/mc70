@@ -99,7 +99,7 @@ io_init
 ; changed Regs: A,B,X
 ;
 send2shift_reg
-                inc  irq_wd_reset                ; disable IRQ Watchdog Reset
+                inc  bus_busy                ; disable IRQ Watchdog Reset
                 inc  tasksw_en
 
                 anda SR_data_buf
@@ -132,7 +132,7 @@ s2sr_dec
                 oim  #$80, Port2_Data
                 aim  #$7F, Port2_Data            ;Shift Reg Latch toggeln - Daten übernehmen
 
-                dec  irq_wd_reset                ; disable IRQ Watchdog Reset
+                dec  bus_busy                ; disable IRQ Watchdog Reset
                 dec  tasksw_en
                 rts
 ;****************
@@ -150,7 +150,7 @@ s2sr_dec
 ; changed Regs: A,B,X
 ;
 send2pll
-                inc  irq_wd_reset                ; disable IRQ Watchdog Reset
+                inc  bus_busy                ; disable IRQ Watchdog Reset
                 inc  tasksw_en
                 tsta
                 bne  set_r                       ; which register to set
@@ -201,7 +201,7 @@ pll_nextbit
                 nop
                 nop
                 aim  #%11110111, Port6_Data      ; PLL Syn Latch auf Lo
-                dec  irq_wd_reset                ; re-enable Watchdog Reset
+                dec  bus_busy                ; re-enable Watchdog Reset
                 dec  tasksw_en
                 rts
 ;

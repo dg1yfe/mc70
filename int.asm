@@ -15,19 +15,21 @@
 ; I N I T   O C I   I N T
 ;************************
 init_OCI
-                clr   irq_wd_reset                ; IRQ Routine darf Watchdog zurücksetzen
-                ldd   FRC
-                addd  #SYSCLK/1000                ; Interrupt every millisecond
-                std   OCR1
-                ldab  #%1000
-                stab  TCSR1                       ; enable Output Compare Interrupt
-                ldd   #0
-                std   tick_ms
-                std   tick_hms
-                addd  #100
-                std   next_hms
-
-                rts
+               clr  bus_busy                ; IRQ Routine darf Watchdog zurücksetzen
+               ldd  FRC
+               addd #SYSCLK/1000                ; Interrupt every millisecond
+               std  OCR1
+               ldab #%1000
+               stab TCSR1                       ; enable Output Compare Interrupt
+               ldd  #0
+               std  tick_ms
+               std  tick_hms
+               addd #100
+               std  next_hms
+;               ldx  #OCI1_WD_RESET
+               ldx  #OCI_LCD
+               stx  oci_vec
+               rts
 ;************************
 ; I N I T   S I O   I N T
 ;************************
@@ -74,51 +76,64 @@ ICI_SR               ; no ICI
                 rti
 ;************************************
 OCI_SR
-                ldab TCSR2                 ; Timer Sontrol / Status Register 2 lesen
+                ldx  oci_vec
+                jmp  0,x
+oci_sel
+                ldab TCSR2                     ; Timer Sontrol / Status Register 2 lesen
                 tba
-                andb #%00001000            ; Auf EOCI2 testen (Tone Interrupt)
-                beq  OCI1_SR               ; ansonsten beim normalen 1ms Int weitermachen
+                andb #%00001000                ; Auf EOCI2 testen (Tone Interrupt)
+                beq  OCI1_SR                   ; ansonsten beim normalen 1ms Int weitermachen
 ;
-                ldab TCSR2                 ; Timer Sontrol / Status Register 2 lesen
+                ldab TCSR2                     ; Timer Sontrol / Status Register 2 lesen
                 ldd  OCR2
-                addd #TONE_DPHASE          ; ca 3500 mal pro sek Int auslösen
+                addd #TONE_DPHASE              ; ca 3500 mal pro sek Int auslösen
                 std  OCR2
 
                 ldab tone_index
                 bne  ocf1_f2_tonelo
-                oim  #%01100000, Port6_Data		; TODO: MACRO einfŸhren? (EVA5/EVA9 diff)
+                oim  #%01100000, Port6_Data    ; TODO: MACRO einfŸhren? (EVA5/EVA9 diff)
                 eim  #1,tone_index
                 bra  ocf1_test
 ocf1_f2_tonelo
-                aim  #%10011111, Port6_Data		; TODO: MACRO einfŸhren? (EVA5/EVA9 diff)
+                aim  #%10011111, Port6_Data    ; TODO: MACRO einfŸhren? (EVA5/EVA9 diff)
                 eim  #1,tone_index
 ocf1_test
-                ldab TCSR1                 ; Timer Control & Status Reg 1 lesen
-                andb #%01000000            ; auf OCF1 (1ms Flag) testen
+                ldab TCSR1                     ; Timer Control & Status Reg 1 lesen
+                andb #%01000000                ; auf OCF1 (1ms Flag) testen
 
-                bne  OCI1_SR               ; falls gesetzt, den 1 ms Int ausführen
-                rti                        ; ansonsten ist hier Schluß
+                bne  OCI1_SR                   ; falls gesetzt, den 1 ms Int ausführen
+                rti                            ; ansonsten ist hier Schluß
+;************************************
+OCI_LCD
+                ldx  lcd_timer
+                beq  oci_dbg_lcd
+                dex
+                stx  lcd_timer
+oci_dbg_lcd
+                jmp  OCI1_MS
 ;**********************************************************************
 ;
 ; OCI1 ISR (1 ms Interrupt)
 ;
-OCI1_SR
-                ldab TCSR1                 ; Interruptflag zurücksetzen
-                ldd  OCR1H
-                addd #SYSCLK/1000          ; 
-                std  OCR1H                 ; in 1ms wieder einen Int ausführen
-
-                tst  irq_wd_reset          ; währen I2C Zugriff,
-                bne  oci_no_wd_reset       ; keinen Watchdog Reset durchführen
+OCI1_WD_RESET
+                tst  bus_busy              ; währen I2C Zugriff,
+                bne  OCI1_SR               ; keinen Watchdog Reset durchführen
 ;***********
 ; Watchdog Toggle
                 ldab Port2_DDR_buf               ; Port2 DDR lesen
-;                eorb #%10                        ; Bit 1 invertieren
+                eorb #%10                        ; Bit 1 invertieren
                 stab Port2_DDR_buf
                 stab Port2_DDR                   ; neuen Status setzen
-;                aim  #%11111101,Port2_Data       ;Data auf 0
+                aim  #%11111101,Port2_Data       ;Data auf 0
 ;***********
-oci_no_wd_reset
+OCI1_SR
+OCI1_MS
+                ldab TCSR1                 ; Interruptflag zurücksetzen
+                ldd  OCR1H
+                addd #SYSCLK/1000          ;
+                std  OCR1H                 ; in 1ms wieder einen Int ausführen
+
+OCI_MAIN
 ; General Purpose Timer
                 dec  gp_timer              ; Universaltimer-- / HW Task
                 dec  ui_timer              ; Universaltimer-- / UI Task
@@ -126,61 +141,62 @@ oci_no_wd_reset
                 ldx  tick_ms
                 inx                        ; 1ms Tick-Counter erhöhen
                 stx  tick_ms
-; 100ms Tick Counter						; TODO: AUSLAGERN in mainloop
-                cpx  next_hms              ; schon 100ms vergangen?
-                bne  oci_no_hms
-
-                xgdx
-                addd #100                  ; nächsten 100ms Tick Berechnen
-                std  next_hms              ; und speichern
-
-                ldx  tick_hms
-                inx                        ; 100ms Tick Counter erhöhen
-                stx  tick_hms
-
-;***************
-; OCI HMS                                   ; Alle 100ms Timer erhöhen
 ;
-;  100 MS Timer (menu, pll)
-;
-                ldx  m_timer               ; m_timer = 0 ?
-                beq  oci_pll_timer         ; Dann kein decrement
-                dex                        ; m_timer --
-                stx  m_timer               ; und sichern
-oci_pll_timer
-                ldab  pll_timer
-                beq   oci_tone_timer       ; falls auf 0, nicht mehr runterzaehlen
-                decb
-                stab  pll_timer
-oci_tone_timer
-                ldab tone_timer
-                beq  oci_hms_timer_end
-                dec  tone_timer
-                bne  oci_hms_timer_end
-;***********
-; TONE STOP
-                aim  #%11110111, TCSR2     ; OCI2 Int deaktivieren
-
-                oim  #%00001000, TCSR1     ; OCI1 Int aktivieren
-                oim  #%01000000, Port6_Data; Pin auf 0 setzen
-                aim  #%11011111, Port6_Data; Pin auf 0 setzen
-;***********
-                clr  ui_ptt_req				; TODO: rename to tone_ptt_req / use bitfields
-oci_hms_timer_end
-oci_no_hms
-; LCD Timeout Timer aktualisieren
-                ldx  lcd_timer             ; lcd_timer holen
-                beq  oci_no_lcd_dec        ; falls lcd_timer schon =0, kein decrement mehr
-                dex                        ; ansonsten lcd_timer--
-oci_store_lcdt
-                stx  lcd_timer             ; und speichern
-oci_no_lcd_dec
-; Squelch Timer
-                ldab sql_timer             ; sql timer holen
-                beq  oci_no_sql_dec        ; falls auf 0, nicht mehr runterzaehlen
-                decb                       ; ansonsten timer--
-                stab sql_timer             ; und speichern
-oci_no_sql_dec
+; ; 100ms Tick Counter						; TODO: AUSLAGERN in mainloop
+;                 cpx  next_hms              ; schon 100ms vergangen?
+;                 bne  oci_no_hms
+; 
+;                 xgdx
+;                 addd #100                  ; nächsten 100ms Tick Berechnen
+;                 std  next_hms              ; und speichern
+; 
+;                 ldx  tick_hms
+;                 inx                        ; 100ms Tick Counter erhöhen
+;                 stx  tick_hms
+; 
+; ;***************
+; ; OCI HMS                                   ; Alle 100ms Timer erhöhen
+; ;
+; ;  100 MS Timer (menu, pll)
+; ;
+;                 ldx  m_timer               ; m_timer = 0 ?
+;                 beq  oci_pll_timer         ; Dann kein decrement
+;                 dex                        ; m_timer --
+;                 stx  m_timer               ; und sichern
+; oci_pll_timer
+;                 ldab  pll_timer
+;                 beq   oci_tone_timer       ; falls auf 0, nicht mehr runterzaehlen
+;                 decb
+;                 stab  pll_timer
+; oci_tone_timer
+;                 ldab tone_timer
+;                 beq  oci_hms_timer_end
+;                 dec  tone_timer
+;                 bne  oci_hms_timer_end
+; ;***********
+; ; TONE STOP
+;                 aim  #%11110111, TCSR2     ; OCI2 Int deaktivieren
+; 
+;                 oim  #%00001000, TCSR1     ; OCI1 Int aktivieren
+;                 oim  #%01000000, Port6_Data; Pin auf 0 setzen
+;                 aim  #%11011111, Port6_Data; Pin auf 0 setzen
+; ;***********
+;                 clr  ui_ptt_req				; TODO: rename to tone_ptt_req / use bitfields
+; oci_hms_timer_end
+; oci_no_hms
+; ; LCD Timeout Timer aktualisieren
+;                 ldx  lcd_timer             ; lcd_timer holen
+;                 beq  oci_no_lcd_dec        ; falls lcd_timer schon =0, kein decrement mehr
+;                 dex                        ; ansonsten lcd_timer--
+; oci_store_lcdt
+;                 stx  lcd_timer             ; und speichern
+; oci_no_lcd_dec
+; ; Squelch Timer
+;                 ldab sql_timer             ; sql timer holen
+;                 beq  oci_no_sql_dec        ; falls auf 0, nicht mehr runterzaehlen
+;                 decb                       ; ansonsten timer--
+;                 stab sql_timer             ; und speichern
+; oci_no_sql_dec
                 ldab tasksw_en             ; auf Taskswitch prüfen?
                 bne  end_int               ; Nein? Dann Ende
 
@@ -218,7 +234,7 @@ ocf2_tonelo
 ;    P65 P66
 tone_tab
 
-sin_tab
+;sin_tab
                 .db %00000000
                 .db %01000000
 ;************************************

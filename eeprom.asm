@@ -64,7 +64,7 @@
 eep_rand_read
                 pshx                    ; X sichern
 
-                inc  irq_wd_reset       ; I2C Zugriff, kein Watchdog Reset im IRQ
+                inc  bus_busy       ; I2C Zugriff, kein Watchdog Reset im IRQ
                 inc  tasksw_en          ; Keine Taskswitches während Schreibzugriff
 
                 jsr  i2c_start          ; Start Condition senden
@@ -99,7 +99,7 @@ err_no_stop
                 clra                    ; Kein Fehler aufgetreten
                                         ; Datenbyte in B
 err_end
-                dec  irq_wd_reset       ; I2C Zugriff beendet, Watchdig Reset wieder über Timer IRQ
+                dec  bus_busy       ; I2C Zugriff beendet, Watchdig Reset wieder über Timer IRQ
                 dec  tasksw_en          ; Keine Taskswitches während Schreibzugriff
 
                 ins
@@ -131,7 +131,7 @@ err_error2
 eep_read
                 pshx
 
-                inc  irq_wd_reset       ; I2C Zugriff, kein Watchdog Reset
+                inc  bus_busy       ; I2C Zugriff, kein Watchdog Reset
                 inc  tasksw_en          ; Keine Taskswitches während Schreibzugriff
 
                 jsr  i2c_start          ; Start Condition senden
@@ -155,7 +155,7 @@ eep_read
 epr_no_stop
                 ldaa #0                 ; kein Fehler
 epr_end
-                dec  irq_wd_reset       ; WD Reset über IRQ wieder zulassen
+                dec  bus_busy       ; WD Reset über IRQ wieder zulassen
                 dec  tasksw_en          ; Keine Taskswitches während Schreibzugriff
                 ins
                 pulx
@@ -197,7 +197,7 @@ eep_seq_read
 
                 ldx  #0                 ; Bytecounter auf 0 initialisieren
                 pshx                    ; und speichern
-                inc  irq_wd_reset
+                inc  bus_busy
                 inc  tasksw_en          ; Keine Taskswitches während Schreibzugriff
 esr_page_read
                 tsx
@@ -262,7 +262,7 @@ esr_end
                 ins
                 ins
                 ins                     ; Stack bereinigen
-                dec  irq_wd_reset       ; WD Reset über IRQ wieder zulassen
+                dec  bus_busy       ; WD Reset über IRQ wieder zulassen
                 dec  tasksw_en          ; Keine Taskswitches während Schreibzugriff
                 rts
 
@@ -284,7 +284,7 @@ esr_end
 ;
 ;
 eep_write
-                inc  irq_wd_reset       ; I2C Zugriff, kein Watchdog Reset
+                inc  bus_busy       ; I2C Zugriff, kein Watchdog Reset
                 inc  tasksw_en          ; Keine Taskswitches während Schreibzugriff
                 pshb
                 pshx
@@ -334,7 +334,7 @@ epw_end
                 pulx                    ; X zurückholen
                 pulb
                 dec  tasksw_en          ; Taskswitches wieder erlauben
-                dec  irq_wd_reset       ; WD Reset über IRQ wieder zulassen
+                dec  bus_busy       ; WD Reset über IRQ wieder zulassen
                 rts
 epw_err1
                 ldaa #1
@@ -366,7 +366,7 @@ epw_err3
 ;
 ;
 eep_write_seq
-                inc  irq_wd_reset       ; I2C Zugriff, kein Watchdog Reset
+                inc  bus_busy       ; I2C Zugriff, kein Watchdog Reset
                 inc  tasksw_en          ; Keine Taskswitches während Schreibzugriff
                 pshb
                 pshx
@@ -397,7 +397,7 @@ ews_loop
 ews_end
                 pulx                   ; X wiederherstellen
                 pulb                   ; B wiederherstellen
-                dec  irq_wd_reset       ; I2C Zugriff, Watchdog Reset wieder zulassen
+                dec  bus_busy       ; I2C Zugriff, Watchdog Reset wieder zulassen
                 dec  tasksw_en          ; Keine Taskswitches während Schreibzugriff
                 rts
 

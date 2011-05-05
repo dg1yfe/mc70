@@ -22,7 +22,7 @@ s_timer_init
                 std  s_tick_ms
                 addd #100
                 std  next_hms
-                ldx  #OCI_MS
+                ldx  #OCI1_MS
                 stx  oci_vec           ; ab jetzt LCD Timer nicht mehr im Int bedienen
                 pulx
                 pula
@@ -39,6 +39,8 @@ s_timer_update
                 pshx
 
                 ldx  s_tick_ms
+                cpx  tick_ms
+                beq  upt_end                   ; no change, dont do anything
                 pshx
                 sei
                 ldd  tick_ms
@@ -62,7 +64,7 @@ upt_no_lcd_dec
                 ins
                 ldx  tick_ms
                 cpx  next_hms
-                bcc  upt_tcont
+                beq  upt_tcont
 upt_end
                 pulx
                 pula
@@ -84,10 +86,32 @@ upt_hms_timer
                 stx  m_timer          ;+4 12; und sichern
 upt_pll_timer
                 ldab pll_timer        ;+3 15
-                beq  upt_end          ;+3 18
+                beq  upt_sql_timer    ;+3 18
                 decb                  ;+1 19
                 stab pll_timer        ;+3 22
+upt_sql_timer
+; Squelch Timer
+                ldab sql_timer             ; sql timer holen
+                beq  upt_tone_timer        ; falls auf 0, nicht mehr runterzaehlen
+                decb                       ; ansonsten timer--
+                stab sql_timer             ; und speichern
+upt_tone_timer
+                ldab tone_timer
+                beq  upt_end
+                dec  tone_timer
+                bne  upt_end
+;***********
+; TONE STOP
+                aim  #%11110111, TCSR2     ; OCI2 Int deaktivieren
+
+                oim  #%00001000, TCSR1     ; OCI1 Int aktivieren
+                oim  #%01000000, Port6_Data; Pin auf 0 setzen
+                aim  #%11011111, Port6_Data; Pin auf 0 setzen
+;***********
+                clr  ui_ptt_req				; TODO: rename to tone_ptt_req / use bitfields
+
                 bra  upt_end
+
 
 ;************************
 ; W A I T _ M S
@@ -114,5 +138,4 @@ wms_loop2
                 pula
                 pulb
                 rts
-
 

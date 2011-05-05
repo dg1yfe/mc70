@@ -137,7 +137,7 @@ m_top_h2
                 .dw m_frq_up          ; D1 - Kanal+
                 .dw m_frq_down        ; D2 - Kanal-
                 .dw m_sql_switch      ; D3 - Squelch ein/aus
-                .dw m_prnt_tc         ; D4 - Taskswitches/s anzeigen
+                .dw m_test            ; D4 - Taskswitches/s anzeigen
                 .dw m_tone            ; D5 - 1750 Hz Ton
                 .dw m_digit           ; D6 - Select Digit
                 .dw m_txshift         ; D7 - TX Shift ändern
@@ -461,12 +461,12 @@ m_test
                 jsr  save_dbuf        ; Displayinhalt in dbuf2 sichern
                 jsr  m_reset_timer    ; Menü-Timer Reset (Timeout für Eingabe setzen)
 mt_nosave
-                ldab cpos
-                pshb
                 clrb
                 jsr  lcd_cpos         ; Cursor Home
-
-                pulb
+                ldab m_timer
+                ldaa #'x'
+                jsr  putchar
+                ldab m_timer+1
                 ldaa #'x'
                 jsr  putchar
 
