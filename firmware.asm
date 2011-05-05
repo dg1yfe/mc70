@@ -46,7 +46,7 @@ sim_menu_lp
 ;************************************
 Start
                 jsr  sci_init              ; serielle Schnittstelle aktivieren
-				jsr  init_SIO              ; SIO Interrupt konfigurieren
+		jsr  init_SIO              ; SIO Interrupt konfigurieren
                 jsr  init_OCI              ; Timer Interrupt starten
                 jsr  ui_init               ; 2. Task initialisieren (2. Stack)
                                            ; ab hier können I/O Funktionen verwendet werden
@@ -59,7 +59,7 @@ Start
 
                 cli
                 jsr  lcd_h_reset           ; LCD Hardware Reset
-				jsr  lcd_s_reset           ; LCD Software Reset + Init
+		jsr  lcd_s_reset           ; LCD Software Reset + Init
 
                 jsr  freq_init             ; Frequenzeinstellungen initialisieren
                 psha

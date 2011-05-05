@@ -456,3 +456,139 @@ dtmf_tab_x
                .dw 1209,1336,1477,1633
 dtmf_tab_y
                .dw  697, 770, 852, 941
+;********
+; N C O
+;********
+;
+; interrupt routines for numerically controlled oscillator
+;
+;Pin 30 & 31
+;    P65 P66
+;*****************
+;digital tone Oscillator
+;
+OCI_OSC1                            ;   +19
+               ldd  osc1_phase      ;+3  22    Phase holen (16 Bit)
+               addd osc1_pd         ;+4  26    phasen delta addieren
+               std  osc1_phase      ;+4  30    phase speichern
+               anda #$3F            ;+2  32    nur Bits 0-5 berücksichtigen (0-63)
+
+;               ldx  #sin_tab8       ;+3  35    Start der Sinustabelle holen (min=0, max=7)
+;               tab                  ;+1  36
+;               abx                  ;+1  37    Index addieren
+;               ldab 0,x             ;+4  41    Sinuswert holen
+;               lslb                 ;+1  42    *2
+;               andb #%00001110      ;+2  46    ; Bits 3-1 filtern
+;               ldx  #dac_out_tab    ;+3  49    ; DAC output Tabelle
+;               abx                  ;+1  50    ; indizieren
+;               ldd  0,x             ;+5  55    ; um Werte für die Ports zu holen
+
+               ldx  #dac_sin_tab    ;+3  35    Start der Sinus-outputtabelle holen
+               tab                  ;+1  36
+               abx                  ;+1  37    Index addieren
+               ldd  0,x             ;+5  42    Sinus-Ausgabewert holen
+
+               orab Port6_DDR_buf   ;+3  58 45 ; DAC Wert ausgeben
+               stab Port6_DDR       ;+3  61 48
+               andb #%10011111      ;+2  63 50
+;              stab Port6_DDR_buf   ;+3  66
+               tab                  ;+1  67 51
+               ldaa Port6_Data      ;+3  70
+               anda #%10011111      ;+2  72
+               aba                  ;+1  73
+               staa Port6_Data      ;+3  76
+               ldab TCSR2           ;+3  79    ; Timer Control / Status Register 2 lesen
+               ldd  OCR1            ;+4  83
+               addd #249            ;+3  86    ; ca 8000 mal pro sek Int auslösen
+               std  OCR1            ;+4  90
+               rol  oci_int_ctr     ;+6  96 80  ; Interrupt counter lesen
+               bne  oos1_end        ;+3  99 83  ; wenn Ergebnis <> 0, dann Ende
+               jmp  OCI_MAIN        ;+3 102 86  ; bei 0 (jeden 8. Int) den Timer Int aufrufen
+oos1_end
+               rti                 ;+10 109 93
+;*****************
+;digital double tone Oscillator
+;
+OCI_OSC2                            ;   +19    Ausgabe Stream1 (Bit 0-2)
+               ldd  osc1_phase      ;+3  22    ; 16 Bit Phase 1 holen
+               addd osc1_pd         ;+4  26    ; 16 Bit delta phase 1 addieren
+               std  osc1_phase      ;+4  30    ; und neuen Phasenwert 1 speichern
+               ldx  #sin_tab8       ;+3  33    ; Sinustabelle indizieren
+               tab                  ;+1  34
+               abx                  ;+1  35
+               ldab 0,x             ;+4  39
+               pshb                 ;+4  43
+
+               ldd  osc2_phase      ;+3  46    ; 16 Bit Phase 2 holen
+               addd osc2_pd         ;+4  50    ; 16 Bit delta Phase 2 addieren
+               std  osc2_phase      ;+4  54    ; neuen Phasenwert 2 speichern
+               ldx  #sin_tab8       ;+3  57    ; Sinustabelle (Wertebereich 0-7)
+               tab                  ;+1  58
+               abx                  ;+1  59
+               ldab 0,x             ;+4  63    ; Tabelleneintrag 2 holen
+
+               pula                 ;+3  66    ; Tabellenindex 1 holen
+               aba                  ;+1  67    ; Tabelleneintrag 1 addieren
+
+               andb #%1110          ;+2  69    ; Bits 3-1 filtern
+               ldx  #dac_out_tab    ;+3  72    ; DAC Werte ausgeben
+               abx                  ;+1  73
+               ldd  0,x             ;+5  78
+               orab Port6_DDR_buf   ;+3  81
+               stab Port6_DDR       ;+3  84
+
+               ldab Port6_Data      ;+3  87
+               andb #%10011111      ;+2  89
+               aba                  ;+1  90
+               staa Port6_Data      ;+3  93
+
+               ldab TCSR2           ;+3  96     ; Timer Control / Status Register 2 lesen
+               ldd  OCR1            ;+4 100
+               addd #249            ;+3 103     ; ca 8000 mal pro sek Int auslösen
+               std  OCR1            ;+4 107
+               rol  oci_int_ctr     ;+6 113
+               bne  oos2_end        ;+3 116
+               jmp  OCI_MAIN        ;+3 119
+oos2_end
+               rti                  ;+10 126
+
+dac_out_tab
+               .dw $0040 ; 1,25   0-  0
+               .dw $0020 ; 1,67   -0  1
+               .dw $2060 ; 2,0    01  2
+               .dw $0000 ; 2,5    --  3
+               .dw $4060 ; 3,0    10  4
+               .dw $2020 ; 3,33   -1  5
+               .dw $4040 ; 3,75   1-  6
+               .dw $6060 ; 4,00   11  7
+
+dac_sin_tab
+               .dw $0000, $4060, $4060, $4060, $2020, $2020, $2020, $4040,
+               .dw $4040, $6060, $6060, $6060, $6060, $6060, $6060, $6060,
+               .dw $6060, $6060, $6060, $6060, $6060, $6060, $6060, $6060,
+               .dw $4040, $4040, $2020, $2020, $2020, $4060, $4060, $4060,
+               .dw $0000, $0000, $0000, $2060, $2060, $2060, $0020, $0020,
+               .dw $0020, $0040, $0040, $0040, $0040, $0040, $0040, $0040,
+               .dw $0040, $0040, $0040, $0040, $0040, $0040, $0040, $0040,
+               .dw $0020, $0020, $0020, $2060, $2060, $2060, $0000, $0000
+
+sin_tab8       ;    1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16
+               .db  3, 4, 4, 4, 5, 5, 5, 6, 6, 7, 7, 7, 7, 7, 7, 7
+               .db  7, 7, 7, 7, 7, 7, 7, 7, 6, 6, 5, 5, 5, 4, 4, 4
+               .db  3, 3, 3, 2, 2, 2, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0
+               .db  0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 2, 2, 2, 3, 3
+
+               .db  3, 4, 4, 4, 5, 5, 5, 6, 6, 7, 7, 7, 7, 7, 7, 7
+               .db  7, 7, 7, 7, 7, 7, 7, 7, 6, 6, 5, 5, 5, 4, 4, 4
+               .db  3, 3, 3, 2, 2, 2, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0
+               .db  0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 2, 2, 2, 3, 3
+
+               .db  3, 4, 4, 4, 5, 5, 5, 6, 6, 7, 7, 7, 7, 7, 7, 7
+               .db  7, 7, 7, 7, 7, 7, 7, 7, 6, 6, 5, 5, 5, 4, 4, 4
+               .db  3, 3, 3, 2, 2, 2, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0
+               .db  0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 2, 2, 2, 3, 3
+
+               .db  3, 4, 4, 4, 5, 5, 5, 6, 6, 7, 7, 7, 7, 7, 7, 7
+               .db  7, 7, 7, 7, 7, 7, 7, 7, 6, 6, 5, 5, 5, 4, 4, 4
+               .db  3, 3, 3, 2, 2, 2, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0
+               .db  0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 2, 2, 2, 3, 3
