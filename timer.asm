@@ -1,0 +1,118 @@
+;****************************************************************************
+;
+;    MC 70    v2.0.0 - Firmware for Motorola mc micro trunking radio
+;                      for use as an Amateur-Radio transceiver
+;
+;    Copyright (C) 2004 - 2008  Felix Erckenbrecht, DG1YFE
+;
+;
+;****************************************************************************
+;
+; wait_ms - Wartet 0-65535 ms ( X - Wartezeit in ms | nix )
+;
+;*****************************************
+; Initialisierung der Software Timer
+;
+;
+s_timer_init
+                pshb
+                psha
+                pshx
+                ldd  tick_ms
+                std  s_tick_ms
+                addd #100
+                std  next_hms
+                ldx  #OCI_MS
+                stx  oci_vec           ; ab jetzt LCD Timer nicht mehr im Int bedienen
+                pulx
+                pula
+                pulb
+                rts
+;*****************************************
+; Software-timer
+; Aktualisierung im Kernel Thread alle 2ms
+;
+;
+s_timer_update
+                pshb
+                psha
+                pshx
+
+                ldx  s_tick_ms
+                pshx
+                sei
+                ldd  tick_ms
+                std  s_tick_ms
+                cli
+                tsx
+                subd 0,x                       ; Ticks seit letztem update - delta ticks
+                std  0,x                       ; auf Stack speichern
+
+                ldx  lcd_timer                 ; lcd_timer holen
+                beq  upt_no_lcd_dec            ; falls lcd_timer schon =0, kein decrement mehr
+                xgdx
+                tsx
+                subd 0,x                       ; delta ticks abziehen
+                bcc  upt_store_lcdt
+                ldd  #0                        ; Auch bei Unterlauf nicht kleiner werden als 0
+upt_store_lcdt
+                std  lcd_timer                 ; und speichern
+upt_no_lcd_dec
+                ins
+                ins
+                ldx  tick_ms
+                cpx  next_hms
+                bcc  upt_tcont
+upt_end
+                pulx
+                pula
+                pulb
+                rts
+;*****************************
+upt_tcont
+                xgdx
+                addd #100
+                std  next_hms
+                ldx  tick_hms
+                inx
+                stx  tick_hms
+;  100 MS Timer (menu, pll)
+upt_hms_timer
+                ldx  m_timer          ;+4  4; m_timer = 0 ?
+                beq  upt_pll_timer    ;+3  7; Dann kein decrement
+                dex                   ;+1  8; m_timer --
+                stx  m_timer          ;+4 12; und sichern
+upt_pll_timer
+                ldab pll_timer        ;+3 15
+                beq  upt_end          ;+3 18
+                decb                  ;+1 19
+                stab pll_timer        ;+3 22
+                bra  upt_end
+
+;************************
+; W A I T _ M S
+;************************
+wait_ms         ; X : Time to wait in ms
+                ; changed Regs: X
+
+                pshb
+                psha
+
+                xgdx                  ; Wartezeit nach D
+                addd tick_ms          ; aktuellen Tickzähler addieren
+                xgdx                  ; wieder nach X
+                bcc  wms_loop2        ; Kein Überlauf bei der Addition? Dann Sprung
+wms_loop1
+                cpx  tick_ms          ; Es gab einen Überlauf - Dann müssen wir warten
+                swi
+                bcs  wms_loop1        ; bis tick_ms auch überläuft
+wms_loop2
+                cpx  tick_ms          ; und dann noch solange bis tick_ms
+                swi
+                bcc  wms_loop2        ; größer ist als unsere Wartezeit
+
+                pula
+                pulb
+                rts
+
+
