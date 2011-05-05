@@ -468,7 +468,7 @@ dtmf_tab_y
 ;digital tone Oscillator
 ;
 OCI_OSC1                            ;   +19
-               ldd  osc1_phase      ;+3  22    Phase holen (16 Bit)
+               ldd  osc1_phase      ;+4  22    Phase holen (16 Bit)
                addd osc1_pd         ;+4  26    phasen delta addieren
                std  osc1_phase      ;+4  30    phase speichern
                anda #$3F            ;+2  32    nur Bits 0-5 berücksichtigen (0-63)

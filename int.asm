@@ -141,19 +141,19 @@ OCI_MAIN
                 ldab tasksw_en        ; +3 18  ; auf Taskswitch prüfen?
                 bne  end_int          ; +3 21  ; Nein? Dann Ende
 
-                ldaa last_tasksw               ; Letzten Taskswitch Counter holen
-                ldab tasksw                    ; Mit aktuellem Zählerstand vergleichen
-                stab last_tasksw               ; und merken
-                cba                            ; Gabs einen Taskswitch innerhalb der letzten Millisekunde?
-                bne  end_int                   ; Ja, dann Int beenden
+                ldaa last_tasksw      ; +3 24  ; Letzten Taskswitch Counter holen
+                ldab tasksw           ; +3 27  ; Mit aktuellem Zählerstand vergleichen
+                stab last_tasksw      ; +3 30  ; und merken
+                cba                   ; +1 31  ; Gabs einen Taskswitch innerhalb der letzten Millisekunde?
+                bne  end_int          ; +3 34  ; Ja, dann Int beenden
                                                ; ansonsten Taskswitch durchführen
-                ldx  stackbuf                  ; anderen Stackpointer holen
-                sts  stackbuf                  ; aktuellen Stackpointer sichern
-                inx                            ; X anpassen für Transfer
-                txs                            ; anderen Stackpointer laden
-                inc  tasksw                    ; Taskswitch Counter erhöhen
+                ldx  stackbuf         ; +4 38  ; anderen Stackpointer holen
+                sts  stackbuf         ; +4 42  ; aktuellen Stackpointer sichern
+                inx                   ; +1 43  ; X anpassen für Transfer
+                txs                   ; +1 44  ; anderen Stackpointer laden
+                inc  tasksw           ; +6 50  ; Taskswitch Counter erhöhen
 end_int
-                rti                   ;+10 31
+                rti                   ;+10 31 / 44 / 60
 
 ;************************************
 ;************************************
