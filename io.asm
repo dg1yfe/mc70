@@ -584,7 +584,7 @@ sci_tx_w
                 psha
                 pshx                       ; x sichern
 stw_chk_lcd_timer
-                ldx  lcd_timer             ; lcd_timer holen
+                ldaa lcd_timer             ; lcd_timer holen
                 beq  stw_wait_tdr_empty1   ; warten falls dieser >0 (LCD ist noch nicht bereit)
                 swi                       ; Taskswitch
                 bra  stw_chk_lcd_timer
@@ -610,12 +610,12 @@ stw_wait_tdr_empty2
 
                 cmpb #$78              ; LCD Clear Zeichen?
                 bcs  stw_10ms          ; Alles was <$78 ist mit normalem Delay
-                ldx  #LCDDELAY*4       ; vierfacher Timeout für Clear & Reset Befehle
-                stx  lcd_timer
+                ldab #LCDDELAY*4       ; vierfacher Timeout für Clear & Reset Befehle
+                stab lcd_timer
                 bra  stw_end
 stw_10ms
-                ldx  #LCDDELAY         ; normaler Timeout für Rest (außer 4f/5f)
-                stx  lcd_timer
+                ldab #LCDDELAY         ; normaler Timeout für Rest (außer 4f/5f)
+                stab lcd_timer
 stw_end
                 pulx
                 pula

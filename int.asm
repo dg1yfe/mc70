@@ -23,9 +23,9 @@ init_OCI
                stab TCSR1                       ; enable Output Compare Interrupt
                ldd  #0
                std  tick_ms
-               std  tick_hms
-               addd #100
-               std  next_hms
+               stab tick_hms
+               addb #100
+               stab next_hms
 ;               ldx  #OCI1_WD_RESET
                ldx  #OCI_LCD
                stx  oci_vec
@@ -105,10 +105,10 @@ ocf1_test
                 rti                            ; ansonsten ist hier Schluß
 ;************************************
 OCI_LCD
-                ldx  lcd_timer
+                ldaa lcd_timer
                 beq  oci_dbg_lcd
-                dex
-                stx  lcd_timer
+                deca
+                staa lcd_timer
 oci_dbg_lcd
                 jmp  OCI1_MS
 ;**********************************************************************
@@ -136,67 +136,11 @@ OCI1_MS
 OCI_MAIN
 ; General Purpose Timer
                 dec  gp_timer              ; Universaltimer-- / HW Task
-                dec  ui_timer              ; Universaltimer-- / UI Task
 ; Basis Tick Counter
                 ldx  tick_ms
                 inx                        ; 1ms Tick-Counter erhöhen
                 stx  tick_ms
 ;
-; ; 100ms Tick Counter						; TODO: AUSLAGERN in mainloop
-;                 cpx  next_hms              ; schon 100ms vergangen?
-;                 bne  oci_no_hms
-; 
-;                 xgdx
-;                 addd #100                  ; nächsten 100ms Tick Berechnen
-;                 std  next_hms              ; und speichern
-; 
-;                 ldx  tick_hms
-;                 inx                        ; 100ms Tick Counter erhöhen
-;                 stx  tick_hms
-; 
-; ;***************
-; ; OCI HMS                                   ; Alle 100ms Timer erhöhen
-; ;
-; ;  100 MS Timer (menu, pll)
-; ;
-;                 ldx  m_timer               ; m_timer = 0 ?
-;                 beq  oci_pll_timer         ; Dann kein decrement
-;                 dex                        ; m_timer --
-;                 stx  m_timer               ; und sichern
-; oci_pll_timer
-;                 ldab  pll_timer
-;                 beq   oci_tone_timer       ; falls auf 0, nicht mehr runterzaehlen
-;                 decb
-;                 stab  pll_timer
-; oci_tone_timer
-;                 ldab tone_timer
-;                 beq  oci_hms_timer_end
-;                 dec  tone_timer
-;                 bne  oci_hms_timer_end
-; ;***********
-; ; TONE STOP
-;                 aim  #%11110111, TCSR2     ; OCI2 Int deaktivieren
-; 
-;                 oim  #%00001000, TCSR1     ; OCI1 Int aktivieren
-;                 oim  #%01000000, Port6_Data; Pin auf 0 setzen
-;                 aim  #%11011111, Port6_Data; Pin auf 0 setzen
-; ;***********
-;                 clr  ui_ptt_req				; TODO: rename to tone_ptt_req / use bitfields
-; oci_hms_timer_end
-; oci_no_hms
-; ; LCD Timeout Timer aktualisieren
-;                 ldx  lcd_timer             ; lcd_timer holen
-;                 beq  oci_no_lcd_dec        ; falls lcd_timer schon =0, kein decrement mehr
-;                 dex                        ; ansonsten lcd_timer--
-; oci_store_lcdt
-;                 stx  lcd_timer             ; und speichern
-; oci_no_lcd_dec
-; ; Squelch Timer
-;                 ldab sql_timer             ; sql timer holen
-;                 beq  oci_no_sql_dec        ; falls auf 0, nicht mehr runterzaehlen
-;                 decb                       ; ansonsten timer--
-;                 stab sql_timer             ; und speichern
-; oci_no_sql_dec
                 ldab tasksw_en             ; auf Taskswitch prüfen?
                 bne  end_int               ; Nein? Dann Ende
 
@@ -316,8 +260,8 @@ sio_tdre
                 stab io_outbuf_r           ; Neue Zeigerposition speichern
                 staa TDR                   ; Datenbyte ins Transmit Data Register schreiben
                 bmi  sio_tdre_end          ; MSB gesetzt -> nächstes Byte darf sofort gesendet werden (2 Byte Kommando)
-;                ldx  #LCDDELAY             ; Wartezeit holen
-;                stx  lcd_timer             ; und Timer entsprechend setzen
+;                ldab #LCDDELAY             ; Wartezeit holen
+;                stab lcd_timer             ; und Timer entsprechend setzen
 sio_ob_empty
                 aim  #%11111011,TRCSR1     ; "Transmit Data Register Empty"-Interrupt deaktivieren
 sio_tdre_end

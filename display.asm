@@ -56,8 +56,7 @@ lcd_h_reset
 ;              1 = Timeout / No Display detected
 ;
 lcd_s_reset
-               ldd  #0
-               std  lcd_timer
+               clr  lcd_timer
 
                clrb
                jsr  sci_tx
@@ -101,8 +100,8 @@ lcs_disp_resp
                jsr  sci_tx             ; by sending it back
 
                WAIT(100)
-               ldx  #LCDDELAY*4
-               stx  lcd_timer
+               ldaa #LCDDELAY*4
+               staa lcd_timer
                ldaa #1
                jsr  lcd_clr            ; LEDs, LCD und Display Buffer löschen
 
@@ -241,10 +240,10 @@ restore_loop
 ;  Parameter :
 ;
 lcd_timer_reset
-                pshx
-                ldx  #LCDDELAY
-                stx  lcd_timer
-                pulx
+                psha
+                ldaa #LCDDELAY
+                staa lcd_timer
+                pula
                 rts
 ;******************
 ; L C D   C P O S

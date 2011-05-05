@@ -226,14 +226,12 @@ f_in_buf        .block 9
 f_step          .dw                        ; Schrittweite in Hz
 
 tick_ms         .dw                                  ; 1ms Increment
-s_tick_ms       .dw                                  ; Software timer
+s_tick_ms       .db                                  ; Software timer
 tick_hms        .dw                                  ; 100ms Increment
 gp_timer        .db                                  ; General Purpose Timer, 1ms Decrement
 ui_timer        .db
-;TODO make next hms 8 bit
-next_hms        .dw
-;TODO make lcd timer 8 bit
-lcd_timer       .dw                                  ; 1ms
+next_hms        .db
+lcd_timer       .db                                  ; 1ms
 
 #define TXRX       1
 #define PLL_LOCKED 2

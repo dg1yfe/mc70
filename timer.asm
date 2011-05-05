@@ -18,10 +18,10 @@ s_timer_init
                 pshb
                 psha
                 pshx
-                ldd  tick_ms
-                std  s_tick_ms
-                addd #100
-                std  next_hms
+                ldab tick_ms
+                stab s_tick_ms
+                addb #100
+                stab next_hms
                 ldx  #OCI1_MS
                 stx  oci_vec           ; ab jetzt LCD Timer nicht mehr im Int bedienen
                 pulx
@@ -38,32 +38,37 @@ s_timer_update
                 psha
                 pshx
 
-                ldx  s_tick_ms
-                cpx  tick_ms
+                ldab s_tick_ms
+                cmpb tick_ms+1
                 beq  upt_end                   ; no change, dont do anything
-                pshx
                 sei
-                ldd  tick_ms
-                std  s_tick_ms
+                ldaa tick_ms+1
+                staa s_tick_ms
                 cli
-                tsx
-                subd 0,x                       ; Ticks seit letztem update - delta ticks
-                std  0,x                       ; auf Stack speichern
+                sba                            ; Ticks seit letztem update - delta ticks
+                psha
 
-                ldx  lcd_timer                 ; lcd_timer holen
+                ldab lcd_timer                 ; lcd_timer holen
                 beq  upt_no_lcd_dec            ; falls lcd_timer schon =0, kein decrement mehr
-                xgdx
                 tsx
-                subd 0,x                       ; delta ticks abziehen
+                subb 0,x                       ; delta ticks abziehen
                 bcc  upt_store_lcdt
-                ldd  #0                        ; Auch bei Unterlauf nicht kleiner werden als 0
+                clrb                           ; Auch bei Unterlauf nicht kleiner werden als 0
 upt_store_lcdt
-                std  lcd_timer                 ; und speichern
+                stab lcd_timer                 ; und speichern
 upt_no_lcd_dec
+                ldab ui_timer
+                beq  upt_no_ui_dec
+                tsx
+                subb 0,x
+                bpl  upt_store_uit
+                clrb
+upt_store_uit
+                stab ui_timer
+upt_no_ui_dec
                 ins
-                ins
-                ldx  tick_ms
-                cpx  next_hms
+                ldab tick_ms+1
+                cmpb next_hms
                 beq  upt_tcont
 upt_end
                 pulx
@@ -72,9 +77,8 @@ upt_end
                 rts
 ;*****************************
 upt_tcont
-                xgdx
-                addd #100
-                std  next_hms
+                addb #100
+                stab next_hms
                 ldx  tick_hms
                 inx
                 stx  tick_hms
