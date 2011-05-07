@@ -222,7 +222,13 @@ cpos            .db                        ; Cursorposition
 
 dbuf2           .block 9                   ; Display Buffer2 + Byte für CPOS
 
-f_in_buf        .block 9
+f_in_buf                                   ; 9 byte buffer
+osc1_phase      .dw                        ; dual use: frequency input
+osc1_pd         .dw                        ; & oscialltor 1 & 2 (1750 Hz & DTMF)
+osc2_phase      .dw
+osc2_pd         .dw
+oci_int_ctr     .db
+
 f_step          .dw                        ; Schrittweite in Hz
 
 tick_ms         .dw                                  ; 1ms Increment
@@ -270,7 +276,6 @@ sql_timer       .db
 sql_mode        .db                                   ; Mode ($80 = Carrier, $40 = RSSI, 0 = off)
 sql_ctr         .db
 
-msg_mode        .db
 mem_bank        .db                                    ; aktuelle Bank / Frequenzspeicherplätze
 
 pll_locked_flag .db                                   ; Bit 0 - PLL not locked
@@ -282,7 +287,8 @@ oci_ctr         .db
 
 ts_count        .dw
 
-bank0           .block 4                              ; Platz für Routinen zur Bankumschaltung im ROM (Flash)
+osc3_phase      .dw                        ; dual use: frequency input
+osc3_pd         .dw                        ; & oscialltor 1 & 2 (1750 Hz & DTMF)
 
 ;*****************************
 ; I O   R I N G B U F F E R

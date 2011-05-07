@@ -461,16 +461,8 @@ m_test
                 jsr  save_dbuf        ; Displayinhalt in dbuf2 sichern
                 jsr  m_reset_timer    ; Menü-Timer Reset (Timeout für Eingabe setzen)
 mt_nosave
-                clrb
-                jsr  lcd_cpos         ; Cursor Home
-                ldab m_timer
-                ldaa #'x'
-                jsr  putchar
-                ldab m_timer+1
-                ldaa #'x'
-                jsr  putchar
-
-                jsr  lcd_fill         ; restliches Display mit Leerzeichen füllen
+                ldd  #1000
+                jsr  tone_start
 
                 jmp  m_end
 

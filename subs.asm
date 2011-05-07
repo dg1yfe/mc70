@@ -471,17 +471,17 @@ notask
 ;
 ; changed Regs : None
 ;
-tone_start
-                ;aim #$fe,tone_index
-                clr  tone_index
-                ldd  FRC
-;                addd #570                  ; ca 3500 mal pro sek Int auslösen (1749,47 Hz)
-                addd #TONE_DPHASE
-                std  OCR2
-                aim  #%11110111, TCSR1     ; OCI1 Int deaktivieren
-                oim  #%00001000, TCSR2     ; OCI2 Interrupt aktivieren
-
-                rts
+; tone_start
+;                 ;aim #$fe,tone_index
+;                 clr  tone_index
+;                 ldd  FRC
+; ;                addd #570                  ; ca 3500 mal pro sek Int auslösen (1749,47 Hz)
+;                 addd #TONE_DPHASE
+;                 std  OCR2
+;                 aim  #%11110111, TCSR1     ; OCI1 Int deaktivieren
+;                 oim  #%00001000, TCSR2     ; OCI2 Interrupt aktivieren
+; 
+;                 rts
 
 ;********************
 ; T O N E   S T O P

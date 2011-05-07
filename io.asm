@@ -70,14 +70,6 @@ io_init
 
                 aim  #%10011011, Port6_Data    ; Bank 0 wählen
 
-
-                ldx  #bank_switch_end-bank_switch_cpy
-                pshx
-                ldx  #bank_switch_cpy          ; Bank Switch Routine
-                ldd  #bank0                    ; In RAM verschieben
-                jsr  mem_trans
-                pulx
-
                 clr  led_buf
                 clr  arrow_buf
                 clr  arrow_buf+1

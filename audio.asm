@@ -128,7 +128,7 @@ tone_stop
                pshb
                psha
                pshx
-               ldx  #OCI_MS
+               ldx  #OCI1_MS
                stx  oci_vec            ; OCI wieder auf Timer Interrupt zurücksetzen
                                        ; Zeitbasis für Timerinterrupt (1/1000 s) wird im Int zurückgestellt
                ldab #4
@@ -601,7 +601,7 @@ OCI_OSC3                            ;   +19
                xgdx                 ;+2  91
                adda 0,x             ;+4  95    ; combine results to new DAC1 & DAC2 output
                anda #%00011110      ;+2  97
-               ldx  #dac_out_tab_rev;+3 100    ; DAC Werte ausgeben
+               ldx  #dac_out_tab    ;+3 100    ; DAC Werte ausgeben
                tab                  ;+1 101
                abx                  ;+1 102    ; Table entry address in X
                ldaa Port6_DDR_buf   ;+3 105
