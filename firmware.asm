@@ -125,6 +125,7 @@ ml_sql_end
 #INCLUDE       "timer.asm"                 ; Time/Timer related subroutines
 #INCLUDE       "pll_freq.asm"              ; PLL & Frequency related Subroutines
 #INCLUDE       "display.asm"               ; LC Display related Subroutines
+#INCLUDE       "audio.asm"                 ; Audio related subroutines (NCO, DAC, etc)
 #INCLUDE       "mem.asm"                   ; Memory related Subroutines
 #INCLUDE       "math.asm"                  ; Divide, Multiply, Exp Table
 #INCLUDE       "eeprom.asm"                ; EEPROM Zugriffsroutinen

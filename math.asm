@@ -227,7 +227,7 @@ divide32_cont
 ;************************
 ; Parameter:
 ;           D     Divisor  (16Bit)
-;           Stack *Dividend(16Bit)
+;           Stack *Dividend(32Bit)
 ; Ergebnis:
 ;           Mem   Quotient (32Bit)
 ;           D Quotient-lo  (16Bit)

@@ -7,204 +7,6 @@
 ;
 ;
 ;****************************************************************************
-;**************************
-; S   T O N E   S T A R T
-;**************************
-;
-; Tonausgabe (single tone) starten
-;
-; Parameter : X - Frequenz
-;             Stack - DauerL
-;             Stack - DauerH (0 = unbegrenzt)
-;             Stack - Sender tasten (1 = Sender tasten)
-;
-s_tone_start
-               pshb
-               psha
-               pshx
-
-               ldaa osc_active                ; prüfen ob Tone-Task bereits aktiv
-               beq  sts_start                 ; wenn nicht, dann neu starten
-               jsr  tcb_expand                ; sonst TCB Adresse berechnen
-               pshx
-               T_TERMOTHER                    ; und anderen Task freundlich beenden
-               pulx                           ; Ziel Ton bei mehrfachem Aufruf durchgehend
-sts_start
-               tsx
-               ldd  1+6,x                     ; Dauer holen
-               pshb
-               psha                           ; als Parameter auf Stack
-               ldx  0,x                       ; Frequenz holen
-               pshx                           ; als Parameter auf Stack
-               tsx
-               ldab 0+6+4,x                   ; PTT Request holen
-               pshb                           ; PTT Request auf Stack legen (Parameter)
-
-;T_STARTP(addr,term,size,pcount)
-               T_STARTP(s_tone_task,s_tone_term,40,5) ; UI in Taskliste hängen, 30 Byte Stack Speicher, 5 Byte Parameter
-               jsr  tcb_shrink
-               staa osc_active
-               ins
-               ins
-               ins
-               ins
-               ins
-sts_end
-               pulx
-               pula
-               pulb
-               rts
-
-;************************
-; S   T O N E   T A S K
-;************************
-;
-; last change: 15.2.08 / 2.0.0
-;
-; Parameter: Stack - PTT Request   (4)
-;                    Dauer [ms]    (2)
-;                    Frequenz [Hz] (0)
-; Ergebnis:  none
-;
-;
-;Heap variablen
-#DEFINE STONE_ptt_req TCBSize+0
-;#DEFINE STONE_duration TCBSize+2
-;
-s_tone_task
-               pulb
-               stab ui_ptt_req                 ; falls gewünscht, PTT Anforderung setzen
-               pula
-               pulb                            ; Frequenz holen
-               jsr  tone_start                 ; Tonausgabe starten
-               pulx                            ; Dauer holen
-               cpx  #0                         ; Dauer = 0 ?
-               beq  stne_perm                  ; Dann Ton dauerhaft aussenden
-               jsr  wait_ms                    ; Zeit in X [ms] abwarten
-               jsr  tone_stop                  ; Tonoszillator stoppen
-               clrb
-               stab ui_ptt_req
-stne_end
-               clr  osc_active
-               rts                             ; Task beenden
-s_tone_term
-               clr  osc_active
-               jmp  task_term_self             ; Task beenden
-stne_perm
-               swi                             ; Endlosschleife bis Task von außen beendet wird
-               bra  stne_perm
-
-;**************************
-; D   T O N E   S T A R T
-;**************************
-;
-; Tonausgabe (dual tone) starten
-;
-; Parameter : X - Frequenz1
-;             D - Frequenz2
-;             Stack - DauerL
-;             Stack - DauerH (0 = unbegrenzt)
-;             Stack - Sender tasten (1 = Sender tasten)
-;             Stack - Wait Request  ([ms] Stille nach Oszillator Deaktivierung)
-d_tone_start
-               pshb
-               psha
-               pshx
-
-;               ldaa osc_active                ; prüfen ob Tone-Task bereits aktiv
-;               beq  dts_start                 ; wenn nicht starten
-;               jsr  tcb_expand                ; sonst TCB Adresse berechnen
-;               pshx
-;               T_TERMOTHER                    ; und anderen Task freundlich beenden
-;               pulx
-dts_termwait
-               ldaa osc_active                ; Warten bis Task beendet ist
-               bne  dts_termwait              ; Ziel: 50ms Abstand zwischen 2 Tönen
-dts_start
-               tsx
-               ldd  2+6,x                     ; Dauer holen
-               pshb
-               psha                           ; als Parameter auf Stack
-               ldd  0,x                       ; Frequenz1 holen
-               pshb
-               psha                           ; als Parameter auf Stack
-               ldx  2,x                       ; Frequenz 2 holen
-               pshx                           ; als Parameter auf Stack
-               tsx
-               ldd  0+6+6,x                   ; PTT & Wait Request holen
-               pshb                           ; PTT Request auf Stack legen (Parameter)
-               psha                           ; Wait Request auf Stack
-;T_STARTP(addr,term,size,pcount)
-               T_STARTP(d_tone_task,d_tone_term,40,8) ; UI in Taskliste hängen, 30 Byte Stack Speicher, 5 Byte Parameter
-               jsr  tcb_shrink
-               staa osc_active
-               tsx
-               xgdx
-               addd #8
-               xgdx
-               txs
-dts_end
-               pulx
-               pula
-               pulb
-               rts
-
-;************************
-; D   T O N E   T A S K
-;************************
-;
-; last change: 15.2.08 / 2.0.0
-;
-; Parameter: Stack - Dauer [ms]     (6)
-;                    Frequenz2 [Hz] (5)
-;                    Frequenz1 [Hz] (3)
-;                    PTT Request    (2)
-;                    Wait Request   (1)
-; Ergebnis:  none
-;
-;
-;
-#DEFINE DttPttReq    0 + TCBSize
-#DEFINE DttWaitTime  0 + TCBSize
-#DEFINE DTT_HEAP_END 2 + TCBSize
-d_tone_task
-               pulb
-               stab DttWaitTime,x
-               pulb
-               stab DttPttReq,x
-               beq  dtt_no_ptt
-               stab ui_ptt_req                 ; falls gewünscht, PTT Anforderung setzen
-dtt_no_ptt
-               pula
-               pulb                            ; Frequenz1 holen
-               pulx                            ; Frequenz2 holen
-               jsr  dtone_start                ; Tonausgabe starten
-               pulx
-               cpx  #0                         ; Dauer = 0 ?
-               beq  dtt_end                    ; Dann Ton dauerhaft aussenden
-               jsr  wait_ms                    ; Zeit in X [ms] abwarten
-               jsr  tone_stop                  ; Tonoszillator stoppen
-               ldx  current_task
-               ldab DttPttReq,x
-               beq  dtt_end
-               clrb
-               stab ui_ptt_req
-dtt_end
-               ldx  current_task
-               ldab DttWaitTime,x
-               beq  dtt_dont_wait
-               clra
-               xgdx
-               jsr  wait_ms
-dtt_dont_wait
-               clr  osc_active
-               rts                             ; Task beenden
-d_tone_term
-               clr  osc_active
-               jmp  task_term_self             ; Task beenden
-dtne_perm
-               swi                             ; Endlosschleife bis Task von außen beendet wird
-               bra  dtne_perm
 ;**********************
 ; T O N E   S T A R T
 ;**********************
@@ -241,12 +43,26 @@ tone_start
                pulx                   ; 'kleiner' (16 Bit) Quotient reicht aus
                std  osc1_pd           ; Quotient = delta für phase
 
-               clr  oci_int_ctr       ; Interrupt counter auf 0
-                                      ; (wird jeweils um 32 erhöht, bei 0 wird normaler Timer Int ausgeführt)
+               ldab #1
+               stab tasksw_en         ; disable preemptive task switching
+               sei
+               ldab tick_ms+1
+tos_intloop
+               cli
+               nop                    ; don't remove these NOPs
+               nop                    ; HD6303 needs at least 2 clock cycles between cli & sei
+               sei                    ; otherwise interrupts aren't processed
+               cmpb tick_ms+1
+               beq  tos_intloop
+               ldab #1
+               stab oci_int_ctr       ; Interrupt counter auf 0
+                                      ; (Bit is left shifted during Audio OCI, on zero 1ms OCI will be executed)
                ldx  #OCI_OSC1
                stx  oci_vec           ; OCI Interrupt Vektor 'verbiegen'
                                       ; Ausgabe startet automatisch beim nächsten OCI
                                       ; 1/8000 s Zeitintervall wird automatisch gesetzt
+               clr  tasksw_en         ; re-enable preemptive task switching
+               cli
                pulx
                pula
                pulb
@@ -334,75 +150,75 @@ tone_stop
                pulb
                rts
 
-;
-;**********************
+; 
+; **********************
 ; D A   S T A R T
-;**********************
-;
+; **********************
+; 
 ; Startet Ausgabe eines Samples
-;
+; 
 ; Parameter : Stack - Start Adresse
 ;             Stack - End Adresse
 ;             X     - Repeat Count
 ;             A     - Spur/Track (0/1/2)
-;
+; 
 ; Ergebnis : None
-;
+; 
 ; changed Regs : None
-;
-da_start
-                pshb
-                psha
-                pshx
-
-                tsx
-                ldd  6,x
-                std  smp_start
-                std  smp_addr
-                ldd  8,x
-                std  smp_end
-
-                pulx
-                pshx
-                std  smp_rpt
-
-                tsx
-                ldaa 2,x
-                beq  das_play_zero
-                deca
-                beq  das_play_one
-                ldx  #OCI_DAC_S2
-                stx  oci_vec
-                bra  das_end
-das_play_zero
-                ldx  #OCI_DAC_S0
-                stx  oci_vec
-                bra  das_end
-das_play_one
-                ldx  #OCI_DAC_S1
-                stx  oci_vec
-das_end
-                pulx
-                pula
-                pulb
-                rts
-
-;********************
+; 
+; da_start
+;                 pshb
+;                 psha
+;                 pshx
+; 
+;                 tsx
+;                 ldd  6,x
+;                 std  smp_start
+;                 std  smp_addr
+;                 ldd  8,x
+;                 std  smp_end
+; 
+;                 pulx
+;                 pshx
+;                 std  smp_rpt
+; 
+;                 tsx
+;                 ldaa 2,x
+;                 beq  das_play_zero
+;                 deca
+;                 beq  das_play_one
+;                 ldx  #OCI_DAC_S2
+;                 stx  oci_vec
+;                 bra  das_end
+; das_play_zero
+;                 ldx  #OCI_DAC_S0
+;                 stx  oci_vec
+;                 bra  das_end
+; das_play_one
+;                 ldx  #OCI_DAC_S1
+;                 stx  oci_vec
+; das_end
+;                 pulx
+;                 pula
+;                 pulb
+;                 rts
+; 
+; ********************
 ; D A   S T O P
-;********************
-;
-;
-;
-da_stop
-                sei
-                ldx  smp_end
-                stx  smp_addr
-
-                addd #1194                 ; in einer ms wieder OCI ausführen
-                std  OCR1
-                oim  #%00001000, TCSR1     ; Timer compare Interrupt aktivieren
-                aim  #%10011111, Port6_Data; Pin auf 0 setzen
-                rts
+; ********************
+; 
+; 
+; 
+; da_stop
+;                 sei
+;                 ldx  smp_end
+;                 stx  smp_addr
+; 
+;                 addd #1194                 ; in einer ms wieder OCI ausführen
+;                 std  OCR1
+;                 oim  #%00001000, TCSR1     ; Timer compare Interrupt aktivieren
+;                 aim  #%10011111, Port6_Data; Pin auf 0 setzen
+;                 rts
 ;**************************
 ; D T M F  K E Y 2 F R E Q
 ;**************************
@@ -459,13 +275,6 @@ dtmf_tab_y
 ;********
 ; N C O
 ;********
-#ifdef EVA5
-#define SINE_TAB sin_tab8
-#define DAC1_MASK %1110
-#else
-#define SINE_TAB sin_tab16
-#endif
-
 ;
 ; interrupt routines for numerically controlled oscillator
 ;
@@ -482,7 +291,7 @@ OCI_OSC1_sig                        ;   +19
                addd osc1_pd         ;+4  27    phasen delta addieren
                std  osc1_phase      ;+4  31    phase speichern
                anda #%00111111      ;+2  33    64 Byte sin table, stay within limits
-               ldx  #sin_32_4_0dB_sig;+3 36    Start der Sinus-outputtabelle holen
+               ldx  #sin_64_4_0dB_sig;+3 36    Start der Sinus-outputtabelle holen
                tab                  ;+1  37
                abx                  ;+1  38    Index addieren
                ldab Port6_Data      ;+3  41
@@ -582,7 +391,7 @@ OCI_OSC2                            ;   +19    Ausgabe Stream1 (Bit 0-2)
                ldd  osc1_phase      ;+4  23    ; 16 Bit Phase 1 holen
                addd osc1_pd         ;+4  27    ; 16 Bit delta phase 1 addieren
                std  osc1_phase      ;+4  31    ; und neuen Phasenwert 1 speichern
-               ldx  #SINE_TAB       ;+3  34    ; Sinustabelle indizieren
+               ldx  #sin_tab_lo     ;+3  34    ; Sinustabelle indizieren
                tab                  ;+1  35
                abx                  ;+1  36
 
@@ -591,7 +400,7 @@ OCI_OSC2                            ;   +19    Ausgabe Stream1 (Bit 0-2)
                std  osc2_phase      ;+4  48    ; neuen Phasenwert 2 speichern
                tab                  ;+1  49
                ldaa 0,x             ;+4  53    ; Tabelleneintrag 1 holen
-               ldx  #SINE_TAB       ;+3  56    ; Sinustabelle (Wertebereich 0-7)
+               ldx  #sin_tab_hi     ;+3  56    ; Sinustabelle (Wertebereich 0-7)
                abx                  ;+1  57
                ldab 0,x             ;+4  61    ; Tabelleneintrag 2 holen
                aba                  ;+1  62    ; Tabelleneintrag 1 addieren
@@ -625,6 +434,50 @@ oos2_end
 ;     -> 154 * 8000 Hz (NCO clock)       CPU load EVA9 = (1* 90,2 % + 7* 77,3 %) / 8 = 78,9 % average
 ;                                        (reduces effective CPU speed for program to ~260 kHz)
 ;--------------
+; 1 tone signal DAC,
+; 1 tone pl DAC
+OCI_OSC2_sp                         ;   +19    Ausgabe Stream1 (Bit 0-2)
+               ldd  osc1_phase      ;+4  23    ; 16 Bit Phase 1 holen
+               addd osc1_pd         ;+4  27    ; 16 Bit delta phase 1 addieren
+               std  osc1_phase      ;+4  31    ; und neuen Phasenwert 1 speichern
+               ldx  #sin_64_4_0dB_sig;+3 34    ; Sinustabelle indizieren
+               anda #%00111111      ;+2  36    ; filter relevant bits
+               tab                  ;+1  37
+               abx                  ;+1  38
+
+               ldd  osc3_phase      ;+4  42    ; 16 Bit Phase 1 holen
+               addd osc3_pd         ;+4  46    ; 16 Bit delta phase 1 addieren
+               std  osc3_phase      ;+4  50    ; und neuen Phasenwert 1 speichern
+               tab
+               ldaa 0,x             ;+4  54    ; Tabelleneintrag 1 holen
+               ldx  #sin_256_3_0dB_pl
+               abx
+               oraa 0,x             ;+4  58    ; combine results to new DAC1 & DAC2 output
+               staa Port6_Data      ;+3  61    ; Store to DAC reg, remember to keep Bit 0 = 0 (PLL Syn Latch)
+
+               ldab TCSR2           ;+3  64    ; Timer Control / Status Register 2 lesen
+               ldd  OCR1            ;+4  68
+               addd #154            ;+3  71     ; ca 8000 mal pro sek Int auslösen
+               std  OCR1            ;+4  75
+
+               rol  oci_int_ctr     ;+6  81
+               bne  oos2pl_end      ;+3  84
+               dec  gp_timer        ;+6  90    ; Universaltimer-- / HW Task
+; Basis Tick Counter
+               ldx  tick_ms         ;+4  94
+               inx                  ;+1  95    ; 1ms Tick-Counter erhöhen
+               stx  tick_ms         ;+4  99
+               ldab #1              ;+2 101
+               stab oci_int_ctr     ;+3 104
+oos2pl_end
+               rti                  ;+10  94 / 114
+; CPU load with active NCO
+;
+; EVA9 / 4924600 Hz Xtal
+;     -> 1231150 Hz E2 clock
+;     -> 154 * 8000 Hz (NCO clock)       CPU load EVA9 = (1* 74,0 % + 7* 61,0 %) / 8 = 62,6 % average
+;                                        (reduces effective CPU speed for program to ~460 kHz)
+;--------------
 #else
 ;
 ; TODO: Sinn von Dither untersuchen, ggf. 1 Bit aus 8 Bit LFSR (z.B. x^8 + x^4 + x^3 + x^2 + 1) addieren
@@ -633,7 +486,7 @@ OCI_OSC2                            ;   +19    Ausgabe Stream1 (Bit 0-2)
                ldd  osc1_phase      ;+4  23    ; 16 Bit Phase 1 holen
                addd osc1_pd         ;+4  27    ; 16 Bit delta phase 1 addieren
                std  osc1_phase      ;+4  31    ; und neuen Phasenwert 1 speichern
-               ldx  #sin_32_3_0dB   ;+3  34    ; Sinustabelle indizieren
+               ldx  #sin_64_3_0dB   ;+3  34    ; Sinustabelle indizieren
                tab                  ;+1  35
                andb #%00111111      ;+2  37
                abx                  ;+1  38
@@ -643,7 +496,7 @@ OCI_OSC2                            ;   +19    Ausgabe Stream1 (Bit 0-2)
                std  osc2_phase      ;+4  50    ; neuen Phasenwert 2 speichern
                tab                  ;+1  51
                ldaa 0,x             ;+4  55    ; Tabelleneintrag 1 holen
-               ldx  #sin_32_3_0dB   ;+3  58    ; Sinustabelle (Wertebereich 0-7)
+               ldx  #sin_64_3_0dB   ;+3  58    ; Sinustabelle (Wertebereich 0-7)
                andb #%00111111      ;+2  60
                abx                  ;+1  61
                ldab 0,x             ;+4  65    ; Tabelleneintrag 2 holen
@@ -718,10 +571,11 @@ OCI_OSC3                            ;   +19
                addd #154            ;+3 102     ; ca 8000 mal pro sek Int auslösen
                std  OCR1            ;+4 106
 #else
+; EVA5
                ldd  osc1_phase      ;+4  23    ; 16 Bit Phase 1 holen
                addd osc1_pd         ;+4  27    ; 16 Bit delta phase 1 addieren
                std  osc1_phase      ;+4  31    ; und neuen Phasenwert 1 speichern
-               ldx  #sin_32_3_0dB   ;+3  34    ; Sinustabelle indizieren
+               ldx  #sin_64_3_0dB   ;+3  34    ; Sinustabelle indizieren
                tab                  ;+1  35
                andb #%00111111      ;+2  37
                abx                  ;+1  38
@@ -730,7 +584,7 @@ OCI_OSC3                            ;   +19
                std  osc2_phase      ;+4  50    ; neuen Phasenwert 2 speichern
                tab                  ;+1  51
                ldaa 0,x             ;+4  55    ; Tabelleneintrag 1 holen
-               ldx  #sin_32_3_0dB   ;+3  58    ; Sinustabelle (Wertebereich 0-7)
+               ldx  #sin_64_3_0dB   ;+3  58    ; Sinustabelle (Wertebereich 0-7)
                andb #%00111111      ;+2  60    ; stay within 64 byte (makes table smaller)
                abx                  ;+1  61
                ldab 0,x             ;+4  65    ; Tabelleneintrag 2 holen
@@ -743,7 +597,7 @@ OCI_OSC3                            ;   +19
                tab                  ;+1  83
                andb #%00111111      ;+2  85
                clra                 ;+1  86
-               addd #sin_32_3_0dB   ;+3  89    ; Sinustabelle indizieren
+               addd #sin_64_3_0dB   ;+3  89    ; Sinustabelle indizieren
                xgdx                 ;+2  91
                adda 0,x             ;+4  95    ; combine results to new DAC1 & DAC2 output
                anda #%00011110      ;+2  97
@@ -853,7 +707,7 @@ sin_256_3_0dB_pl
                 .db    0,  0,  0,  0,  0,  0,  0, 32, 32, 32, 32, 32, 32, 32, 32, 32,
                 .db   32, 32, 32, 32, 32, 32, 32, 32, 64, 64, 64, 64, 64, 64, 64, 64,
                 .db   64, 64, 64, 64, 64, 96, 96, 96, 96, 96, 96, 96, 96, 96, 96, 96
-sin_32_4_0dB_sig
+sin_64_4_0dB_sig
                 .db  16,16,18,20,20,22,24,24,26,26,28,28,28,30,30,30,
                 .db  30,30,30,30,28,28,28,26,26,24,24,22,20,20,18,16,
                 .db  16,14,12,10,10, 8, 6, 6, 4, 4, 2, 2, 2, 0, 0, 0,
@@ -895,13 +749,13 @@ dac_sin_tab
                 .db  $4000, $4000, $4000, $4000, $6000, $6000, $6000, $6000,
                 .db  $6000, $6000, $6000, $6000, $6000, $4000, $4000, $4000,
                 .db  $4000, $2000, $2000, $2000, $6020, $6020, $6020, $0000,
-sin_32_3_0dB   ;    1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16
+sin_64_3_0dB   ;    1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16
                 .db   4, 4, 5, 5, 5, 6, 6, 6, 7, 7, 7, 7, 8, 8, 8, 8,
                 .db   8, 8, 8, 8, 8, 7, 7, 7, 7, 6, 6, 6, 5, 5, 5, 4,
                 .db   4, 4, 3, 3, 3, 2, 2, 2, 1, 1, 1, 1, 0, 0, 0, 0,
                 .db   0, 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 3, 3, 3, 4,
 
-sin_32_3_0dB_ls;    1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16
+sin_64_3_0dB_ls ;    1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16
                .db   8, 8,10,10,10,12,12,12,14,14,14,14,16,16,16,16,
                .db  16,16,16,16,16,14,14,14,14,12,12,12,10,10,10, 8,
                .db   8, 8, 6, 6, 6, 4, 4, 4, 2, 2, 2, 2, 0, 0, 0, 0,
