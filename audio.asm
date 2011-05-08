@@ -54,10 +54,14 @@ tos_intloop
                sei                    ; otherwise interrupts aren't processed
                cmpb tick_ms+1
                beq  tos_intloop
-               ldab #1
-               stab oci_int_ctr       ; Interrupt counter auf 0
+               ldab #2
+               stab oci_int_ctr       ; Interrupt counter auf 1
                                       ; (Bit is left shifted during Audio OCI, on zero 1ms OCI will be executed)
-               ldx  #OCI_OSC1
+	ldd  OCR1
+	subd #SYSCLK/1000
+	addd #254*2		; add two sample periods to ensure there is enough time before next interrupt occurs even on EVA9
+	std  OCR1
+	ldx  #OCI_OSC1
                stx  oci_vec           ; OCI Interrupt Vektor 'verbiegen'
                                       ; Ausgabe startet automatisch beim nächsten OCI
                                       ; 1/8000 s Zeitintervall wird automatisch gesetzt
@@ -367,7 +371,7 @@ OCI_OSC1                            ;   +19
                addd 0,x             ;+5  51    ; add DAC value from sine table
                std  Port6_DDR       ;+4  55    ; store to DDR & Data
 
-               ldab TCSR2           ;+3  58    ; Timer Control / Status Register 2 lesen
+               ldab TCSR1           ;+3  58    ; Timer Control / Status Register 2 lesen
                ldd  OCR1            ;+4  62
                addd #249            ;+3  65    ; ca 8000 mal pro sek Int auslösen
                std  OCR1            ;+4  69
