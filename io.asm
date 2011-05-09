@@ -64,9 +64,9 @@ io_init
                 oim  #%00001000, SQEXTPORT     ; EXT Alarm off (Hi)
 
 ; Port 6
-                ldab #%01101100
+                ldab #%00001100
                 stab Port6_DDR_buf
-                stab Port6_DDR                 ; A16 (Bank Switch), PTT Syn Latch und DAC auf Ausgang
+                stab Port6_DDR                 ; A16 (Bank Switch), PTT Syn Latch auf Ausgang
 
                 aim  #%10011011, Port6_Data    ; Bank 0 wählen
 

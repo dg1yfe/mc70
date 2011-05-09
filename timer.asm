@@ -18,9 +18,9 @@ s_timer_init
                 pshb
                 psha
                 pshx
-                ldab tick_ms
+                ldab tick_ms+1
                 stab s_tick_ms
-                addb #100
+                ldab #100
                 stab next_hms
                 ldx  #OCI1_MS
                 stx  oci_vec           ; ab jetzt LCD Timer nicht mehr im Int bedienen
@@ -39,20 +39,18 @@ s_timer_update
                 pshx
 
                 ldab s_tick_ms
-                cmpb tick_ms+1
-                beq  upt_end                   ; no change, dont do anything
-                sei
                 ldaa tick_ms+1
-                staa s_tick_ms
-                cli
                 sba                            ; Ticks seit letztem update - delta ticks
+                beq  upt_end                   ; no change, dont do anything
                 psha
+                adda s_tick_ms
+                staa s_tick_ms
 
                 ldab lcd_timer                 ; lcd_timer holen
                 beq  upt_no_lcd_dec            ; falls lcd_timer schon =0, kein decrement mehr
                 tsx
                 subb 0,x                       ; delta ticks abziehen
-                bcc  upt_store_lcdt
+                bpl  upt_store_lcdt
                 clrb                           ; Auch bei Unterlauf nicht kleiner werden als 0
 upt_store_lcdt
                 stab lcd_timer                 ; und speichern
@@ -66,10 +64,11 @@ upt_no_lcd_dec
 upt_store_uit
                 stab ui_timer
 upt_no_ui_dec
-                ins
-                ldab tick_ms+1
-                cmpb next_hms
-                beq  upt_tcont
+                pulb
+                ldaa next_hms
+                sba
+                bmi  upt_tcont
+                staa next_hms
 upt_end
                 pulx
                 pula
@@ -77,11 +76,12 @@ upt_end
                 rts
 ;*****************************
 upt_tcont
-                addb #100
-                stab next_hms
+                adda #100
+                staa next_hms
                 ldx  tick_hms
                 inx
                 stx  tick_hms
+
 ;  100 MS Timer (menu, pll)
 upt_hms_timer
                 ldx  m_timer          ;+4  4; m_timer = 0 ?
@@ -99,6 +99,9 @@ upt_sql_timer
                 beq  upt_tone_timer        ; falls auf 0, nicht mehr runterzaehlen
                 decb                       ; ansonsten timer--
                 stab sql_timer             ; und speichern
+
+                bra  upt_end
+
 upt_tone_timer
                 ldab tone_timer
                 beq  upt_end

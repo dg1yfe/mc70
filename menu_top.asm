@@ -123,16 +123,16 @@ m_top_tab
 ;
 m_top_h2
 ;               Funktion                Taste
-                .dw m_none            ; - (0)
+                .dw m_prnt_tc         ; - (0)
                 .dw m_test            ; - (1)
-                .dw m_none            ; - (2)
-                .dw m_none            ; - (3)
-                .dw m_none            ; - (4)
-                .dw m_none            ; upper / right side (5)
-                .dw m_none            ; - (6)
-                .dw m_none            ; - (7)
+                .dw m_test            ; - (2)
+                .dw m_test            ; - (3)
+                .dw m_test            ; - (4)
+                .dw m_test            ; upper / right side (5)
+                .dw m_test            ; - (6)
+                .dw m_test            ; - (7)
                 .dw m_menu            ; lower / right side (8)
-                .dw m_none            ; - (9)
+                .dw m_test            ; - (9)
                 .dw m_none            ; - (*)
                 .dw m_frq_up          ; D1 - Kanal+
                 .dw m_frq_down        ; D2 - Kanal-
@@ -454,18 +454,40 @@ mpr_nosave
 ;
 ;
 m_test
-                ldab m_timer_en       ; Falls Roundcount noch angezeigt wird, Displayinhalt NICHT speichern
-                bne  mt_nosave        ; Sondern Zahl erneut ausgeben
-
-                ldx  #dbuf2
-                jsr  save_dbuf        ; Displayinhalt in dbuf2 sichern
-                jsr  m_reset_timer    ; Menü-Timer Reset (Timeout für Eingabe setzen)
-mt_nosave
-                ldd  #1000
+                ldx  #77
+                ldd  #77
+;                jsr  dtmf_key2freq
                 jsr  tone_start
 
                 jmp  m_end
 
+m_test2
+                ldab m_timer_en
+                bne  mtst2_nosave
+                ldx  #dbuf2
+                jsr  save_dbuf
+mtst2_nosave
+                jsr  m_reset_timer    ; Menü-Timer Reset (Timeout für Eingabe setzen)
+                clrb
+                jsr  lcd_cpos
+
+;                ldab osc1_phase
+;                incb
+;                cmpb #9
+;                bcs  mtst2_store
+;                clrb
+mtst2_store
+;                stab osc1_phase
+
+
+                ldab osc2_phase
+                ldaa #'x'
+                jsr  putchar
+                ldab osc2_phase+1
+                ldaa #'x'
+                jsr  putchar
+
+                jmp  m_end
 
 ;**************************************
 ; M   P R N T   T C

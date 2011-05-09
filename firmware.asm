@@ -86,6 +86,8 @@ start_over
                 ldab #SR_AUDIOPA
                 jsr  send2shift_reg         ; enable Audio PA
 
+                ldd  #500
+;                jsr  tone_start
 loop
                 clrb                        ; Frequenz etc. speichern wenn Gerät ausgeschaltet wird
                 jsr  pwr_sw_chk             ; Ein/Ausschalter abfragen & bedienen
@@ -105,10 +107,12 @@ trc_end
 ;****
                 jsr  squelch                ; Squelch bedienen
 ml_sql_end
+;                jsr  dither_loop
                 swi
                 jsr  frq_check              ; Überprüfen ob Frequenz geändert werden soll
-                jsr  wd_reset
+;                jsr  wd_reset
                 jsr  s_timer_update
+;                jsr  dither_loop
                 jmp  loop
 
 

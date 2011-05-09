@@ -222,7 +222,8 @@ cpos            .db                        ; Cursorposition
 
 dbuf2           .block 9                   ; Display Buffer2 + Byte für CPOS
 
-f_in_buf                                   ; 9 byte buffer
+f_in_buf        .block 9                   ; 9 byte buffer
+
 osc1_phase      .dw                        ; dual use: frequency input
 osc1_pd         .dw                        ; & oscialltor 1 & 2 (1750 Hz & DTMF)
 osc2_phase      .dw

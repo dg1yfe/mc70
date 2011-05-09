@@ -77,9 +77,10 @@ ICI_SR               ; no ICI
 ;************************************
 OCI_SR
                 ldx  oci_vec
+
                 jmp  0,x
 oci_sel
-                ldab TCSR2                     ; Timer Sontrol / Status Register 2 lesen
+                ldab TCSR2                     ; Timer Control / Status Register 2 lesen
                 tba
                 andb #%00001000                ; Auf EOCI2 testen (Tone Interrupt)
                 beq  OCI1_SR                   ; ansonsten beim normalen 1ms Int weitermachen
@@ -137,7 +138,7 @@ OCI_MAIN
                 ldx  tick_ms          ; +4 10
                 inx                   ; +1 11  ; 1ms Tick-Counter erhöhen
                 stx  tick_ms          ; +4 15
-;
+
                 ldab tasksw_en        ; +3 18  ; auf Taskswitch prüfen?
                 bne  end_int          ; +3 21  ; Nein? Dann Ende
 
@@ -191,21 +192,21 @@ TOI_SR               ; no TOI
 ; Datenbytes von Schnittstelle abholen - falls vorhanden - und in Puffer speichern
 ; Datenbytes aus Puffer abholen - falls vorhanden - und über Schnittstelle senden
 ;
-SIO_SR
-                ldaa TRCSR1                ; Status lesen
-                tab
-                andb #%01000000
-                bne  sio_orfe              ; Overrun / Framing Error
-                ldab TRCSR2
-                andb #%00010000            ; Auf Parity Error prüfen
-                bne  sio_per
-                tab
-                andb #%10000000
-                bne  sio_rdrf              ; Receive Data Register Full
-                tab
-                andb #%00100000
-                bne  sio_tdre              ; Transmit Data Register Empty Int
-                rti                        ; Interrupt beenden
+SIO_SR                                     ;+10 10
+                ldaa TRCSR1                ; +3 13 ; Status lesen
+                tab                        ; +1 14
+                andb #%01000000            ; +2 16
+                bne  sio_orfe              ; +3 19 ; Overrun / Framing Error
+                ldab TRCSR2                ; +3 21
+                andb #%00010000            ; +2 23 ; Auf Parity Error prüfen
+                bne  sio_per               ; +3 26
+                tab                        ; +1 27
+                andb #%10000000            ; +2 29
+                bne  sio_rdrf              ; +3 32 Receive Data Register Full
+                tab                        ; +1 33
+                andb #%00100000            ; +2 35
+                bne  sio_tdre              ; +3 38 Transmit Data Register Empty Int
+                rti                        ;+10 48 Interrupt beenden
 ;
 ;******************
 ;
@@ -216,6 +217,7 @@ sio_per
                 rti
 sio_rdrf
                 ldaa RDR                   ; Datenregister lesen
+                cli
                 ldab io_inbuf_w            ; Zeiger auf Schreibadresse holen
                 incb                       ; prüfen ob Puffer schon voll
                 andb #io_inbuf_mask        ; maximal 15 Einträge

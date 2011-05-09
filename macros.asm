@@ -91,7 +91,7 @@
 
 
 #DEFINE WAIT(ms)    pshx \ ldx  #ms \ jsr wait_ms \ pulx
-#DEFINE LCDDELAY  43     ; 41ms
+#DEFINE LCDDELAY  42     ; 41ms
 
 #DEFINE PCHAR(cmd)  ldaa #'c' \ ldab #cmd \ jsr putchar
 #DEFINE PUTCHAR     ldaa #'c' \ jsr putchar

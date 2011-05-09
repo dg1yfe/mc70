@@ -43,6 +43,11 @@ tone_start
                pulx                   ; 'kleiner' (16 Bit) Quotient reicht aus
                std  osc1_pd           ; Quotient = delta für phase
 
+               ldab Port6_DDR_buf
+               andb #%10011111
+               stab Port6_DDR_buf
+               stab Port6_DDR
+
                ldab #1
                stab tasksw_en         ; disable preemptive task switching
                sei
@@ -54,18 +59,19 @@ tos_intloop
                sei                    ; otherwise interrupts aren't processed
                cmpb tick_ms+1
                beq  tos_intloop
-               ldab #2
+               ldab #1
                stab oci_int_ctr       ; Interrupt counter auf 1
                                       ; (Bit is left shifted during Audio OCI, on zero 1ms OCI will be executed)
-	ldd  OCR1
-	subd #SYSCLK/1000
-	addd #254*2		; add two sample periods to ensure there is enough time before next interrupt occurs even on EVA9
-	std  OCR1
-	ldx  #OCI_OSC1
+               ldd  OCR1
+               subd #SYSCLK/1000
+               addd #254*2            ; add two sample periods to ensure there is enough time
+                                      ; before next interrupt occurs even on EVA9
+               std  OCR1
+               ldx  #OCI_OSC1
                stx  oci_vec           ; OCI Interrupt Vektor 'verbiegen'
                                       ; Ausgabe startet automatisch beim nächsten OCI
                                       ; 1/8000 s Zeitintervall wird automatisch gesetzt
-               clr  tasksw_en         ; re-enable preemptive task switching
+;               clr  tasksw_en         ; re-enable preemptive task switching
                cli
                pulx
                pula
@@ -118,6 +124,9 @@ dtone_start
                stx  oci_vec           ; OCI Interrupt Vektor 'verbiegen'
                                       ; Ausgabe startet automatisch beim nächsten OCI
                                       ; 1/8000 s Zeitintervall wird automatisch gesetzt
+               ldab #1
+               stab Port7_Data
+
                pulx
                pula
                pulb
@@ -276,6 +285,17 @@ dtmf_tab_x
                .dw 1209,1336,1477,1633
 dtmf_tab_y
                .dw  697, 770, 852, 941
+;****************
+; x^8 + x^4 + x^3 + x^2 + 1
+dither_loop
+               ldab Port7_Data         ; +3
+               rolb                    ; +1
+               bcc  dither_end         ; +3
+               eorb #%00011101         ; +2
+dither_end
+               stab Port7_Data         ; +3
+               rts
+
 ;********
 ; N C O
 ;********
@@ -307,7 +327,7 @@ OCI_OSC1_sig                        ;   +19
                addd #154            ;+3  60    ; ca 8000 mal pro sek Int auslösen
                std  OCR1            ;+4  64
                rol  oci_int_ctr     ;+6  70    ; Interrupt counter lesen
-               bne  oos1_end        ;+3  73    ; wenn Ergebnis <> 0, dann Ende
+               bcc  oos1_end        ;+3  73    ; wenn Ergebnis <> 0, dann Ende
                                                ; shorted OCI_MAIN routine (dont do preemptive task switching)
                dec  gp_timer        ;+6  79    ; Universaltimer-- / HW Task
                ldx  tick_ms         ;+4  83
@@ -339,7 +359,7 @@ OCI_OSC1_pl                         ;   +19
                addd #154            ;+3  58    ; ca 8000 mal pro sek Int auslösen
                std  OCR1            ;+4  62
                rol  oci_int_ctr     ;+6  68    ; Interrupt counter lesen
-               bne  oos1p_end       ;+3  71    ; wenn Ergebnis <> 0, dann Ende
+               bcc  oos1p_end       ;+3  71    ; wenn Ergebnis <> 0, dann Ende
                                                ; shorted OCI_MAIN routine (dont do preemptive task switching)
                dec  gp_timer        ;+6  77    ; Universaltimer-- / HW Task
                ldx  tick_ms         ;+4  81
@@ -356,13 +376,20 @@ oos1p_end
 
 #else
 OCI_OSC1                            ;   +19
+               ldaa Port2_DDR_buf               ; Port2 DDR lesen
+               eora #2
+               staa Port2_DDR_buf
+               staa Port2_DDR                   ; neuen Status setzen
+               aim  #%11111101,Port2_Data       ;Data auf 0
+
                ldd  osc1_phase      ;+4  23    Phase holen (16 Bit)
                addd osc1_pd         ;+4  27    phasen delta addieren
                std  osc1_phase      ;+4  31    phase speichern
 
                anda #%00111111      ;+2  33    nur Bits 0-5 berücksichtigen (0-63)
-               ldx  #dac_sin_tab    ;+3  36    Start der Sinus-outputtabelle holen
+               ldx  #dac_sin_tab_att;+3  36    Start der Sinus-outputtabelle holen
                tab                  ;+1  37
+               lslb                 ;+1  38
                abx                  ;+1  38    Index addieren
 
                ldaa Port6_DDR_buf   ;+3  41
@@ -372,11 +399,14 @@ OCI_OSC1                            ;   +19
                std  Port6_DDR       ;+4  55    ; store to DDR & Data
 
                ldab TCSR1           ;+3  58    ; Timer Control / Status Register 2 lesen
-               ldd  OCR1            ;+4  62
-               addd #249            ;+3  65    ; ca 8000 mal pro sek Int auslösen
-               std  OCR1            ;+4  69
+               ldd  OCR1H           ;+4  62
+               addd #249             ;+3  65    ; ca 8000 mal pro sek Int auslösen
+               std  OCR1H           ;+4  69
+
                rol  oci_int_ctr     ;+6  75     ; Interrupt counter lesen
-               bne  oos1_end        ;+3  78     ; wenn Ergebnis <> 0, dann Ende
+               bcc  oos1_end        ;+3  78     ; wenn Ergebnis <> 0, dann Ende
+               ldab #1
+               stab oci_int_ctr
                jmp  OCI_MAIN        ;+3  81     ; bei 0 (jeden 8. Int) den Timer Int aufrufen
 oos1_end
                rti                 ;+10  88 / 112/125/141
@@ -490,7 +520,7 @@ OCI_OSC2                            ;   +19    Ausgabe Stream1 (Bit 0-2)
                ldd  osc1_phase      ;+4  23    ; 16 Bit Phase 1 holen
                addd osc1_pd         ;+4  27    ; 16 Bit delta phase 1 addieren
                std  osc1_phase      ;+4  31    ; und neuen Phasenwert 1 speichern
-               ldx  #sin_64_3_0dB   ;+3  34    ; Sinustabelle indizieren
+               ldx  #sin_64_3_1dB   ;+3  34    ; Sinustabelle indizieren
                tab                  ;+1  35
                andb #%00111111      ;+2  37
                abx                  ;+1  38
@@ -517,12 +547,14 @@ OCI_OSC2                            ;   +19    Ausgabe Stream1 (Bit 0-2)
                addd 0,x             ;+5  86    ; use ADD as OR
                std  Port6_DDR       ;+4  90    ; Store to DDR & Data
 
-               ldab TCSR2           ;+3  93     ; Timer Control / Status Register 2 lesen
+               ldab TCSR1           ;+3  93     ; Timer Control / Status Register 2 lesen
                ldd  OCR1            ;+4  97
                addd #249            ;+3 100     ; ca 8000 mal pro sek Int auslösen
                std  OCR1            ;+4 104
                rol  oci_int_ctr     ;+6 106
                bne  oos2_end        ;+3 109
+               ldab #1              ;+2 101
+               stab oci_int_ctr     ;+3 104
                jmp  OCI_MAIN        ;+3 112     ; bei 0 (jeden 8. Int) den Timer Int aufrufen
 oos2_end
                rti                  ;+10 119 / 143/156/172
@@ -724,15 +756,15 @@ sin_64_4_0dB_sig
 ; This requires a matching sine lookup table to account for the unevenly
 ; spaced output values
 dac_out_tab
-               .dw $6000 ; 1,00   00  0
-               .dw $4000 ; 1,25   0-  1
-               .dw $2000 ; 1,67   -0  2
-               .dw $6020 ; 2,0    01  3
-               .dw $0000 ; 2,5    --  4
-               .dw $6040 ; 3,0    10  5
-               .dw $2020 ; 3,33   -1  6
-               .dw $4040 ; 3,75   1-  7
-               .dw $6060 ; 4,00   11  8
+               .dw $6000 ; 1,00   00  0  1,36
+               .dw $4000 ; 1,25   0-  1  1,40
+               .dw $2000 ; 1,67   -0  2  1,76
+               .dw $6020 ; 2,0    01  3  2,08
+               .dw $0000 ; 2,5    --  4  2,60
+               .dw $6040 ; 3,0    10  5  3,08
+               .dw $2020 ; 3,33   -1  6  3,40
+               .dw $4040 ; 3,75   1-  7  3,84
+               .dw $6060 ; 4,00   11  8  4,08
 
 ; Single tone oscillator of EVA5 may use this table directly
 ; to get DAC value (Port 6 data and DDR) directly
@@ -745,19 +777,35 @@ dac_sin_tab
 ;                .dw $0020, $0040, $0040, $0040, $0040, $0040, $0040, $0040,
 ;                .dw $0040, $0040, $0040, $0040, $0040, $0040, $0040, $0040,
 ;                .dw $0020, $0020, $0020, $2060, $2060, $2060, $0000, $0000
-                .db  $0000, $0000, $6040, $6040, $6040, $2020, $2020, $2020,
-                .db  $4040, $4040, $4040, $4040, $6060, $6060, $6060, $6060,
-                .db  $6060, $6060, $6060, $6060, $6060, $4040, $4040, $4040,
-                .db  $4040, $2020, $2020, $2020, $6040, $6040, $6040, $0000,
-                .db  $0000, $0000, $6020, $6020, $6020, $2000, $2000, $2000,
-                .db  $4000, $4000, $4000, $4000, $6000, $6000, $6000, $6000,
-                .db  $6000, $6000, $6000, $6000, $6000, $4000, $4000, $4000,
-                .db  $4000, $2000, $2000, $2000, $6020, $6020, $6020, $0000,
+                .dw  $0000, $6040, $6040, $6040, $6040, $2020, $2020, $2020,
+                .dw  $4040, $4040, $4040, $4040, $6060, $6060, $6060, $6060,
+                .dw  $6060, $6060, $6060, $6060, $6060, $4040, $4040, $4040,
+                .dw  $4040, $2020, $2020, $2020, $6040, $6040, $6040, $6040,
+                .dw  $0000, $0000, $0000, $6020, $6020, $6020, $6020, $2000,
+                .dw  $2000, $2000, $2000, $4000, $4000, $4000, $4000, $6000,
+                .dw  $6000, $6000, $4000, $4000, $4000, $4000, $2000, $2000,
+                .dw  $2000, $2000, $6020, $6020, $6020, $6020, $0000, $0000
+dac_sin_tab_att
+                .dw  $6040, $6040, $6040, $6040, $2020, $2020, $2020, $2020,
+                .dw  $2020, $2020, $2020, $2020, $2020, $2020, $2020, $2020,
+                .dw  $2020, $2020, $2020, $2020, $2020, $2020, $2020, $2020,
+                .dw  $2020, $2020, $2020, $2020, $2020, $6040, $6040, $6040,
+                .dw  $6040, $6040, $6040, $6040, $0000, $0000, $0000, $0000,
+                .dw  $0000, $0000, $0000, $0000, $0000, $0000, $0000, $0000,
+                .dw  $0000, $0000, $0000, $0000, $0000, $0000, $0000, $0000,
+                .dw  $0000, $0000, $0000, $0000, $0000, $6040, $6040, $6040
+
 sin_64_3_0dB   ;    1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16
-                .db   4, 4, 5, 5, 5, 6, 6, 6, 7, 7, 7, 7, 8, 8, 8, 8,
-                .db   8, 8, 8, 8, 8, 7, 7, 7, 7, 6, 6, 6, 5, 5, 5, 4,
-                .db   4, 4, 3, 3, 3, 2, 2, 2, 1, 1, 1, 1, 0, 0, 0, 0,
-                .db   0, 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 3, 3, 3, 4,
+                .db   4, 5, 5, 5, 5, 6, 6, 6, 7, 7, 7, 7, 8, 8, 8, 8,
+                .db   8, 8, 8, 8, 8, 7, 7, 7, 7, 6, 6, 6, 5, 5, 5, 5,
+                .db   4, 4, 4, 3, 3, 3, 3, 2, 2, 2, 2, 1, 1, 1, 1, 0,
+                .db   0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4
+
+sin_64_3_1dB
+                .db   4, 4, 5, 5, 5, 6, 6, 6, 6, 7, 7, 7, 7, 7, 7, 7,
+                .db   7, 7, 7, 7, 7, 7, 7, 7, 6, 6, 6, 6, 5, 5, 5, 4,
+                .db   4, 4, 4, 4, 4, 3, 3, 3, 3, 2, 2, 2, 2, 2, 2, 2,
+                .db   2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4
 
 sin_64_3_0dB_ls ;    1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16
                .db   8, 8,10,10,10,12,12,12,14,14,14,14,16,16,16,16,
