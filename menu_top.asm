@@ -124,7 +124,7 @@ m_top_tab
 m_top_h2
 ;               Funktion                Taste
                 .dw m_prnt_tc         ; - (0)
-                .dw m_test            ; - (1)
+                .dw m_test2           ; - (1)
                 .dw m_test            ; - (2)
                 .dw m_test            ; - (3)
                 .dw m_test            ; - (4)
@@ -133,7 +133,7 @@ m_top_h2
                 .dw m_test            ; - (7)
                 .dw m_menu            ; lower / right side (8)
                 .dw m_test            ; - (9)
-                .dw m_none            ; - (*)
+                .dw m_tone_stop       ; - (*)
                 .dw m_frq_up          ; D1 - Kanal+
                 .dw m_frq_down        ; D2 - Kanal-
                 .dw m_sql_switch      ; D3 - Squelch ein/aus
@@ -455,10 +455,14 @@ mpr_nosave
 ;
 m_test
                 ldx  #77
-                ldd  #77
+                ldd  #100
 ;                jsr  dtmf_key2freq
                 jsr  tone_start
 
+                jmp  m_end
+
+m_tone_stop
+                jsr  tone_stop
                 jmp  m_end
 
 m_test2
@@ -471,19 +475,29 @@ mtst2_nosave
                 clrb
                 jsr  lcd_cpos
 
-;                ldab osc1_phase
-;                incb
-;                cmpb #9
-;                bcs  mtst2_store
-;                clrb
+                ldab osc1_phase
+                incb
+                cmpb #16
+                bcs  mtst2_store
+                clrb
 mtst2_store
-;                stab osc1_phase
+                stab osc1_phase
+                ldx  #dac_out_tab_test
+                lslb
+                abx
+                ldaa Port6_DDR_buf
+                ldab Port6_Data
+                andb #%10011111
+                anda #%10011111
+                addd 0,x
+                std  Port6_DDR
 
-
-                ldab osc2_phase
+                ldd  0,x
+                pshb
+                tab
                 ldaa #'x'
                 jsr  putchar
-                ldab osc2_phase+1
+                pulb
                 ldaa #'x'
                 jsr  putchar
 

@@ -37,6 +37,7 @@ tone_start
                pshb                   ; Hi Word sichern
                psha                   ; => f*65536 auf Stack speichern
 
+;               ldd  #32000            ; Divisor  = Samplefrequenz * 4
                ldd  #32000            ; Divisor  = Samplefrequenz * 4
                jsr  divide32          ; equivalent (Frequenz*256) / 16
                pulx
@@ -62,16 +63,23 @@ tos_intloop
                ldab #1
                stab oci_int_ctr       ; Interrupt counter auf 1
                                       ; (Bit is left shifted during Audio OCI, on zero 1ms OCI will be executed)
+               ldab TCSR2
                ldd  OCR1
+               std  OCR2
                subd #SYSCLK/1000
-               addd #254*2            ; add two sample periods to ensure there is enough time
+               addd #499              ; add two sample periods to ensure there is enough time
                                       ; before next interrupt occurs even on EVA9
                std  OCR1
+
                ldx  #OCI_OSC1
                stx  oci_vec           ; OCI Interrupt Vektor 'verbiegen'
                                       ; Ausgabe startet automatisch beim nächsten OCI
                                       ; 1/8000 s Zeitintervall wird automatisch gesetzt
 ;               clr  tasksw_en         ; re-enable preemptive task switching
+               ldab #1
+               stab osc3_phase
+               ldd  #dac_sin_tab
+               std  osc3_pd
                cli
                pulx
                pula
@@ -144,18 +152,14 @@ tone_stop
                ldx  #OCI1_MS
                stx  oci_vec            ; OCI wieder auf Timer Interrupt zurücksetzen
                                        ; Zeitbasis für Timerinterrupt (1/1000 s) wird im Int zurückgestellt
-               ldab #4
-               ldx  #dac_out_tab
-               abx                     ; DAC wieder auf Mittelwert zurücksetzen
-               ldd  0,x
-               orab Port6_DDR_buf
-               stab Port6_DDR
+                                       ; DAC wieder auf Mittelwert zurücksetzen
+               ldab Port6_DDR_buf
                andb #%10011111
+               stab Port6_DDR
                stab Port6_DDR_buf
-               tab
+
                ldaa Port6_Data
                anda #%10011111
-               aba
                staa Port6_Data
 
                pulx
@@ -288,12 +292,12 @@ dtmf_tab_y
 ;****************
 ; x^8 + x^4 + x^3 + x^2 + 1
 dither_loop
-               ldab Port7_Data         ; +3
+               ldab oci_int_ctr        ; +3
                rolb                    ; +1
                bcc  dither_end         ; +3
                eorb #%00011101         ; +2
 dither_end
-               stab Port7_Data         ; +3
+               stab oci_int_ctr        ; +3
                rts
 
 ;********
@@ -376,40 +380,68 @@ oos1p_end
 
 #else
 OCI_OSC1                            ;   +19
-               ldaa Port2_DDR_buf               ; Port2 DDR lesen
-               eora #2
-               staa Port2_DDR_buf
-               staa Port2_DDR                   ; neuen Status setzen
-               aim  #%11111101,Port2_Data       ;Data auf 0
-
                ldd  osc1_phase      ;+4  23    Phase holen (16 Bit)
                addd osc1_pd         ;+4  27    phasen delta addieren
                std  osc1_phase      ;+4  31    phase speichern
 
                anda #%00111111      ;+2  33    nur Bits 0-5 berücksichtigen (0-63)
-               ldx  #dac_sin_tab_att;+3  36    Start der Sinus-outputtabelle holen
+               ldx  #dac_sin_tab    ;+3  36    Start der Sinus-outputtabelle holen
+               ldx  osc3_pd         ;+3  36    Start der Sinus-outputtabelle holen
+
                tab                  ;+1  37
                lslb                 ;+1  38
                abx                  ;+1  38    Index addieren
-
                ldaa Port6_DDR_buf   ;+3  41
                ldab Port6_Data      ;+3  44
                andb #%10011111      ;+2  46
                addd 0,x             ;+5  51    ; add DAC value from sine table
                std  Port6_DDR       ;+4  55    ; store to DDR & Data
 
-               ldab TCSR1           ;+3  58    ; Timer Control / Status Register 2 lesen
+               ldab TCSR2           ;+3  58    ; Timer Control / Status Register 2 lesen
                ldd  OCR1H           ;+4  62
-               addd #249             ;+3  65    ; ca 8000 mal pro sek Int auslösen
+               addd #249            ;+3  65    ; ca 8000 mal pro sek Int auslösen
+;               addd #166            ;+3  65    ; ca 8000 mal pro sek Int auslösen
                std  OCR1H           ;+4  69
 
-               rol  oci_int_ctr     ;+6  75     ; Interrupt counter lesen
-               bcc  oos1_end        ;+3  78     ; wenn Ergebnis <> 0, dann Ende
-               ldab #1
-               stab oci_int_ctr
-               jmp  OCI_MAIN        ;+3  81     ; bei 0 (jeden 8. Int) den Timer Int aufrufen
+;               rol  oci_int_ctr     ;+6  75     ; Interrupt counter lesen
+;               bcc  oos1_end        ;+3  78     ; wenn Ergebnis <> 0, dann Ende
+;               ldab #1
+;               stab oci_int_ctr
+;               jmp  OCI_MAIN        ;+3  81     ; bei 0 (jeden 8. Int) den Timer Int aufrufen
+
+               ldaa TCSR2
+               anda #%00100000
+               beq  oos1_end
+               ldd  OCR2
+               addd #SYSCLK/1000
+               std  OCR2
+               dec  gp_timer        ;+6  77    ; Universaltimer-- / HW Task
+               ldx  tick_ms         ;+4  81
+               inx                  ;+1  82    ; 1ms Tick-Counter erhöhen
+               stx  tick_ms         ;+4  86
+
 oos1_end
+               lsrb
+               ldd  osc3_phase         ; +3
+               rolb                    ; +1
+               rola
+               bcc  oos1_dither_end    ; +3
+               eora #%00010000         ; +2
+               eorb #%00100001         ; +2
+oos1_dither_end
+               std  osc3_phase         ; +3
+               andb #6
+               ldx  #dac_sin_tab_sel
+               abx
+               ldx  0,x
+               stx  osc3_pd
                rti                 ;+10  88 / 112/125/141
+
+dac_sin_tab_sel .dw dac_sin_tab
+                .dw dac_sin_tab_att
+                .dw dac_sin_tab_att2
+                .dw dac_sin_tab_att3
+
 ; CPU load with active NCO
 ;
 ; EVA5 / 7977600 Hz Xtal
@@ -756,19 +788,34 @@ sin_64_4_0dB_sig
 ; This requires a matching sine lookup table to account for the unevenly
 ; spaced output values
 dac_out_tab
-               .dw $6000 ; 1,00   00  0  1,36
-               .dw $4000 ; 1,25   0-  1  1,40
-               .dw $2000 ; 1,67   -0  2  1,76
-               .dw $6020 ; 2,0    01  3  2,08
-               .dw $0000 ; 2,5    --  4  2,60
-               .dw $6040 ; 3,0    10  5  3,08
-               .dw $2020 ; 3,33   -1  6  3,40
-               .dw $4040 ; 3,75   1-  7  3,84
-               .dw $6060 ; 4,00   11  8  4,08
+               .dw $6000 ; 1,00   00  0  1,31  - 0.000
+               .dw $4000 ; 1,25   0-  1  1,34  - 0.012
+               .dw $2000 ; 1,67   -0  2  1,66  - 0.136
+               .dw $6020 ; 2,0    01  3  1,98  - 0.261
+               .dw $0000 ; 2,5    --  4  2,48  - 0.455
+               .dw $6040 ; 3,0    10  5  2,92  - 0.626
+               .dw $2020 ; 3,33   -1  6  3,26  - 0.759
+               .dw $4040 ; 3,75   1-  7  3,64  - 0.907
+               .dw $6060 ; 4,00   11  8  3,88  - 1.000
+               .dw $6060 ; 4,00   11  8  3,88  - 1.000  ; Saturate
+               .dw $6060 ; 4,00   11  8  3,88  - 1.000  ; Saturate
+               .dw $6060 ; 4,00   11  8  3,88  - 1.000  ; Saturate
+
+dac_out_tab_test
+               .dw $6000 ; 1,00   00 5  1,31
+               .dw $4000 ; 1,00   0- 0  1,34
+               .dw $2000 ; 1,00   -0 0  1,66
+               .dw $6020 ; 3,33   01 6  1,98
+               .dw $0000 ; 1,00   -- 0  2,48
+               .dw $6040 ; 3,75   10 7  2,92
+               .dw $2020 ; 1,00   -1 0  3,26
+               .dw $4040 ; 1,00   1- 0  3,64
+               .dw $6060 ; 4,00   11 8  3,88
 
 ; Single tone oscillator of EVA5 may use this table directly
 ; to get DAC value (Port 6 data and DDR) directly
 dac_sin_tab
+dac_sin_tab2
 ;                .dw $0000, $4060, $4060, $4060, $2020, $2020, $2020, $4040,
 ;                .dw $4040, $6060, $6060, $6060, $6060, $6060, $6060, $6060,
 ;                .dw $6060, $6060, $6060, $6060, $6060, $6060, $6060, $6060,
@@ -785,15 +832,34 @@ dac_sin_tab
                 .dw  $2000, $2000, $2000, $4000, $4000, $4000, $4000, $6000,
                 .dw  $6000, $6000, $4000, $4000, $4000, $4000, $2000, $2000,
                 .dw  $2000, $2000, $6020, $6020, $6020, $6020, $0000, $0000
+
 dac_sin_tab_att
-                .dw  $6040, $6040, $6040, $6040, $2020, $2020, $2020, $2020,
-                .dw  $2020, $2020, $2020, $2020, $2020, $2020, $2020, $2020,
-                .dw  $2020, $2020, $2020, $2020, $2020, $2020, $2020, $2020,
-                .dw  $2020, $2020, $2020, $2020, $2020, $6040, $6040, $6040,
-                .dw  $6040, $6040, $6040, $6040, $0000, $0000, $0000, $0000,
-                .dw  $0000, $0000, $0000, $0000, $0000, $0000, $0000, $0000,
-                .dw  $0000, $0000, $0000, $0000, $0000, $0000, $0000, $0000,
-                .dw  $0000, $0000, $0000, $0000, $0000, $6040, $6040, $6040
+                .dw  $0000, $6040, $6040, $6040, $6040, $2020, $2020, $2020,
+                .dw  $2020, $2020, $4040, $4040, $4040, $4040, $4040, $4040,
+                .dw  $4040, $4040, $4040, $4040, $4040, $4040, $4040, $2020,
+                .dw  $2020, $2020, $2020, $2020, $6040, $6040, $6040, $6040,
+                .dw  $0000, $0000, $0000, $0000, $6020, $6020, $6020, $6020,
+                .dw  $6020, $2000, $2000, $2000, $2000, $2000, $2000, $2000,
+                .dw  $2000, $2000, $2000, $2000, $2000, $2000, $2000, $2000,
+                .dw  $6020, $6020, $6020, $6020, $6020, $0000, $0000, $0000
+dac_sin_tab_att2
+                .dw  $0000, $6040, $6040, $6040, $6040, $2020, $2020, $2020,
+                .dw  $2020, $4040, $4040, $4040, $4040, $4040, $4040, $4040,
+                .dw  $4040, $4040, $4040, $4040, $4040, $4040, $4040, $4040,
+                .dw  $2020, $2020, $2020, $2020, $6040, $6040, $6040, $6040,
+                .dw  $0000, $0000, $0000, $0000, $6020, $6020, $6020, $6020,
+                .dw  $2000, $2000, $2000, $2000, $2000, $4000, $4000, $4000,
+                .dw  $4000, $4000, $4000, $4000, $2000, $2000, $2000, $2000,
+                .dw  $2000, $6020, $6020, $6020, $6020, $0000, $0000, $0000
+dac_sin_tab_att3
+                .dw  $0000, $0000, $0000, $6040, $6040, $6040, $2020, $2020,
+                .dw  $2020, $2020, $2020, $4040, $4040, $4040, $4040, $4040,
+                .dw  $4040, $4040, $4040, $4040, $4040, $4040, $2020, $2020,
+                .dw  $2020, $2020, $2020, $6040, $6040, $6040, $0000, $0000,
+                .dw  $0000, $0000, $0000, $6020, $6020, $6020, $6020, $2000,
+                .dw  $2000, $2000, $2000, $4000, $4000, $4000, $4000, $6000,
+                .dw  $6000, $6000, $4000, $4000, $4000, $4000, $2000, $2000,
+                .dw  $2000, $2000, $6020, $6020, $6020, $6020, $0000, $0000,
 
 sin_64_3_0dB   ;    1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16
                 .db   4, 5, 5, 5, 5, 6, 6, 6, 7, 7, 7, 7, 8, 8, 8, 8,
