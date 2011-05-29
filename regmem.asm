@@ -290,6 +290,10 @@ ts_count        .dw
 
 osc3_phase      .dw                        ; dual use: frequency input
 osc3_pd         .dw                        ; & oscialltor 1 & 2 (1750 Hz & DTMF)
+o2_en_          .db
+o2_en1          .db
+o2_en2          .db
+o2_dither       .db
 
 ;*****************************
 ; I O   R I N G B U F F E R

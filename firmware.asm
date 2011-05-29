@@ -13,6 +13,7 @@
 ;
 #INCLUDE "macros.asm"           ; include macros & definitions
 #INCLUDE "regmem.asm"           ; Portadresses & Random Access Memory
+#include "audio_tabs.asm"
 ;
 ;**************************
 ; S T A R T   O F   R O M

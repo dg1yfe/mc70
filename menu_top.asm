@@ -454,10 +454,11 @@ mpr_nosave
 ;
 ;
 m_test
-                ldx  #77
-                ldd  #100
+                ldx  #5500*4
+                ldd  #100*4
 ;                jsr  dtmf_key2freq
-                jsr  tone_start
+;                jsr  tone_start
+                jsr  dtone_start
 
                 jmp  m_end
 
