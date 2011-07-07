@@ -633,6 +633,7 @@ oos2_dither_end
 ;                                        (reduces effective CPU speed for program to ~988 kHz)
 
 OCI_OSC2ns                          ;   +19    Ausgabe Stream1 (Bit 0-2)
+OCI_OSC1ns                          ;   +19    Ausgabe Stream1 (Bit 0-2)
                ldd  osc1_phase      ;+4  23    ; 16 Bit Phase 1 holen
                addd osc1_pd         ;+4  27    ; 16 Bit delta phase 1 addieren
                std  osc1_phase      ;+4  31    ; und neuen Phasenwert 1 speichern
@@ -646,7 +647,7 @@ OCI_OSC2ns                          ;   +19    Ausgabe Stream1 (Bit 0-2)
 ;               lsrb
                addb o2_en_          ;+3  43    ; e'(n) addieren
 
-               addb o2_dither       ;+3  46
+;               subb #1              ;+2  46    ; no dither / dither=0
                ldx  #dac_8to3       ;+3  49
                abx                  ;+1  50
                abx                  ;+1  57
@@ -657,27 +658,27 @@ OCI_OSC2ns                          ;   +19    Ausgabe Stream1 (Bit 0-2)
                std  Port6_DDR       ;+4  67    ; Store to DDR & Data
 
                xgdx                 ;+2   2    ;
-               subb o2_dither       ;+3   5
-               sbca #-1             ;+2   7    ; move pointer from dac_8to3 to dac_8to3_err
-               xgdx                 ;+2   9
-               ldab 1,x             ;+4  13    ; get e(n) from table
+               inca                 ;+1   3    ; move pointer from dac_8to3 to dac_8to3_err
+               xgdx                 ;+2   5
+               ldab 0,x             ;+4   9    ; get e(n) from table
 
-               addb o2_en2          ;+3  16    ; add e(n-2)
-               ldaa #65             ;+2  18
-               mul                  ;+7  25
-               ldab o2_en1          ;+3  28
-               stab o2_en2          ;+3  31
-               lsrb                 ;+1  32
-               aba                  ;+1  33
-               staa o2_en_          ;+3  36
-               ldab 0,x             ;+4  40
-               stab o2_en1          ;+3  44
+               addb o2_en2          ;+3  12    ; add e(n-2)
+               ldaa #65             ;+2  14
+               mul                  ;+7  21
+               ldab o2_en1          ;+3  24
+               stab o2_en2          ;+3  27
+               lsrb                 ;+1  28
+               aba                  ;+1  29
+               suba #48             ;+2  31    ; remove offset to get signed value
+               staa o2_en_          ;+3  34
+               ldab 0,x             ;+4  38
+               stab o2_en1          ;+3  41
                                     ;-------
-                                    ;+67 111
+                                    ;+67 108
 
                ldab TCSR1           ;+3   3     ; Timer Control / Status Register 2 lesen
                ldd  OCR1            ;+4   7
-               addd #181            ;+3  10     ; ca 8000 mal pro sek Int auslösen
+               addd #181            ;+3  10     ; ca 11000 mal pro sek Int auslösen
                std  OCR1            ;+4  14
                dec  oci_int_ctr     ;+6  16
                bne  o2ns_dither     ;+3  19
@@ -690,6 +691,9 @@ OCI_OSC2ns                          ;   +19    Ausgabe Stream1 (Bit 0-2)
                                     ;-------
                rti                  ;+10 150
 o2ns_dither
+               ldx  osc1_dither
+               ldaa 0,x
+
                ldd  osc3_phase      ;+3   3
                rolb                 ;+1   4
                rola                 ;+1   5
@@ -698,6 +702,9 @@ o2ns_dither
                eorb #%00100001      ;+2  12
 o2ns_dither_end
                std  osc3_phase      ;+3  15
+               lsrb
+               bcc  o2ns_dp
+               ldx  #o2ns
                andb #1              ;+2  17
                stab o2_dither       ;+3  20
 

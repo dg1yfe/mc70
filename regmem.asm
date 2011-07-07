@@ -288,9 +288,11 @@ oci_ctr         .db
 
 ts_count        .dw
 
+osc1_dither
 osc3_phase      .dw                        ; dual use: frequency input
 osc3_pd         .dw                        ; & oscialltor 1 & 2 (1750 Hz & DTMF)
 o2_en_          .db
+osc_buf         .db
 o2_en1          .db
 o2_en2          .db
 o2_dither       .db
@@ -318,6 +320,13 @@ io_outbuf_w     .db                                   ; Write-Pointer (zu Basisa
 io_outbuf_r     .db                                   ; Read-Pointer (zu Basisadresse addieren)
 io_outbuf_er    .db                                   ; Overflow Error
 io_outbuf       .block  io_outbuf_size                ; Output Ringbuffer - 16 Byte
+;****************
+; E X T   R A M
+;****************
+#DEFINE SUBAUDIOBUF_LEN 24
+ext_ram
+subaudio_buf    .org $0200
+                .block SUBAUDIOBUF_LEN
 
 ;##############################
 ; S T A R T   V E K T O R E N
