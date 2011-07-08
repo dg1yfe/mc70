@@ -70,7 +70,7 @@ sin_64_4_0dB_sig
                 .db   0, 0, 0, 0, 2, 2, 2, 4, 4, 6, 6, 8,10,10,12,14
 #else
 
-; EVA5 only has two 1 Bit DAC (tunable with HW mod into 2 Bit DAC
+; EVA5 only has two 1 Bit DAC
 ; if also using tristate one can attain about 3 Bit resolution with increased
 ; software/CPU requirements
 ; This requires a matching sine lookup table to account for the unevenly
@@ -182,6 +182,7 @@ dac_8to3
                 .dw  $4040, $4040, $4040, $4040, $4040, $4040, $4040, $4040,
                 .dw  $4040, $4040, $4040, $4040, $4040, $6060, $6060, $6060,
                 .dw  $6060, $6060, $6060, $6060, $6060, $6060, $6060, $6060
+err_tab
 dac_8to3_err
                 .dw    0, -1,  0,  0, -1, -2, -3, -4,
                 .dw   -5, -6, -7, -8, -9,-10,-11,-12,
@@ -285,5 +286,4 @@ sin_64_3_0dB_ls ;    1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16
                .db  16,16,16,16,16,14,14,14,14,12,12,12,10,10,10, 8,
                .db   8, 8, 6, 6, 6, 4, 4, 4, 2, 2, 2, 2, 0, 0, 0, 0,
                .db   0, 0, 0, 0, 0, 2, 2, 2, 2, 4, 4, 4, 6, 6, 6, 8
-#include "noise.asm"
 #endif

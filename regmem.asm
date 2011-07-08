@@ -127,32 +127,32 @@ RDR 		.db             ; SCI Data Rx Register
 TDR 		.db    			; SCI Data Tx Register
 RP5CR 		.db
 Port5_Data 	.db                     ; 50 - Pin17 - Emergency Input
-                					; 51 - Pin18 - Power Fail Input
-                					; 52 - Pin19 - SW B+
-                					; 53 - Pin20 - Ext Alarm
-                					; 54 - Pin21 - HUB/PGM (mit NMI&Alert Tone verbunden)
-                					; 55 - Pin22 - Lock Detect (PLL)
-                					; 56 - Pin23 - SQ Det
-                					; 57 - Pin24 - RSSI
+                			; 51 - Pin18 - Power Fail Input
+                			; 52 - Pin19 - SW B+
+                			; 53 - Pin20 - Ext Alarm
+                			; 54 - Pin21 - HUB/PGM (mit NMI&Alert Tone verbunden)
+                			; 55 - Pin22 - Lock Detect (PLL)
+                			; 56 - Pin23 - SQ Det
+                			; 57 - Pin24 - RSSI
 
-Port6_DDR 	.db                     ; 60 - Pin25 - Key 3/4 Detect, 2nd SCI RX
-                					; 61 - Pin26 - Key 1, Serial Data In (?)
-                					; 62 - Pin27 - Key 2
-                					; 63 - Pin28 - Syn Latch (PLL)
-                					; 64 - Pin29 - Yel LED/Test, Call LED SW2
-                					; 65 - Pin30 - Signalling Encoding MSB
-                					; 66 - Pin31 - Signalling Encoding LSB
-                					; 67 - Pin32 - PTT input
+Port6_DDR 	.db                     ; 60 - Pin25 - Key 3/4 Detect (2nd SCI RX)             - 0
+                			; 61 - Pin26 - Key 1,(SCI TX Loopback), **/OE Override - 0
+                			; 62 - Pin27 - Key 2 (Control Head Spare), **A16       - 0
+                			; 63 - Pin28 - Syn Latch (PLL)                         - 0
+                			; 64 - Pin29 - Yel LED/Test, Call LED SW2              - 0
+                			; 65 - Pin30 - Signalling Encoding MSB                 - var
+                			; 66 - Pin31 - Signalling Encoding LSB                 - var
+                			; 67 - Pin32 - PTT input                               - 0
 
 ;                                                                                      Flash Mod
 Port6_Data	.db                     ; 60 - Pin25 - Key 3/4 Detect, 2nd SCI RX
-                					; 61 - Pin26 - Key 1, Serial Data In (?)   *** /OE Override
-                					; 62 - Pin27 - Key 2                       *** A16
-                					; 63 - Pin28 - Syn Latch (PLL)
-                					; 64 - Pin29 - /Test
-                					; 65 - Pin30 - Signalling Encoding MSB
-                					; 66 - Pin31 - Signalling Encoding LSB
-                					; 67 - Pin32 - PTT input
+                			; 61 - Pin26 - Key 1, Serial Data In (?)   *** /OE Override
+                			; 62 - Pin27 - Key 2                       *** A16
+                			; 63 - Pin28 - Syn Latch (PLL)
+                			; 64 - Pin29 - /Test
+                			; 65 - Pin30 - Signalling Encoding MSB
+                			; 66 - Pin31 - Signalling Encoding LSB
+                			; 67 - Pin32 - PTT input
 Port7_Data      .db
 OCR2
 OCR2H           .db
@@ -290,9 +290,9 @@ ts_count        .dw
 
 osc1_dither
 osc3_phase      .dw                        ; dual use: frequency input
+osc_buf         .db
 osc3_pd         .dw                        ; & oscialltor 1 & 2 (1750 Hz & DTMF)
 o2_en_          .db
-osc_buf         .db
 o2_en1          .db
 o2_en2          .db
 o2_dither       .db
@@ -325,7 +325,7 @@ io_outbuf       .block  io_outbuf_size                ; Output Ringbuffer - 16 B
 ;****************
 #DEFINE SUBAUDIOBUF_LEN 24
 ext_ram
-subaudio_buf    .org $0200
+subaudiobuf     .org $0200
                 .block SUBAUDIOBUF_LEN
 
 ;##############################
