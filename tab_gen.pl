@@ -6,6 +6,7 @@ my $i;
 my $j;
 my @y;
 my @err;
+my @err1;
 my $print_err = 1;
 
 my $table_length = 256;
@@ -53,6 +54,7 @@ for($i=0;$i<8;$i++)
 
 $j=0;
 
+# print all DAC table entries
 for($i=0;$i<$table_length;$i++)
 {
     $val = $i/$table_length;
@@ -68,26 +70,40 @@ for($i=0;$i<$table_length;$i++)
 }
 
 
-for($i=0;$i<$table_length/$columns;$i++)
+for($i=0;$i<$table_length;$i++)
 {
-    print "\t\t.".$prefix."  ";
-    for($j=0;$j<$columns;$j++)
-    {
-#        printf("%4.2f,",$y[$i*16+$j]);
-#        printf("%2d,",$y[$i*$columns+$j]*$scale);
-        printf("\$%04x, ",$portval[$y[$i*$columns+$j]]);
-    }
-    print "\n";
+     if($i != $table_length-1)
+     {
+         $err1[$i]=($tridac[$y[$i+1]]-$i/$table_length)*256;
+     }
+     else
+     {
+         $err1[$i]=($tridac[$y[$i]]-$i/$table_length)*256;
+     }
 }
 
 if ($print_err==1)
 {
+    $prefix = "db";
+    $columns =  16;
+
     for($i=0;$i<$table_length/$columns;$i++)
     {
         print "\t\t.".$prefix."  ";
         for($j=0;$j<$columns;$j++)
         {
-            printf("%3d,",$err[$i*$columns+$j]*$scale);
+            printf("%3d,",$err[$i*$columns+$j]*$scale+32);
+        }
+        print "\n";
+    }
+
+    printf("Err 1:\n");
+    for($i=0;$i<$table_length/$columns;$i++)
+    {
+        print "\t\t.".$prefix."  ";
+        for($j=0;$j<$columns;$j++)
+        {
+            printf("%3d,",$err1[$i*$columns+$j]*$scale+32);
         }
         print "\n";
     }

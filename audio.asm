@@ -49,7 +49,7 @@ tone_start
                stab Port6_DDR_buf
                stab Port6_DDR
 
-               ldab #1
+               ldab #0
                stab tasksw_en         ; disable preemptive task switching
                sei
                ldab tick_ms+1
@@ -63,23 +63,35 @@ tos_intloop
                ldab #1
                stab oci_int_ctr       ; Interrupt counter auf 1
                                       ; (Bit is left shifted during Audio OCI, on zero 1ms OCI will be executed)
-               ldab TCSR2
-               ldd  OCR1
-               std  OCR2
-               subd #SYSCLK/1000
-               addd #499              ; add two sample periods to ensure there is enough time
+;               ldab TCSR2
+;               ldd  OCR1
+;               std  OCR2
+;               subd #SYSCLK/1000
+;               addd #499              ; add two sample periods to ensure there is enough time
                                       ; before next interrupt occurs even on EVA9
-               std  OCR1
+;               std  OCR1
 
-               ldx  #OCI_OSC1
+               ldd  dac_8to3+128
+               std  subaudiobuf
+               std  subaudiobuf+(1*2 )
+               std  subaudiobuf+(2*2 )
+               std  subaudiobuf+(3*2 )
+               std  subaudiobuf+(4*2 )
+               std  subaudiobuf+(5*2 )
+               std  subaudiobuf+(6*2 )
+               std  subaudiobuf+(7*2 )
+               std  subaudiobuf+(8*2 )
+               std  subaudiobuf+(9*2 )
+               std  subaudiobuf+(10*2)
+               std  subaudiobuf+(11*2)
+
+               ldx  #OCI_OSC1ns
                stx  oci_vec           ; OCI Interrupt Vektor 'verbiegen'
                                       ; Ausgabe startet automatisch beim nächsten OCI
                                       ; 1/8000 s Zeitintervall wird automatisch gesetzt
 ;               clr  tasksw_en         ; re-enable preemptive task switching
                ldab #1
-               stab osc3_phase
-               ldd  #dac_sin_tab
-               std  osc3_pd
+               stab osc1_dither
                cli
                pulx
                pula

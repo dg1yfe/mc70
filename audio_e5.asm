@@ -25,7 +25,7 @@
 #DEFINE DITHER  ldd  osc1_dither
 #DEFCONT      \ rolb
 #DEFCONT      \ rola
-#DEFCONT      \ bcc  $+2
+#DEFCONT      \ bcc  $+4
 #DEFCONT      \ eorb #%010010011
 #DEFCONT      \ std  osc1_dither
 
@@ -36,13 +36,14 @@
 #DEFCONT       \ ldaa 0,x
 #DEFCONT       \ suba o2_en_
 #DEFCONT       \ staa osc_buf
-#DEFCONT       \ aba
+;#DEFCONT       \ aba
+#DEFCONT        \ nop
 #DEFCONT       \ tab
 #DEFCONT       \ ldx  #dac_8to3
 #DEFCONT       \ abx
 #DEFCONT       \ abx
 #DEFCONT       \ ldd  0,x
-#DEFCONT       \ std  subaudiobuf+nr*2
+#DEFCONT       \ std  subaudiobuf+(nr*2)
 
 ; 19 cycles
 ; Input : X      - *Amplitude/Signal
@@ -51,7 +52,8 @@
 #DEFCONT       \ ldaa 0,x
 #DEFCONT       \ suba o2_en_
 #DEFCONT       \ staa osc_buf
-#DEFCONT       \ aba
+;#DEFCONT       \ aba
+#DEFCONT        \ nop
 #DEFCONT       \ tab
 #DEFCONT       \ ldx  #dac_8to3
 #DEFCONT       \ abx
@@ -60,7 +62,7 @@
 ; 10 cycles
 ; Input : X      - *Amplitude/Signal
 #DEFINE PUTSABUF2(nr) ldd  0,x
-#DEFCONT       \ std  subaudiobuf+nr*2
+#DEFCONT       \ std  subaudiobuf+(nr*2)
 
 ; 47 cycles
 #DEFINE ERRFB  ldd  osc1_dither+1
@@ -75,7 +77,9 @@
 #DEFCONT     \ stab o2_en2
 #DEFCONT     \ lsrb
 #DEFCONT     \ aba
-#DEFCONT     \ suba #48
+;#DEFCONT     \ suba #32
+#DEFCONT     \ nop
+#DEFCONT     \ clra
 #DEFCONT     \ staa o2_en_
 #DEFCONT     \ ldab 0,x
 #DEFCONT     \ stab o2_en1
@@ -97,7 +101,9 @@
 #DEFCONT     \ stab o2_en2
 #DEFCONT     \ lsrb
 #DEFCONT     \ aba
-#DEFCONT     \ suba #48
+;#DEFCONT     \ suba #32
+#DEFCONT     \ nop
+#DEFCONT     \ clra
 #DEFCONT     \ staa o2_en_
 #DEFCONT     \ ldab 0,x
 #DEFCONT     \ stab o2_en1
@@ -115,7 +121,9 @@
 #DEFCONT     \ stab o2_en2
 #DEFCONT     \ lsrb
 #DEFCONT     \ aba
-#DEFCONT     \ suba #48
+;#DEFCONT     \ suba #32
+#DEFCONT     \ nop
+#DEFCONT     \ clra
 #DEFCONT     \ staa o2_en_
 
 ; 7 cycles
@@ -123,14 +131,16 @@
 #DEFCONT     \ stab o2_en1
 
 ; 9 cycles
-#DEFINE SAMPOUT(nr) ldd  subaudiobuf+nr*2
+#DEFINE SAMPOUT(nr) ldd  subaudiobuf+(nr*2)
+;#DEFINE SAMPOUT(nr) ldd  subaudiobuf
 #DEFCONT     \ std  Port6_DDR
+;#DEFCONT     \ std  osc2_phase
 
 ;14 cycles
 #DEFINE NEXTINT(cycles) ldab TCSR1
-#DEFCONT     \ ldd  OCR1
+#DEFCONT     \ ldd  OCR1H
 #DEFCONT     \ addd #cycles
-#DEFCONT     \ std  OCR1
+#DEFCONT     \ std  OCR1H
 
 ;7 cycles
 #DEFINE SETVEC(vec) ldx #vec
@@ -143,7 +153,7 @@ OCI_OSC1ns                          ;   +19    Ausgabe
                                     ;------
                                     ;    19
 
-               ldd  subaudiobuf+11*2;+5   5    ; output sample 12
+               ldd  subaudiobuf+(11*2);+5   5    ; output sample 12
                std  Port6_DDR       ;+4   9
                                     ;------
                                     ;     9
@@ -161,7 +171,7 @@ OCI_OSC1ns                          ;   +19    Ausgabe
                ldd  osc1_dither     ;+4   4    ; get LFSR
                rolb                 ;+1   4    ; shift LFSR
                rola                 ;+1   5
-               bcc  $+2             ;+3   8    ; do nothing if MSB was 0
+               bcc  $+4             ;+3   8    ; do nothing if MSB was 0
                eorb #%010010011     ;+2  12    ; calculate Feedback
                std  osc1_dither     ;+4  16/14 ; store LFSR
                                     ;------
@@ -172,7 +182,8 @@ OCI_OSC1ns                          ;   +19    Ausgabe
                ldaa 0,x             ;+4   6    ; DAC Wert holen
                suba o2_en_          ;+3   9    ; e'(n) abziehen
                staa osc_buf         ;+3  12
-               aba                  ;+1  13    ; Dither addieren
+;               aba                  ;+1  13    ; Dither addieren
+                nop
                tab                  ;+1  14    ; nach B
                ldx  #dac_8to3       ;+3  17
                abx                  ;+1  18
@@ -195,7 +206,9 @@ OCI_OSC1ns                          ;   +19    Ausgabe
                stab o2_en2          ;+3  33
                lsrb                 ;+1  34
                aba                  ;+1  35
-               suba #48             ;+2  37    ; remove offset to get signed value
+;               suba #32             ;+2  37    ; remove offset to get signed value
+               nop
+               clra
                staa o2_en_          ;+3  40
                ldab 0,x             ;+4  44    ; get e(n) from table (again)
                stab o2_en1          ;+3  47

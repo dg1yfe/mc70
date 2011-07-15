@@ -52,7 +52,7 @@ Start
 #ifdef SIM
 	ldaa #2
 	staa cfg_head
-	ldd  #1000
+	ldd  #100
 	jsr  tone_start
 sim_loop
 	bra  sim_loop

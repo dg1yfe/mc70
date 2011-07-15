@@ -324,8 +324,8 @@ io_outbuf       .block  io_outbuf_size                ; Output Ringbuffer - 16 B
 ; E X T   R A M
 ;****************
 #DEFINE SUBAUDIOBUF_LEN 24
-ext_ram
-subaudiobuf     .org $0200
+ext_ram         .org $0200
+subaudiobuf     .org $0400
                 .block SUBAUDIOBUF_LEN
 
 ;##############################
