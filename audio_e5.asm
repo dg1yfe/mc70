@@ -227,7 +227,7 @@ OCI_OSC1ns                          ;   +19    Ausgabe
 ;168
                SAMPOUT(0)
 ;+9
-               PUTSABUF(1)
+               PUTSABUF2(1)
 ;+10
                ERRFB
 ;+47
