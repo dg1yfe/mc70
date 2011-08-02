@@ -137,8 +137,8 @@ Port5_Data 	.db                     ; 50 - Pin17 - Emergency Input
 
 Port6_DDR 	.db                     ; 60 - Pin25 - Key 3/4 Detect (2nd SCI RX)             - 0
                 			; 61 - Pin26 - Key 1,(SCI TX Loopback), **/OE Override - 0
-                			; 62 - Pin27 - Key 2 (Control Head Spare), **A16       - 0
-                			; 63 - Pin28 - Syn Latch (PLL)                         - 0
+                			; 62 - Pin27 - Key 2 (Control Head Spare), **A16       - 1
+                			; 63 - Pin28 - Syn Latch (PLL)                         - 1
                 			; 64 - Pin29 - Yel LED/Test, Call LED SW2              - 0
                 			; 65 - Pin30 - Signalling Encoding MSB                 - var
                 			; 66 - Pin31 - Signalling Encoding LSB                 - var

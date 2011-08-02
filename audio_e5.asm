@@ -36,8 +36,8 @@
 #DEFCONT       \ ldaa 0,x
 #DEFCONT       \ suba o2_en_
 #DEFCONT       \ staa osc_buf
-;#DEFCONT       \ aba
-#DEFCONT        \ nop
+#DEFCONT       \ aba
+;#DEFCONT        \ nop
 #DEFCONT       \ tab
 #DEFCONT       \ ldx  #dac_8to3
 #DEFCONT       \ abx
@@ -52,8 +52,8 @@
 #DEFCONT       \ ldaa 0,x
 #DEFCONT       \ suba o2_en_
 #DEFCONT       \ staa osc_buf
-;#DEFCONT       \ aba
-#DEFCONT        \ nop
+#DEFCONT       \ aba
+;#DEFCONT        \ nop
 #DEFCONT       \ tab
 #DEFCONT       \ ldx  #dac_8to3
 #DEFCONT       \ abx
@@ -77,9 +77,9 @@
 #DEFCONT     \ stab o2_en2
 #DEFCONT     \ lsrb
 #DEFCONT     \ aba
-;#DEFCONT     \ suba #32
-#DEFCONT     \ nop
-#DEFCONT     \ clra
+#DEFCONT     \ suba #32
+;#DEFCONT     \ nop
+;#DEFCONT     \ clra
 #DEFCONT     \ staa o2_en_
 #DEFCONT     \ ldab 0,x
 #DEFCONT     \ stab o2_en1
@@ -101,9 +101,9 @@
 #DEFCONT     \ stab o2_en2
 #DEFCONT     \ lsrb
 #DEFCONT     \ aba
-;#DEFCONT     \ suba #32
-#DEFCONT     \ nop
-#DEFCONT     \ clra
+#DEFCONT     \ suba #32
+;#DEFCONT     \ nop
+;#DEFCONT     \ clra
 #DEFCONT     \ staa o2_en_
 #DEFCONT     \ ldab 0,x
 #DEFCONT     \ stab o2_en1
@@ -121,9 +121,9 @@
 #DEFCONT     \ stab o2_en2
 #DEFCONT     \ lsrb
 #DEFCONT     \ aba
-;#DEFCONT     \ suba #32
-#DEFCONT     \ nop
-#DEFCONT     \ clra
+#DEFCONT     \ suba #32
+;#DEFCONT     \ nop
+;#DEFCONT     \ clra
 #DEFCONT     \ staa o2_en_
 
 ; 7 cycles
@@ -180,10 +180,11 @@ OCI_OSC1ns                          ;   +19    Ausgabe
 
                andb #1              ;+2   2    ; isolate 1 Bit as dither
                ldaa 0,x             ;+4   6    ; DAC Wert holen
+               aba
                suba o2_en_          ;+3   9    ; e'(n) abziehen
                staa osc_buf         ;+3  12
 ;               aba                  ;+1  13    ; Dither addieren
-                nop
+;                nop
                tab                  ;+1  14    ; nach B
                ldx  #dac_8to3       ;+3  17
                abx                  ;+1  18
@@ -206,9 +207,9 @@ OCI_OSC1ns                          ;   +19    Ausgabe
                stab o2_en2          ;+3  33
                lsrb                 ;+1  34
                aba                  ;+1  35
-;               suba #32             ;+2  37    ; remove offset to get signed value
-               nop
-               clra
+               suba #32             ;+2  37    ; remove offset to get signed value
+;              nop
+;              clra
                staa o2_en_          ;+3  40
                ldab 0,x             ;+4  44    ; get e(n) from table (again)
                stab o2_en1          ;+3  47

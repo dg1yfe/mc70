@@ -455,7 +455,7 @@ mpr_nosave
 ;
 m_test
 ;                ldx  #5500*4
-                ldd  #100
+                ldd  #1
 ;                jsr  dtmf_key2freq
 ;                jsr  tone_start
                 jsr  tone_start

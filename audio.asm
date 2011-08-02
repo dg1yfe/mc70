@@ -85,13 +85,14 @@ tos_intloop
                std  subaudiobuf+(10*2)
                std  subaudiobuf+(11*2)
 
+;               ldx  #OCI_OSC1
                ldx  #OCI_OSC1ns
                stx  oci_vec           ; OCI Interrupt Vektor 'verbiegen'
                                       ; Ausgabe startet automatisch beim nächsten OCI
                                       ; 1/8000 s Zeitintervall wird automatisch gesetzt
 ;               clr  tasksw_en         ; re-enable preemptive task switching
-               ldab #1
-               stab osc1_dither
+               ldd  #$AA55
+               std  osc1_dither
                cli
                pulx
                pula

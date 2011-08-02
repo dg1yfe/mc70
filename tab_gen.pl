@@ -72,7 +72,7 @@ for($i=0;$i<$table_length;$i++)
 
 for($i=0;$i<$table_length;$i++)
 {
-     if($i != $table_length-1)
+     if($i != $table_length-4)
      {
          $err1[$i]=($tridac[$y[$i+1]]-$i/$table_length)*256;
      }
