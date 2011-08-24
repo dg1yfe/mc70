@@ -440,6 +440,134 @@ OCI_OSC1S10
 ; 92+107+107+67 = 373/1994 = 18,7%
 ; CPU Last durch Interrupt/Soundausgabe: (1994-373)/1994 = 81,3 %
 
+OCI_OSC1ns2                         ;   +19    Ausgabe
+                                    ;------
+                                    ;    19
+               ldd  subaudiobuf+2   ;+5   5    ; output sample 1
+               std  Port6_DDR       ;+4   9
+                                    ;------
+                                    ;     9
+
+               ldd  osc1_phase      ;+4   4    ; 16 Bit Phase 1 holen (8.8)
+               addd osc1_pd         ;+4   8    ; 16 Bit delta phase 1 addieren
+               std  osc1_phase      ;+4  12    ; und neuen Phasenwert 1 speichern
+               ldx  #dac_sin256     ;+3  15    ; Sinustabelle indizieren
+               tab                  ;+1  16    ; Phasenwert (int)
+               abx                  ;+1  17    ; addieren
+                                    ;------
+                                    ;    17
+                                    ;+ 9 26
+
+               ldd  osc1_dither     ;+4   4    ; get LFSR
+               rolb                 ;+1   4    ; shift LFSR
+               rola                 ;+1   5
+               bcc  $+2             ;+3   8    ; do nothing if MSB was 0
+               eorb #%010010011     ;+2  12    ; calculate Feedback
+               std  osc1_dither     ;+4  16/14 ; store LFSR
+                                    ;------
+                                    ;    15
+                                    ;+26 41
+
+               lsrb                 ;+1   1    ; x(n) / 2
+               tba                  ;+1   2
+               adda o2_en2          ;+3   5    ; add "x(n-2)/2"
+               stab o2_en2          ;+3   8    ; store "x(n)/2" for further processing on next sample
+               lsra                 ;+1   9    ; y(n) = (x(n)/2 + x(n-2)/2) / 2
+               adda o2_en1          ;+3  12    ; y(n) =  x(n)/4 + x(n-1)/2 + x(n-2)/4 -> binomial filter
+               lsra                 ;+1  13    ;
+               lsra                 ;+1  14    ; decrease Amplitude by 12 dB
+               adda #96             ;+2  16    ; remove DC offset
+                                    ;------
+                                    ;    16
+                                    ;+41 57
+
+               ldab 0,x             ;+4   6    ; DAC Wert holen
+               tab                  ;+1  13    ; Dither addieren
+               tab                  ;+1  14    ; nach B
+               ldx  #dac_8to3       ;+3  17
+               abx                  ;+1  18
+               abx                  ;+1  19
+               ldd  0,x             ;+5  24    ; get output value for Port and DDR register
+               std  subaudiobuf     ;+5  29    ; Store to Buf
+                                    ;------
+                                    ;    29
+                                    ;+57 86
+;---------------
+               ldd  osc1_phase      ;+4   4    ; 16 Bit Phase 1 holen (8.8)
+               addd osc1_pd         ;+4   8    ; 16 Bit delta phase 1 addieren
+               std  osc1_phase      ;+4  12    ; und neuen Phasenwert 1 speichern
+               ldx  #dac_sin256     ;+3  15    ; Sinustabelle indizieren
+               tab                  ;+1  16    ; Phasenwert (int)
+               abx                  ;+1  17    ; addieren
+                                    ;------
+                                    ;    17
+                                   ;+86 103
+
+               ldd  osc1_dither     ;+4   4    ; get LFSR
+               rolb                 ;+1   4    ; shift LFSR
+               rola                 ;+1   5
+               bcc  $+2             ;+3   8    ; do nothing if MSB was 0
+               eorb #%010010011     ;+2  12    ; calculate Feedback
+               std  osc1_dither     ;+4  16/14 ; store LFSR
+                                    ;------
+                                    ;    15
+                                  ;+103 118
+
+               lsrb                 ;+1   1    ; x(n) / 2
+               tba                  ;+1   2
+               addb o2_en1          ;+3   5    ; add "x(n-2)/2"
+               staa o2_en1          ;+3   8    ; store "x(n)/2" for further processing on next sample
+               lsrb                 ;+1   9    ; y(n) = (x(n)/2 + x(n-2)/2) / 2
+               addb o2_en2          ;+3  12    ; y(n) =  x(n)/4 + x(n-1)/2 + x(n-2)/4 -> binomial filter
+               lsrb                 ;+1  13    ;
+               lsrb                 ;+1  14    ; decrease Amplitude by 12 dB
+               ldaa #255-96         ;+2  16    ; remove DC offset
+               sba                  ;+1  17    ; invert amplitude (in every 2nd sample) to invert noise spectrum
+                                    ;------
+                                    ;    17
+                                  ;+118 135
+
+               ldab 0,x             ;+4   6    ; DAC Wert holen
+               tab                  ;+1  13    ; Dither addieren
+               tab                  ;+1  14    ; nach B
+               ldx  #dac_8to3       ;+3  17
+               abx                  ;+1  18
+               abx                  ;+1  19
+               ldd  0,x             ;+5  24    ; get output value for Port and DDR register
+               std  subaudiobuf+2   ;+5  29    ; Store to Buf
+                                    ;------
+                                    ;    29
+                                  ;+135 164
+
+;167
+               ldd  subaudiobuf     ;+5   8    ; output sample 0
+               std  Port6_DDR       ;+4  12
+
+               ldab TCSR1           ;+3   3     ; Timer Control / Status Register 2 lesen
+               ldd  OCR1            ;+4  16
+               addd #332            ;+3  19     ; ca 6000 mal pro sek Int auslösen
+               std  OCR1            ;+4  23
+                                    ;------
+                                    ;    23
+                                  ;+164 187
+
+               dec  gp_timer        ;+6   6    ; Universaltimer-- / HW Task
+               ldx  tick_ms         ;+4  10
+               inx                  ;+1  11    ; 1ms Tick-Counter erhöhen
+               stx  tick_ms         ;+4  15
+               rti                  ;+10 25
+                                    ;-------
+                                    ;    25
+                                  ;+187 212
+                                  ;+19  231    ; Int entry
+; CPU load with active NCO
+;
+; EVA5 / 7977600 Hz Xtal
+;     -> 1994400 Hz E2 clock
+;     -> 166 * 12000 Hz (NCO clock)       CPU load EVA5 = 231/(2*166) = 69,6 %
+;                                         (reduces effective CPU speed for program to ~1388 kHz)
+;*****************
+
 ;********
 ; N C O
 ;********

@@ -86,7 +86,7 @@ tos_intloop
                std  subaudiobuf+(11*2)
 
 ;               ldx  #OCI_OSC1
-               ldx  #OCI_OSC1ns
+               ldx  #OCI_OSC1ns2
                stx  oci_vec           ; OCI Interrupt Vektor 'verbiegen'
                                       ; Ausgabe startet automatisch beim nächsten OCI
                                       ; 1/8000 s Zeitintervall wird automatisch gesetzt
