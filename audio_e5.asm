@@ -22,10 +22,13 @@
 #DEFCONT          \ tab
 #DEFCONT          \ abx
 
+
+; 14 cycles
+; Output: D      - LFSR
 #DEFINE DITHER  ldd  osc1_dither
 #DEFCONT      \ rolb
 #DEFCONT      \ rola
-#DEFCONT      \ bcc  $+4
+#DEFCONT      \ bcc  $+2
 #DEFCONT      \ eorb #%010010011
 #DEFCONT      \ std  osc1_dither
 
@@ -169,14 +172,14 @@ OCI_OSC1ns                          ;   +19    Ausgabe
                                     ;+ 9 26
 
                ldd  osc1_dither     ;+4   4    ; get LFSR
-               rolb                 ;+1   4    ; shift LFSR
-               rola                 ;+1   5
-               bcc  $+4             ;+3   8    ; do nothing if MSB was 0
-               eorb #%010010011     ;+2  12    ; calculate Feedback
-               std  osc1_dither     ;+4  16/14 ; store LFSR
+               rolb                 ;+1   5    ; shift LFSR
+               rola                 ;+1   6
+               bcc  $+4             ;+3   9    ; do nothing if MSB was 0
+               eorb #%010010011     ;+2  11    ; calculate Feedback
+               std  osc1_dither     ;+4  15/13 ; store LFSR
                                     ;------
-                                    ;    15
-                                    ;+26 41
+                                    ;    14
+                                    ;+26 40
 
                andb #1              ;+2   2    ; isolate 1 Bit as dither
                ldaa 0,x             ;+4   6    ; DAC Wert holen
@@ -440,14 +443,67 @@ OCI_OSC1S10
 ; 92+107+107+67 = 373/1994 = 18,7%
 ; CPU Last durch Interrupt/Soundausgabe: (1994-373)/1994 = 81,3 %
 
+
+; 21 cycles
+; Input : X      - *Amplitude/Signal
+;         A      - Dither LFSR
+#DEFINE SAMPBUF(nr) ldab 0,x
+#DEFCONT       \ aba
+#DEFCONT       \ tab
+#DEFCONT       \ ldx  #dac_8to3
+#DEFCONT       \ abx
+#DEFCONT       \ abx
+#DEFCONT       \ ldd  0,x
+#DEFCONT       \ std  subaudiobuf+(nr*2)
+
+; 11 cycles
+; Input : X      - *Amplitude/Signal
+;         A      - Dither LFSR
+#DEFINE SAMPBUF1 ldab 0,x
+#DEFCONT       \ aba
+#DEFCONT       \ tab
+#DEFCONT       \ ldx  #dac_8to3
+#DEFCONT       \ abx
+#DEFCONT       \ abx
+; 10
+#DEFINE SAMPBUF2(nr) ldd  0,x
+#DEFCONT       \ std  subaudiobuf+(nr*2)
+
+
+; 14 cycles
+; Input : B      - Dither / LFSR lowbyte
+; Output: A      - filtered noise sample
+#DEFINE BFILT1 lsrb
+#DEFCONT     \ tba
+#DEFCONT     \ adda o2_en2
+#DEFCONT     \ stab o2_en2
+#DEFCONT     \ lsra
+#DEFCONT     \ adda o2_en1
+#DEFCONT     \ lsra
+#DEFCONT     \ lsra
+
+#DEFINE BFILT2 lsrb
+#DEFCONT     \ tba
+#DEFCONT     \ adda o2_en1
+#DEFCONT     \ stab o2_en1
+#DEFCONT     \ lsra
+#DEFCONT     \ adda o2_en2
+#DEFCONT     \ lsra
+#DEFCONT     \ lsra
+
+; 9 cycles
+#DEFINE SAMPOUTX(nr) ldx  subaudiobuf+(nr*2)
+#DEFCONT     \ stx  Port6_DDR
+
+
 OCI_OSC1ns2                         ;   +19    Ausgabe
                                     ;------
                                     ;    19
-               ldd  subaudiobuf+2   ;+5   5    ; output sample 1
+               ldd  subaudiobuf+2*9 ;+5   5    ; output sample 9
                std  Port6_DDR       ;+4   9
                                     ;------
                                     ;     9
-
+;0
                ldd  osc1_phase      ;+4   4    ; 16 Bit Phase 1 holen (8.8)
                addd osc1_pd         ;+4   8    ; 16 Bit delta phase 1 addieren
                std  osc1_phase      ;+4  12    ; und neuen Phasenwert 1 speichern
@@ -459,14 +515,14 @@ OCI_OSC1ns2                         ;   +19    Ausgabe
                                     ;+ 9 26
 
                ldd  osc1_dither     ;+4   4    ; get LFSR
-               rolb                 ;+1   4    ; shift LFSR
-               rola                 ;+1   5
-               bcc  $+2             ;+3   8    ; do nothing if MSB was 0
-               eorb #%010010011     ;+2  12    ; calculate Feedback
-               std  osc1_dither     ;+4  16/14 ; store LFSR
+               rolb                 ;+1   5    ; shift LFSR
+               rola                 ;+1   6
+               bcc  $+2             ;+3   9    ; do nothing if MSB was 0
+               eorb #%010010011     ;+2  11    ; calculate Feedback
+               std  osc1_dither     ;+4  13/15 ; store LFSR
                                     ;------
-                                    ;    15
-                                    ;+26 41
+                                    ;    14
+                                    ;+26 40
 
                lsrb                 ;+1   1    ; x(n) / 2
                tba                  ;+1   2
@@ -479,87 +535,201 @@ OCI_OSC1ns2                         ;   +19    Ausgabe
                adda #96             ;+2  16    ; remove DC offset
                                     ;------
                                     ;    16
-                                    ;+41 57
+                                    ;+40 56
 
-               ldab 0,x             ;+4   6    ; DAC Wert holen
-               tab                  ;+1  13    ; Dither addieren
-               tab                  ;+1  14    ; nach B
-               ldx  #dac_8to3       ;+3  17
-               abx                  ;+1  18
-               abx                  ;+1  19
-               ldd  0,x             ;+5  24    ; get output value for Port and DDR register
-               std  subaudiobuf     ;+5  29    ; Store to Buf
+               ldab 0,x             ;+4   4    ; DAC Wert holen
+               tab                  ;+1   5    ; Dither addieren
+               tab                  ;+1   6    ; nach B
+               ldx  #dac_8to3       ;+3   9
+               abx                  ;+1  10
+               abx                  ;+1  11
+               ldd  0,x             ;+5  16    ; get output value for Port and DDR register
+               std  subaudiobuf     ;+5  21    ; Store to Buf
                                     ;------
-                                    ;    29
-                                    ;+57 86
+                                    ;    21
+                                    ;+56 77
 ;---------------
-               ldd  osc1_phase      ;+4   4    ; 16 Bit Phase 1 holen (8.8)
-               addd osc1_pd         ;+4   8    ; 16 Bit delta phase 1 addieren
-               std  osc1_phase      ;+4  12    ; und neuen Phasenwert 1 speichern
-               ldx  #dac_sin256     ;+3  15    ; Sinustabelle indizieren
-               tab                  ;+1  16    ; Phasenwert (int)
-               abx                  ;+1  17    ; addieren
+;1
+               OSCILLATOR1          ;+17
+                                    ;+77 94
+
+               ldab osc1_dither     ;+3   3    ; get byte from LFSR
+               BFILT2               ;+14 17
+               ldaa #255-96         ;+2  19    ; remove DC offset
+               sba                  ;+1  20    ; invert amplitude (in every 2nd sample) to invert noise spectrum
                                     ;------
-                                    ;    17
-                                   ;+86 103
-
-               ldd  osc1_dither     ;+4   4    ; get LFSR
-               rolb                 ;+1   4    ; shift LFSR
-               rola                 ;+1   5
-               bcc  $+2             ;+3   8    ; do nothing if MSB was 0
-               eorb #%010010011     ;+2  12    ; calculate Feedback
-               std  osc1_dither     ;+4  16/14 ; store LFSR
+                                    ;    20
+                                   ;+94 114
+               SAMPBUF(1)           ;+21
+                                  ;+114 135
+;2
+               OSCILLATOR1          ;+17 17
+               ldab osc1_dither     ;+3  20    ; get byte from LFSR
+               BFILT1               ;+14 34
+               adda #96             ;+2  36    ; remove DC offset
                                     ;------
-                                    ;    15
-                                  ;+103 118
-
-               lsrb                 ;+1   1    ; x(n) / 2
-               tba                  ;+1   2
-               addb o2_en1          ;+3   5    ; add "x(n-2)/2"
-               staa o2_en1          ;+3   8    ; store "x(n)/2" for further processing on next sample
-               lsrb                 ;+1   9    ; y(n) = (x(n)/2 + x(n-2)/2) / 2
-               addb o2_en2          ;+3  12    ; y(n) =  x(n)/4 + x(n-1)/2 + x(n-2)/4 -> binomial filter
-               lsrb                 ;+1  13    ;
-               lsrb                 ;+1  14    ; decrease Amplitude by 12 dB
-               ldaa #255-96         ;+2  16    ; remove DC offset
-               sba                  ;+1  17    ; invert amplitude (in every 2nd sample) to invert noise spectrum
+                                    ;   171
+               SAMPOUT(0)           ;+9
                                     ;------
-                                    ;    17
-                                  ;+118 135
+                                    ;   180
 
-               ldab 0,x             ;+4   6    ; DAC Wert holen
-               tab                  ;+1  13    ; Dither addieren
-               tab                  ;+1  14    ; nach B
-               ldx  #dac_8to3       ;+3  17
-               abx                  ;+1  18
-               abx                  ;+1  19
-               ldd  0,x             ;+5  24    ; get output value for Port and DDR register
-               std  subaudiobuf+2   ;+5  29    ; Store to Buf
+               SAMPBUF(2)           ;+21 21
+;3
+               OSCILLATOR1          ;+17 38
+               ldab osc1_dither     ;+3  41    ; get byte from LFSR
+               BFILT2               ;+14 55
+               ldaa #255-96         ;+2  57    ; remove DC offset
+               sba                  ;+1  58    ; invert amplitude (in every 2nd sample) to invert noise spectrum
+               SAMPBUF(3)           ;+21 79
                                     ;------
-                                    ;    29
-                                  ;+135 164
-
-;167
-               ldd  subaudiobuf     ;+5   8    ; output sample 0
-               std  Port6_DDR       ;+4  12
-
-               ldab TCSR1           ;+3   3     ; Timer Control / Status Register 2 lesen
-               ldd  OCR1            ;+4  16
-               addd #332            ;+3  19     ; ca 6000 mal pro sek Int auslösen
-               std  OCR1            ;+4  23
+                                    ;   259
+;4
+               OSCILLATOR1          ;+17 17
+               DITHER               ;+14 31
+               BFILT1               ;+14 45
+               adda #96             ;+2  47    ; remove DC offset
+               SAMPBUF(4)           ;+21 68
                                     ;------
-                                    ;    23
-                                  ;+164 187
+                                    ;   327
+               SAMPOUT(1)           ;+9
+                                    ;------
+                                    ;   336
+;5
+               OSCILLATOR1          ;+17 17
+               ldab osc1_dither     ;+3  20    ; get byte from LFSR
+               BFILT2               ;+14 34
+               ldaa #255-96         ;+2  36    ; remove DC offset
+               sba                  ;+1  37    ; invert amplitude (in every 2nd sample) to invert noise spectrum
+               SAMPBUF(5)           ;+21 58
+                                    ;------
+                                    ;   394
+;6
+               OSCILLATOR1          ;+17 17
+               ldab osc1_dither     ;+3  20    ; get byte from LFSR
+               BFILT1               ;+14 34
+               adda #96             ;+2  36    ; remove DC offset
+               SAMPBUF(6)           ;+21 57
+                                    ;------
+                                    ;   451
+;7
+               OSCILLATOR1          ;+17 17
+               ldab osc1_dither     ;+3  20    ; get byte from LFSR
+               BFILT2               ;+14 34
+               ldaa #255-96         ;+2  36    ; remove DC offset
+               sba                  ;+1  37    ; invert amplitude (in every 2nd sample) to invert noise spectrum
+               SAMPBUF1             ;+11 48
+                                    ;------
+                                    ;   499
+               SAMPOUT(2)           ;+9
+                                    ;------
+                                    ;   508
+               SAMPBUF2(7)          ;+10 10
+                                    ;------
+                                    ;   518
+;8
+               OSCILLATOR1          ;+17 17
+               ldab osc1_dither     ;+3  20    ; get byte from LFSR
+               BFILT1               ;+14 34
+               adda #96             ;+2  36    ; remove DC offset
+               SAMPBUF(8)           ;+21 57
+                                    ;------
+                                    ;   575
+;9
+               OSCILLATOR1          ;+17 17
+               ldab osc1_dither     ;+3  20    ; get byte from LFSR
+               BFILT2               ;+14 34
+               ldaa #255-96         ;+2  36    ; remove DC offset
+               sba                  ;+1  37    ; invert amplitude (in every 2nd sample) to invert noise spectrum
+               SAMPBUF(9)           ;+21 58
+                                    ;------
+                                    ;   633
+               SETVEC(OCI_OSC1ns2_4);+7 640
+               NEXTINT(830)         ;+14 654
 
-               dec  gp_timer        ;+6   6    ; Universaltimer-- / HW Task
-               ldx  tick_ms         ;+4  10
-               inx                  ;+1  11    ; 1ms Tick-Counter erhöhen
-               stx  tick_ms         ;+4  15
-               rti                  ;+10 25
+               ldaa TCSR2           ;+3   3
+               anda #%00100000      ;+2   5
+               beq  oc2ns_end       ;+3   8
+               nop                  ;+1   9
+               nop                  ;+1  10
+                                    ;------
+                                    ;+654 664
+
+               SAMPOUT(3)           ;+9   9
+               ldd  OCR2            ;+4  13
+               addd #SYSCLK/1000    ;+3  16
+               std  OCR2            ;+4  20
+               dec  gp_timer        ;+6  26    ; Universaltimer-- / HW Task
+               ldx  tick_ms         ;+4  30
+               inx                  ;+1  31    ; 1ms Tick-Counter erhöhen
+               stx  tick_ms         ;+4  35
+               rti                  ;+10 45
+                                    ;------
+                                    ;+664 709
+                                    ;+19  728    ; Int entry
+oc2ns_end
+               nop                  ;+1   1
+               nop                  ;+1   2
+                                    ;------
+                                    ;+662 664
+
+               SAMPOUT(3)           ;+9   9
+               rti                  ;+10 19
                                     ;-------
-                                    ;    25
-                                  ;+187 212
-                                  ;+19  231    ; Int entry
+                                    ;+664 689
+                                    ;+19  708    ; Int entry
+;@830
+OCI_OSC1ns2_4
+;Ausgabe Sample 8
+;+19
+               SAMPOUT(4)           ;+9
+               NEXTINT(166)         ;+14
+               SETVEC(OCI_OSC1ns2_5);+7
+               rti                  ;+10
+OCI_OSC1ns2_5
+;Ausgabe Sample 8
+;+19
+               SAMPOUT(5)           ;+9
+               NEXTINT(166)         ;+14
+               SETVEC(OCI_OSC1ns2_6);+7
+               rti                  ;+10
+
+OCI_OSC1ns2_6
+;Ausgabe Sample 8
+;+19
+               SAMPOUT(6)           ;+9
+               NEXTINT(166)         ;+14
+               SETVEC(OCI_OSC1ns2_7);+7
+               rti                  ;+10
+
+OCI_OSC1ns2_7
+;Ausgabe Sample 8
+;+19
+               SAMPOUT(7)           ;+9   9
+               NEXTINT(166)         ;+14 23
+               SETVEC(OCI_OSC1ns2_8);+7  30
+               ldaa TCSR2           ;+3  33
+               anda #%00100000      ;+2  35
+               beq  oc2ns_7_end     ;+3  38
+
+               ldd  OCR2            ;+4  43
+               addd #SYSCLK/1000    ;+3  46
+               std  OCR2            ;+4  50
+               dec  gp_timer        ;+6  56    ; Universaltimer-- / HW Task
+               ldx  tick_ms         ;+4  60
+               inx                  ;+1  61    ; 1ms Tick-Counter erhöhen
+               stx  tick_ms         ;+4  65
+oc2ns_7_end
+               rti                  ;+10 48/75
+
+
+OCI_OSC1ns2_8
+;+19
+               SAMPOUT(8)           ;+9
+               NEXTINT(166)         ;+14
+               SETVEC(OCI_OSC1ns2)  ;+7
+               rti                  ;+10
+
+
 ; CPU load with active NCO
 ;
 ; EVA5 / 7977600 Hz Xtal

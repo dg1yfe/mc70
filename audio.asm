@@ -63,13 +63,13 @@ tos_intloop
                ldab #1
                stab oci_int_ctr       ; Interrupt counter auf 1
                                       ; (Bit is left shifted during Audio OCI, on zero 1ms OCI will be executed)
-;               ldab TCSR2
-;               ldd  OCR1
-;               std  OCR2
-;               subd #SYSCLK/1000
-;               addd #499              ; add two sample periods to ensure there is enough time
+               ldab TCSR2
+               ldd  OCR1
+               std  OCR2
+               subd #SYSCLK/1000
+               addd #499              ; add two sample periods to ensure there is enough time
                                       ; before next interrupt occurs even on EVA9
-;               std  OCR1
+               std  OCR1
 
                ldd  dac_8to3+128
                std  subaudiobuf
