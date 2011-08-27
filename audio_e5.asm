@@ -28,7 +28,7 @@
 #DEFINE DITHER  ldd  osc1_dither
 #DEFCONT      \ rolb
 #DEFCONT      \ rola
-#DEFCONT      \ bcc  $+2
+#DEFCONT      \ bcc  $+4
 #DEFCONT      \ eorb #%010010011
 #DEFCONT      \ std  osc1_dither
 
@@ -515,7 +515,7 @@ OCI_OSC1ns2                         ;   +19    Ausgabe
                ldd  osc1_dither     ;+4   4    ; get LFSR
                rolb                 ;+1   5    ; shift LFSR
                rola                 ;+1   6
-               bcc  $+2             ;+3   9    ; do nothing if MSB was 0
+               bcc  $+4             ;+3   9    ; do nothing if MSB was 0
                eorb #%010010011     ;+2  11    ; calculate Feedback
                std  osc1_dither     ;+4  13/15 ; store LFSR
                                     ;------
@@ -530,7 +530,7 @@ OCI_OSC1ns2                         ;   +19    Ausgabe
                adda o2_en1          ;+3  12    ; y(n) =  x(n)/4 + x(n-1)/2 + x(n-2)/4 -> binomial filter
                lsra                 ;+1  13    ;
                lsra                 ;+1  14    ; decrease Amplitude by 12 dB
-               adda #96             ;+2  16    ; remove DC offset
+               adda #0              ;+2  16    ; remove DC offset
                                     ;------
                                     ;    16
                                     ;+40 56
@@ -551,9 +551,9 @@ OCI_OSC1ns2                         ;   +19    Ausgabe
                OSCILLATOR1          ;+17
                                     ;+77 94
 
-               ldab osc1_dither     ;+3   3    ; get byte from LFSR
+               ldab osc1_dither+1    ;+3   3    ; get byte from LFSR
                BFILT2               ;+14 17
-               ldaa #255-96         ;+2  19    ; remove DC offset
+               ldaa #0              ;+2  19    ; remove DC offset
                sba                  ;+1  20    ; invert amplitude (in every 2nd sample) to invert noise spectrum
                                     ;------
                                     ;    20
@@ -562,9 +562,9 @@ OCI_OSC1ns2                         ;   +19    Ausgabe
                                   ;+114 135
 ;2
                OSCILLATOR1          ;+17 17
-               ldab osc1_dither     ;+3  20    ; get byte from LFSR
+               ldab osc1_dither+1   ;+3  20    ; get byte from LFSR
                BFILT1               ;+14 34
-               adda #96             ;+2  36    ; remove DC offset
+               adda #0              ;+2  36    ; remove DC offset
                                     ;------
                                     ;   171
                SAMPOUT(0)           ;+9
@@ -574,9 +574,9 @@ OCI_OSC1ns2                         ;   +19    Ausgabe
                SAMPBUF(2)           ;+21 21
 ;3
                OSCILLATOR1          ;+17 38
-               ldab osc1_dither     ;+3  41    ; get byte from LFSR
+               ldab osc1_dither+1   ;+3  41    ; get byte from LFSR
                BFILT2               ;+14 55
-               ldaa #255-96         ;+2  57    ; remove DC offset
+               ldaa #0              ;+2  57    ; remove DC offset
                sba                  ;+1  58    ; invert amplitude (in every 2nd sample) to invert noise spectrum
                SAMPBUF(3)           ;+21 79
                                     ;------
@@ -585,7 +585,7 @@ OCI_OSC1ns2                         ;   +19    Ausgabe
                OSCILLATOR1          ;+17 17
                DITHER               ;+14 31
                BFILT1               ;+14 45
-               adda #96             ;+2  47    ; remove DC offset
+               adda #0              ;+2  47    ; remove DC offset
                SAMPBUF(4)           ;+21 68
                                     ;------
                                     ;   327
@@ -594,26 +594,26 @@ OCI_OSC1ns2                         ;   +19    Ausgabe
                                     ;   336
 ;5
                OSCILLATOR1          ;+17 17
-               ldab osc1_dither     ;+3  20    ; get byte from LFSR
+               ldab osc1_dither+1   ;+3  20    ; get byte from LFSR
                BFILT2               ;+14 34
-               ldaa #255-96         ;+2  36    ; remove DC offset
+               ldaa #0              ;+2  36    ; remove DC offset
                sba                  ;+1  37    ; invert amplitude (in every 2nd sample) to invert noise spectrum
                SAMPBUF(5)           ;+21 58
                                     ;------
                                     ;   394
 ;6
                OSCILLATOR1          ;+17 17
-               ldab osc1_dither     ;+3  20    ; get byte from LFSR
+               ldab osc1_dither+1   ;+3  20    ; get byte from LFSR
                BFILT1               ;+14 34
-               adda #96             ;+2  36    ; remove DC offset
+               adda #0              ;+2  36    ; remove DC offset
                SAMPBUF(6)           ;+21 57
                                     ;------
                                     ;   451
 ;7
                OSCILLATOR1          ;+17 17
-               ldab osc1_dither     ;+3  20    ; get byte from LFSR
+               ldab osc1_dither+1   ;+3  20    ; get byte from LFSR
                BFILT2               ;+14 34
-               ldaa #255-96         ;+2  36    ; remove DC offset
+               ldaa #0              ;+2  36    ; remove DC offset
                sba                  ;+1  37    ; invert amplitude (in every 2nd sample) to invert noise spectrum
                SAMPBUF1             ;+11 48
                                     ;------
@@ -626,17 +626,17 @@ OCI_OSC1ns2                         ;   +19    Ausgabe
                                     ;   518
 ;8
                OSCILLATOR1          ;+17 17
-               ldab osc1_dither     ;+3  20    ; get byte from LFSR
+               ldab osc1_dither+1   ;+3  20    ; get byte from LFSR
                BFILT1               ;+14 34
-               adda #96             ;+2  36    ; remove DC offset
+               adda #0              ;+2  36    ; remove DC offset
                SAMPBUF(8)           ;+21 57
                                     ;------
                                     ;   575
 ;9
                OSCILLATOR1          ;+17 17
-               ldab osc1_dither     ;+3  20    ; get byte from LFSR
+               ldab osc1_dither+1   ;+3  20    ; get byte from LFSR
                BFILT2               ;+14 34
-               ldaa #255-96         ;+2  36    ; remove DC offset
+               ldaa #0              ;+2  36    ; remove DC offset
                sba                  ;+1  37    ; invert amplitude (in every 2nd sample) to invert noise spectrum
                SAMPBUF(9)           ;+21 58
                                     ;------
