@@ -42,6 +42,9 @@ tone_start
                jsr  divide32          ; equivalent (Frequenz*256) / 16
                pulx
                pulx                   ; 'kleiner' (16 Bit) Quotient reicht aus
+
+               clrb
+               clra
                std  osc1_pd           ; Quotient = delta für phase
 
                ldab Port6_DDR_buf
@@ -67,7 +70,7 @@ tos_intloop
                ldd  OCR1
                std  OCR2
                subd #SYSCLK/1000
-               addd #499              ; add two sample periods to ensure there is enough time
+               addd #166*5            ; add 5 sample periods to ensure there is enough time
                                       ; before next interrupt occurs even on EVA9
                std  OCR1
 

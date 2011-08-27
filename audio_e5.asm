@@ -497,9 +497,7 @@ OCI_OSC1S10
 
 
 OCI_OSC1ns2                         ;   +19    Ausgabe
-                                    ;------
-                                    ;    19
-               ldd  subaudiobuf+2*9 ;+5   5    ; output sample 9
+               ldd  subaudiobuf+(2*9);+5   5    ; output sample 9
                std  Port6_DDR       ;+4   9
                                     ;------
                                     ;     9
@@ -538,7 +536,7 @@ OCI_OSC1ns2                         ;   +19    Ausgabe
                                     ;+40 56
 
                ldab 0,x             ;+4   4    ; DAC Wert holen
-               tab                  ;+1   5    ; Dither addieren
+               aba                  ;+1   5    ; Dither addieren
                tab                  ;+1   6    ; nach B
                ldx  #dac_8to3       ;+3   9
                abx                  ;+1  10
