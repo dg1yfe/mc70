@@ -43,8 +43,6 @@ tone_start
                pulx
                pulx                   ; 'kleiner' (16 Bit) Quotient reicht aus
 
-               clrb
-               clra
                std  osc1_pd           ; Quotient = delta für phase
 
                ldab Port6_DDR_buf
@@ -88,13 +86,16 @@ tos_intloop
                std  subaudiobuf+(10*2)
                std  subaudiobuf+(11*2)
 
+               clra
+               staa o2_en1
+               staa o2_en2
 ;               ldx  #OCI_OSC1
-               ldx  #OCI_OSC1ns2
+               ldx  #OCI_OSC1ns
                stx  oci_vec           ; OCI Interrupt Vektor 'verbiegen'
                                       ; Ausgabe startet automatisch beim nächsten OCI
                                       ; 1/8000 s Zeitintervall wird automatisch gesetzt
 ;               clr  tasksw_en         ; re-enable preemptive task switching
-               ldd  #$AA55
+               ldd  #$0
                std  osc1_dither
                cli
                pulx
