@@ -183,10 +183,10 @@ OCI_OSC1ns                          ;   +19    Ausgabe
 
                andb #1              ;+2   2    ; isolate 1 Bit as dither
                ldaa 0,x             ;+4   6    ; DAC Wert holen
-               aba
+;               aba
                suba o2_en_          ;+3   9    ; e'(n) abziehen
                staa osc_buf         ;+3  12
-;               aba                  ;+1  13    ; Dither addieren
+               aba                  ;+1  13    ; Dither addieren
 ;                nop
                tab                  ;+1  14    ; nach B
                ldx  #dac_8to3       ;+3  17
@@ -745,7 +745,7 @@ OCI_OSC1                            ;   +19
 
                anda #%00111111      ;+2  33    nur Bits 0-5 berücksichtigen (0-63)
                ldx  #dac_sin_tab    ;+3  36    Start der Sinus-outputtabelle holen
-               ldx  osc3_pd         ;+3  36    Start der Sinus-outputtabelle holen
+;               ldx  osc3_pd         ;+3  36    Start der Sinus-outputtabelle holen
 
                tab                  ;+1  37
                lslb                 ;+1  38
