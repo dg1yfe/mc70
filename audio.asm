@@ -191,75 +191,7 @@ tone_stop
                pulb
                rts
 
-; 
-; **********************
-; D A   S T A R T
-; **********************
-; 
-; Startet Ausgabe eines Samples
-; 
-; Parameter : Stack - Start Adresse
-;             Stack - End Adresse
-;             X     - Repeat Count
-;             A     - Spur/Track (0/1/2)
-; 
-; Ergebnis : None
-; 
-; changed Regs : None
-; 
-; da_start
-;                 pshb
-;                 psha
-;                 pshx
-; 
-;                 tsx
-;                 ldd  6,x
-;                 std  smp_start
-;                 std  smp_addr
-;                 ldd  8,x
-;                 std  smp_end
-; 
-;                 pulx
-;                 pshx
-;                 std  smp_rpt
-; 
-;                 tsx
-;                 ldaa 2,x
-;                 beq  das_play_zero
-;                 deca
-;                 beq  das_play_one
-;                 ldx  #OCI_DAC_S2
-;                 stx  oci_vec
-;                 bra  das_end
-; das_play_zero
-;                 ldx  #OCI_DAC_S0
-;                 stx  oci_vec
-;                 bra  das_end
-; das_play_one
-;                 ldx  #OCI_DAC_S1
-;                 stx  oci_vec
-; das_end
-;                 pulx
-;                 pula
-;                 pulb
-;                 rts
-; 
-; ********************
-; D A   S T O P
-; ********************
-; 
-; 
-; 
-; da_stop
-;                 sei
-;                 ldx  smp_end
-;                 stx  smp_addr
-; 
-;                 addd #1194                 ; in einer ms wieder OCI ausführen
-;                 std  OCR1
-;                 oim  #%00001000, TCSR1     ; Timer compare Interrupt aktivieren
-;                 aim  #%10011111, Port6_Data; Pin auf 0 setzen
-;                 rts
+;
 ;**************************
 ; D T M F  K E Y 2 F R E Q
 ;**************************
