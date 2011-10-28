@@ -138,7 +138,7 @@ m_top_h2
                 .dw m_frq_down        ; D2 - Kanal-
                 .dw m_sql_switch      ; D3 - Squelch ein/aus
                 .dw m_test            ; D4 - Taskswitches/s anzeigen
-                .dw m_tone            ; D5 - 1750 Hz Ton
+                .dw m_test3           ; D5 - 1750 Hz Ton
                 .dw m_digit           ; D6 - Select Digit
                 .dw m_txshift         ; D7 - TX Shift ändern
                 .dw m_recall          ; D8 - Recall vfo frequency from memory
@@ -455,10 +455,28 @@ mpr_nosave
 ;
 m_test
 ;                ldx  #5500*4
-                ldd  #0123*4
-;                jsr  dtmf_key2freq
+;                ldd  #67
 ;                jsr  tone_start
-                jsr  tone_start
+                ldab #1
+;                jsr  dtmf_key2freq
+                ldd  #1209 
+                ldx  #697
+                jsr  dtone_start
+
+                jmp  m_end
+
+m_test3
+;                ldx  #5500*4
+                ldab Port6_DDR_buf
+                orab #$10
+                stab Port6_DDR_buf
+                stab Port6_DDR
+                ldab Port6_Data
+                eorb #$10
+                stab Port6_Data
+;                ldab #'1'
+;                jsr  dtmf_key2freq
+;                jsr  dtone_start
 
                 jmp  m_end
 

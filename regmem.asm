@@ -135,7 +135,7 @@ Port5_Data 	.db                     ; 50 - Pin17 - Emergency Input
                 			; 56 - Pin23 - SQ Det
                 			; 57 - Pin24 - RSSI
 
-Port6_DDR 	.db                     ; 60 - Pin25 - Key 3/4 Detect (2nd SCI RX)             - 0
+Port6_DDR 	.db             ; 60 - Pin25 - Key 3/4 Detect (2nd SCI RX)             - 0
                 			; 61 - Pin26 - Key 1,(SCI TX Loopback), **/OE Override - 0
                 			; 62 - Pin27 - Key 2 (Control Head Spare), **A16       - 1
                 			; 63 - Pin28 - Syn Latch (PLL)                         - 1

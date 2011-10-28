@@ -13,7 +13,7 @@
 ;
 ; Startet Ton Oszillator
 ;
-; Parameter : D - Tonfrequenz in Hz
+; Parameter : D - Tonfrequenz in 1/10 Hz
 ;
 ;
 ; delta phase = f / 8000 * 64 * 256
@@ -37,8 +37,8 @@ tone_start
                pshb                   ; Hi Word sichern
                psha                   ; => f*65536 auf Stack speichern
 
-;               ldd  #32000            ; Divisor  = Samplefrequenz * 4
-               ldd  #48000            ; Divisor  = Samplefrequenz * 4
+               ldd  #32000            ; Divisor  = Samplefrequenz * 4
+;               ldd  #48000            ; Divisor  = Samplefrequenz * 4
                jsr  divide32          ; equivalent (Frequenz*256) / 16
                pulx
                pulx                   ; 'kleiner' (16 Bit) Quotient reicht aus
@@ -68,29 +68,14 @@ tos_intloop
                ldd  OCR1
                std  OCR2
                subd #SYSCLK/1000
-               addd #166*5            ; add 5 sample periods to ensure there is enough time
+               addd #249*5            ; add 5 sample periods to ensure there is enough time
                                       ; before next interrupt occurs even on EVA9
                std  OCR1
-
-               ldd  dac_8to3+128
-               std  subaudiobuf
-               std  subaudiobuf+(1*2 )
-               std  subaudiobuf+(2*2 )
-               std  subaudiobuf+(3*2 )
-               std  subaudiobuf+(4*2 )
-               std  subaudiobuf+(5*2 )
-               std  subaudiobuf+(6*2 )
-               std  subaudiobuf+(7*2 )
-               std  subaudiobuf+(8*2 )
-               std  subaudiobuf+(9*2 )
-               std  subaudiobuf+(10*2)
-               std  subaudiobuf+(11*2)
 
                clra
                staa o2_en1
                staa o2_en2
-;               ldx  #OCI_OSC1
-               ldx  #OCI_OSC1ns
+               ldx  #OCI_OSC1
                stx  oci_vec           ; OCI Interrupt Vektor 'verbiegen'
                                       ; Ausgabe startet automatisch beim nächsten OCI
                                       ; 1/8000 s Zeitintervall wird automatisch gesetzt
@@ -125,7 +110,7 @@ dtone_start
                pshb                   ; Hi Word Freq Y auf Stack
                psha                   ; => f*65536 auf Stack speichern
 
-               ldd  #48000            ; Divisor  = Samplefrequenz * 4
+               ldd  #32000            ; Divisor  = Samplefrequenz * 4
                jsr  divide32          ; equivalent (Frequenz*256) / 16
                pulx
                pulx                   ; 'kleiner' (16 Bit) Quotient reicht aus
@@ -136,23 +121,22 @@ dtone_start
                tsx
                ldx  2,x               ; Tonfrequenz 2/X holen
                pshx                   ; und auf Stack legen
-               ldd  #48000            ; Divisor  = Samplefrequenz * 4
+               ldd  #32000            ; Divisor  = Samplefrequenz * 4
                jsr  divide32          ; equivalent (Frequenz*256) / 16
                pulx
                pulx                   ; 'kleiner' (16 Bit) Quotient reicht aus
                subd #31
                std  osc2_pd           ; Quotient = delta für phase
 
-               clr  oci_int_ctr       ; Interrupt counter auf 0
-                                      ; (wird jeweils um 32 erhöht, bei 0 wird normaler Timer Int ausgeführt)
-               ldd  #1
-               std  osc3_phase
-               clrb
-               stab o2_en1
-               stab o2_en2
-               stab o2_en_
+               ldab TCSR2
+               ldd  OCR1
+               std  OCR2
+               subd #SYSCLK/1000
+               addd #249*5            ; add 5 sample periods to ensure there is enough time
+                                      ; before next interrupt occurs even on EVA9
+               std  OCR1
 
-               ldx  #OCI_OSC1ns
+               ldx  #OCI_OSC2
                stx  oci_vec           ; OCI Interrupt Vektor 'verbiegen'
                                       ; Ausgabe startet automatisch beim nächsten OCI
                                       ; 1/8000 s Zeitintervall wird automatisch gesetzt
@@ -205,6 +189,15 @@ tone_stop
 ; changed Regs : X, D
 ;
 dtmf_key2freq
+               bra  dkf_calc
+               subb #'#' +$0e
+               beq  dkf_calc
+               subb #'*' -'#'-$0e+$0f
+               beq  dkf_calc
+               subb #'0' -'*'-$0f
+               cmpb #10
+               bcc  dkf_end
+dkf_calc
                ldx  #dtmf_ind_tab              ; Taste 0-9
                lslb
                abx
@@ -220,6 +213,7 @@ dtmf_key2freq
                abx                             ; Y Tabelle indizieren
                ldd  0,x                        ; Y Frequenz auslesen
                pulx                            ; X Frequenz wiederholen
+dkf_end
                rts
 
 ; DTMF Frequenztabelle
