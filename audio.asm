@@ -125,7 +125,6 @@ dtone_start
                jsr  divide32          ; equivalent (Frequenz*256) / 16
                pulx
                pulx                   ; 'kleiner' (16 Bit) Quotient reicht aus
-               subd #31
                std  osc2_pd           ; Quotient = delta für phase
 
                ldab TCSR2
@@ -189,15 +188,6 @@ tone_stop
 ; changed Regs : X, D
 ;
 dtmf_key2freq
-               bra  dkf_calc
-               subb #'#' +$0e
-               beq  dkf_calc
-               subb #'*' -'#'-$0e+$0f
-               beq  dkf_calc
-               subb #'0' -'*'-$0f
-               cmpb #10
-               bcc  dkf_end
-dkf_calc
                ldx  #dtmf_ind_tab              ; Taste 0-9
                lslb
                abx

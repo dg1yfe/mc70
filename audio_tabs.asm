@@ -89,7 +89,7 @@ dac_out_tab
                .dw $6070 ; 4,00   11  8  3,88  - 1.000  ; Saturate
                .dw $6070 ; 4,00   11  8  3,88  - 1.000  ; Saturate
 
-dac_out_tab_test
+dac_out_tab2
                .dw $6000 ; 1,00   00 5  1,31
                .dw $4000 ; 1,00   0- 0  1,34
                .dw $2000 ; 1,00   -0 0  1,66

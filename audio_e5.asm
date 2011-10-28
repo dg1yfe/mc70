@@ -76,44 +76,46 @@ OCI_OSC2                            ;   +19    Ausgabe Stream1 (Bit 0-2)
                tab                  ;+1  51
                ldaa 0,x             ;+4  55    ; Tabelleneintrag 1 holen
 
-               ldx  #sin_64_3_1dB   ;+3  58    ; Sinustabelle indizieren
+               ldx  #sin_64_3_0dB   ;+3  58    ; Sinustabelle indizieren
                andb #%00111111      ;+2  60
                abx                  ;+1  61
                adda 0,x             ;+4  65    ; Tabelleneintrag 2 addieren
 
-               andb #%1110          ;+2  69    ; Bits 3-1 filtern
+               tab                  ;+1  66
+               andb #%1110          ;+2  68    ; Bits 3-1 filtern
 ; TODO hier ggf. dither noise einfügen
-               ldx  #dac_out_tab    ;+3  72    ; DAC Werte ausgeben
-               abx                  ;+1  73
+               ldx  #dac_out_tab2   ;+3  71    ; DAC Werte ausgeben
+               abx                  ;+1  72
 
-               ldaa Port6_DDR_buf   ;+3  76
-               ldab Port6_Data      ;+3  79
-               andb #%10011111      ;+2  81
-               addd 0,x             ;+5  86    ; use ADD as OR
-               std  Port6_DDR       ;+4  90    ; Store to DDR & Data
+               ldaa Port6_DDR_buf   ;+3  75
+               ldab Port6_Data      ;+3  78
+               anda #%10011111      ;+2  80
+               andb #%10011111      ;+2  82
+               addd 0,x             ;+5  87    ; use ADD as OR
+               std  Port6_DDR       ;+4  91    ; Store to DDR & Data
 
-               ldab TCSR1           ;+3  93     ; Timer Control / Status Register 2 lesen
-               ldd  OCR1            ;+4  97
-               addd #249            ;+3 100     ; ca 8000 mal pro sek Int auslösen
-               std  OCR1            ;+4 104
+               ldab TCSR1           ;+3  94     ; Timer Control / Status Register 2 lesen
+               ldd  OCR1            ;+4  98
+               addd #249            ;+3 101     ; ca 8000 mal pro sek Int auslösen
+               std  OCR1            ;+4 105
 
-               ldaa TCSR2
-               anda #%00100000
-               beq  oos2_end
-               ldd  OCR2
-               addd #SYSCLK/1000
-               std  OCR2
-               dec  gp_timer        ;+6  77    ; Universaltimer-- / HW Task
-               ldx  tick_ms         ;+4  81
-               inx                  ;+1  82    ; 1ms Tick-Counter erhöhen
-               stx  tick_ms         ;+4  86
+               ldaa TCSR2           ;+3 108
+               anda #%00100000      ;+3 111
+               beq  oos2_end        ;+3 114
+               ldd  OCR2            ;+4 118
+               addd #SYSCLK/1000    ;+3 121
+               std  OCR2            ;+4 125
+               dec  gp_timer        ;+6 131    ; Universaltimer-- / HW Task
+               ldx  tick_ms         ;+4 135
+               inx                  ;+1 136    ; 1ms Tick-Counter erhöhen
+               stx  tick_ms         ;+4 140
 oos2_end
-               rti                  ;+10 119 / 143/156/172
+               rti                  ;+10 124 / 150
 ; CPU load with active NCO
 ;
 ; EVA5 / 7977600 Hz Xtal
 ;     -> 1994400 Hz E2 clock
-;     -> 249 * 8000 Hz (NCO clock)       CPU load EVA5 = (1* 69,1 % + 7* 47,8 %) / 8 = 50,5 % average
-;                                        (reduces effective CPU speed for program to ~988 kHz)
+;     -> 249 * 8000 Hz (NCO clock)       CPU load EVA5 = (7* 49,8 % + 1* 60,2 %) / 8 = 51,1 % average
+;                                        (reduces effective CPU speed for program to ~975 kHz)
 
 

@@ -454,13 +454,11 @@ mpr_nosave
 ;
 ;
 m_test
-;                ldx  #5500*4
-;                ldd  #67
+;                ldx  #0
+;                ldd  #1200
 ;                jsr  tone_start
-                ldab #1
-;                jsr  dtmf_key2freq
-                ldd  #1209 
-                ldx  #697
+                ldab #$2
+                jsr  dtmf_key2freq
                 jsr  dtone_start
 
                 jmp  m_end
@@ -501,7 +499,7 @@ mtst2_nosave
                 clrb
 mtst2_store
                 stab osc1_phase
-                ldx  #dac_out_tab_test
+                ldx  #dac_out_tab2
                 lslb
                 abx
                 ldaa Port6_DDR_buf
