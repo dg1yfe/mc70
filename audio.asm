@@ -8,6 +8,38 @@
 ;
 ;****************************************************************************
 ;**********************
+; D A C   F I L T E R
+;**********************
+;
+; Set DAC output filter
+;
+; If active, additional Attenuation 10-12 dB
+; cutoff frequency lowered to ~700 Hz
+;
+dac_filter
+               pshb
+               pshx
+               ldab Port6_DDR_buf
+               orab #%00010000
+               stab Port6_DDR
+               stab Port6_DDR_buf
+
+               tsx
+               ldab 2,x
+               bne  dfi_active
+               ldab Port6_Data
+               andb #%11101111
+               stab Port6_Data
+               bra  dfi_end
+dfi_active
+               ldab Port6_Data
+               orab #%00010000
+               stab Port6_Data
+dfi_end
+               pulx
+               pulb
+               rts
+;**********************
 ; T O N E   S T A R T
 ;**********************
 ;
@@ -80,7 +112,7 @@ tos_intloop
                                       ; Ausgabe startet automatisch beim nächsten OCI
                                       ; 1/8000 s Zeitintervall wird automatisch gesetzt
 ;               clr  tasksw_en         ; re-enable preemptive task switching
-               ldd  #$0
+               ldd  #$1
                std  osc1_dither
                cli
                pulx

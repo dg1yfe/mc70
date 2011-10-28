@@ -109,12 +109,8 @@ upt_tone_timer
                 bne  upt_end
 ;***********
 ; TONE STOP
-                aim  #%11110111, TCSR2     ; OCI2 Int deaktivieren
-
-                oim  #%00001000, TCSR1     ; OCI1 Int aktivieren
-                oim  #%01000000, Port6_Data; Pin auf 0 setzen
-                aim  #%11011111, Port6_Data; Pin auf 0 setzen
 ;***********
+                jsr  tone_stop
                 clr  ui_ptt_req				; TODO: rename to tone_ptt_req / use bitfields
 
                 bra  upt_end

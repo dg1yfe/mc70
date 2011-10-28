@@ -81,9 +81,12 @@
 #DEFINE A_ON            1
 #DEFINE A_BLINK         2
 
+;******************************************************************
+#DEFINE P_SIGIN 1
+
+;******************************************************************
 ; Blink Char
 #DEFINE CHR_BLINK     $80
-
 ; non printable chars
 #DEFINE semikolon  $3B
 #DEFINE komma      $2C

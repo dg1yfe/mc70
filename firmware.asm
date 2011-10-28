@@ -37,7 +37,7 @@ reset
 ;************************************
 Start
                 jsr  sci_init              ; serielle Schnittstelle aktivieren
-		jsr  init_SIO              ; SIO Interrupt konfigurieren
+                jsr  init_SIO              ; SIO Interrupt konfigurieren
                 jsr  init_OCI              ; Timer Interrupt starten
                 jsr  ui_init               ; 2. Task initialisieren (2. Stack)
                                            ; ab hier können I/O Funktionen verwendet werden
@@ -58,7 +58,7 @@ sim_loop
 	bra  sim_loop
 #endif
                 jsr  lcd_h_reset           ; LCD Hardware Reset
-		jsr  lcd_s_reset           ; LCD Software Reset + Init
+                jsr  lcd_s_reset           ; LCD Software Reset + Init
 
                 jsr  freq_init             ; Frequenzeinstellungen initialisieren
                 psha
@@ -70,7 +70,7 @@ sim_loop
                 ldab #GRN_LED+LED_ON
                 jsr  led_set                ; Grüne LED aktivieren
 
-                ldab #2
+                ldab #3
                 stab cfg_head
                 WAIT(500)
                 jsr  s_timer_init

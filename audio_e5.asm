@@ -22,9 +22,14 @@ OCI_OSC1                            ;   +19
                anda #%00111111      ;+2  33    nur Bits 0-5 berücksichtigen (0-63)
                ldx  #dac_sin_tab    ;+3  36    Start der Sinus-outputtabelle holen
 
+               ldab Port2_Data      ;+3  39    get noise from Signalling Decode Input
+               andb #1              ;+2  41    this is cheaper than generating pseudo-noise
+               aba                  ;+1  42    using an LFSR and it is REAL noise
+
                tab                  ;+1  37
                lslb                 ;+1  38
                abx                  ;+1  38    Index addieren
+
                ldaa Port6_DDR_buf   ;+3  41
                ldab Port6_Data      ;+3  44
                andb #%10011111      ;+2  46

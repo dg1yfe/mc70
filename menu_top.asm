@@ -227,8 +227,11 @@ mss_end
 m_tone
                 ldab #1
                 stab ui_ptt_req        ; PTT drücken
+                clrb
+                jsr  dac_filter        ; deactivate additional DAC filter
                 ldab tone_timer
                 bne  mtn_reset_timer
+                ldd  #1750
                 jsr  tone_start
 mtn_reset_timer
                 ldab #6
