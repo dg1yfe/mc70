@@ -32,8 +32,8 @@
 #DEFINE KC_D6 16
 #DEFINE KC_D7 17
 #DEFINE KC_D8 18
-#DEFINE KC_RAUTE $19
-#DEFINE KC_STERN $10
+#DEFINE KC_RAUTE 19
+#DEFINE KC_STERN 10
 ;
 #DEFINE KC_CLEAR KC_D4
 ;
@@ -109,7 +109,7 @@ menu
 m_keypressed
                 pshb                             ; save key
 
-		ldab m_state                     ; Status holen
+		        ldab m_state                     ; Status holen
                 aslb
                 ldx  #m_state_tab                ; Tabellenbasisadresse holen
                 abx

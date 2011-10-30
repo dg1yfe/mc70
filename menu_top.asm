@@ -8,9 +8,9 @@
 ;
 ;
 #ifdef EVA5
-#DEFINE M_MENU_ENTRIES 4
-#else
 #DEFINE M_MENU_ENTRIES 5
+#else
+#DEFINE M_MENU_ENTRIES 6
 #endif
 
 m_menu_str	.db "MENU    ",0
@@ -28,7 +28,7 @@ m_menu_str	.db "MENU    ",0
 		.db "RX CTCSS",0
 		.dw m_none
 
-		.db "DTMF",0
+		.db "DTMF    ",0
 		.dw m_none
 #ifdef EVA9
 		.db "POWER   ",0
@@ -69,8 +69,12 @@ mto_h2
                 ldx  #m_top_h2
                 bra  mto_tabjmp
 mto_h3
-                ldx  #m_top_h3        ; Basisadresse holen
+                ldaa rxtx_state
+                beq  mto_h3_rx
+                ldx  #m_top_h3_tx
                 bra  mto_tabjmp
+mto_h3_rx
+                ldx  #m_top_h3        ; Basisadresse holen
 mto_tabjmp
                 abx                   ; Index addieren
                 ldx  0,x              ; Tabelleneintrag holen
@@ -86,6 +90,29 @@ mto_tabjmp
 ;     ---------------------------
 ;     D3  (D4)  D5  (D6)  D7  (D8) *   0   #
 ;
+m_top_h3_tx
+m_top_tab_tx
+;               Funktion                Taste
+                .dw m_none            ; 0
+                .dw m_none            ; 1
+                .dw m_dtmf_direct     ; 2
+                .dw m_dtmf_direct     ; 3
+                .dw m_dtmf_direct     ; 4
+                .dw m_dtmf_direct     ; 5
+                .dw m_dtmf_direct     ; 6
+                .dw m_dtmf_direct     ; 7
+                .dw m_dtmf_direct     ; 8
+                .dw m_dtmf_direct     ; 9
+                .dw m_dtmf_direct     ; *
+                .dw m_dtmf_direct     ; D1 - Kanal+
+                .dw m_dtmf_direct     ; D2 - Kanal-
+                .dw m_dtmf_direct     ; D3 - Squelch ein/aus
+                .dw m_dtmf_direct     ; D4 - Test
+                .dw m_tone            ; D5 - 1750 Hz Ton
+                .dw m_none            ; D6 -
+                .dw m_dtmf_direct     ; D7 - TX Shift ändern
+                .dw m_dtmf_direct     ; D8 - Recall vfo frequency from memory
+                .dw m_dtmf_direct     ; #
 m_top_h3
 m_top_tab
 ;               Funktion                Taste
@@ -110,7 +137,7 @@ m_top_tab
                 .dw m_none            ; D6 -
                 .dw m_txshift         ; D7 - TX Shift ändern
                 .dw m_recall          ; D8 - Recall vfo frequency from memory
-                .dw m_frq_store       ; #
+                .dw m_menu            ; #
 ;                .dw m_sel_mbank       ; #
 ; Control Head 2
 ;     ---------------------------
@@ -588,6 +615,16 @@ m_menu_select
                 beq  mms_hd3
                 bra  mms_hd3
 mms_hd3
+                cmpb #HD3_ENTER
+                beq  mms_execute
+                cmpb #HD3_EXIT
+                beq  mms_exit
+                ldaa m_svar1
+                cmpb #KC_D1
+                beq  mms_cycle_up
+                cmpb #KC_D2
+                beq  mms_cycle_down
+                jmp  m_end
 mms_hd2
                 cmpb #HD2_ENTER
                 beq  mms_execute
@@ -600,9 +637,9 @@ mms_hd2
                 beq  mms_cycle_down
                 jmp  m_end
 mms_cycle_down
-		tsta
-		beq  mms_cd_wrap
-		deca
+                tsta
+                beq  mms_cd_wrap
+                deca
                 bne  mms_display
 mms_cd_wrap
                 ldaa #M_MENU_ENTRIES
@@ -677,3 +714,28 @@ mds_nosave
 mds_end
                 jmp  m_end_restore
 
+;***************************
+; M   D I G I T
+;
+; select frequency digit to alter using up/down
+;
+; Stack depth on entry: 2
+;
+m_dtmf_direct
+                cmpb #10
+                bcs  m_dtmf_go
+                subb #10
+                ldx  #m_dtmf_ctab
+                abx
+                ldab 0,x
+m_dtmf_go
+                jsr  dtmf_key2freq
+                jsr  dtone_start
+                clrb
+                jsr  dac_filter        ; deactivate additional DAC filter
+                ldab #3
+                stab tone_timer        ; 0,6 sek Ton ausgeben
+
+                jmp  m_end
+m_dtmf_ctab
+           .db $0e, 0, 0, $0d, $0c, 0, 0,$0a,$0b,$0f
