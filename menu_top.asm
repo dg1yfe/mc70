@@ -733,8 +733,8 @@ m_dtmf_go
                 jsr  dtone_start
                 clrb
                 jsr  dac_filter        ; deactivate additional DAC filter
-                ldab #3
-                stab tone_timer        ; 0,6 sek Ton ausgeben
+                ldab #4
+                stab tone_timer        ; 0,3 sek Ton ausgeben
 
                 jmp  m_end
 m_dtmf_ctab

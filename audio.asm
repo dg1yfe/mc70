@@ -158,7 +158,7 @@ dtone_start
                pulx
                pulx                   ; 'kleiner' (16 Bit) Quotient reicht aus
                std  osc2_pd           ; Quotient = delta für phase
-
+               sei
                ldab TCSR2
                ldd  OCR1
                std  OCR2
@@ -171,6 +171,7 @@ dtone_start
                stx  oci_vec           ; OCI Interrupt Vektor 'verbiegen'
                                       ; Ausgabe startet automatisch beim nächsten OCI
                                       ; 1/8000 s Zeitintervall wird automatisch gesetzt
+               cli
                ldab #1
                stab Port7_Data
 

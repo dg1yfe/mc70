@@ -106,12 +106,10 @@ trc_end
 ;****
                 jsr  squelch                ; Squelch bedienen
 ml_sql_end
-;                jsr  dither_loop
                 swi
                 jsr  frq_check              ; Überprüfen ob Frequenz geändert werden soll
-;                jsr  wd_reset
+                jsr  wd_reset
                 jsr  s_timer_update
-;                jsr  dither_loop
                 jmp  loop
 
 
