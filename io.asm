@@ -602,7 +602,7 @@ stw_wait_tdr_empty2
 
                 cmpb #$78              ; LCD Clear Zeichen?
                 bcs  stw_10ms          ; Alles was <$78 ist mit normalem Delay
-                ldab #LCDDELAY*4       ; vierfacher Timeout für Clear & Reset Befehle
+                ldab #LCDDELAY*4      ; vierfacher Timeout für Clear & Reset Befehle
                 stab lcd_timer
                 bra  stw_end
 stw_10ms

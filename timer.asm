@@ -37,7 +37,6 @@ s_timer_update
                 pshb
                 psha
                 pshx
-
                 ldab s_tick_ms
                 ldaa tick_ms+1
                 sba                            ; Ticks seit letztem update - delta ticks
@@ -49,9 +48,12 @@ s_timer_update
                 ldab lcd_timer                 ; lcd_timer holen
                 beq  upt_no_lcd_dec            ; falls lcd_timer schon =0, kein decrement mehr
                 tsx
-                subb 0,x                       ; delta ticks abziehen
-                bpl  upt_store_lcdt
-                clrb                           ; Auch bei Unterlauf nicht kleiner werden als 0
+                ldaa 0,x                       ; get number of ms to subtract
+upt_lcdt_loop
+                decb                           ; decrement LCD timer by 1 ms
+                beq  upt_store_lcdt            ; exit if timer reaches 0
+                deca
+                bne  upt_lcdt_loop
 upt_store_lcdt
                 stab lcd_timer                 ; und speichern
 upt_no_lcd_dec

@@ -87,8 +87,6 @@ start_over
                 ldab #SR_AUDIOPA
                 jsr  send2shift_reg         ; enable Audio PA
 
-                ldd  #500
-;                jsr  tone_start
 loop
                 clrb                        ; Frequenz etc. speichern wenn Gerät ausgeschaltet wird
                 jsr  pwr_sw_chk             ; Ein/Ausschalter abfragen & bedienen
