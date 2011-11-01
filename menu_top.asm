@@ -93,8 +93,8 @@ mto_tabjmp
 m_top_h3_tx
 m_top_tab_tx
 ;               Funktion                Taste
-                .dw m_none            ; 0
-                .dw m_none            ; 1
+                .dw m_dtmf_direct     ; 0
+                .dw m_dtmf_direct     ; 1
                 .dw m_dtmf_direct     ; 2
                 .dw m_dtmf_direct     ; 3
                 .dw m_dtmf_direct     ; 4
@@ -104,8 +104,8 @@ m_top_tab_tx
                 .dw m_dtmf_direct     ; 8
                 .dw m_dtmf_direct     ; 9
                 .dw m_dtmf_direct     ; *
-                .dw m_dtmf_direct     ; D1 - Kanal+
-                .dw m_dtmf_direct     ; D2 - Kanal-
+                .dw m_frq_up          ; D1 - Kanal+
+                .dw m_frq_down        ; D2 - Kanal-
                 .dw m_dtmf_direct     ; D3 - Squelch ein/aus
                 .dw m_dtmf_direct     ; D4 - Test
                 .dw m_tone            ; D5 - 1750 Hz Ton
