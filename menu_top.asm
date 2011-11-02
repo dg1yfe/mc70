@@ -726,12 +726,17 @@ m_dtmf_direct
                 abx
                 ldab 0,x
 m_dtmf_go
-                jsr  dtmf_key2freq
-                jsr  dtone_start
+                ldaa tone_timer
+                beq  mdg_start          ; check if tone is still on
+                jsr  tone_stop          ; if it is, stop it
+                WAIT(40)                ; wait 40 ms (DTMF minimum pause)
+mdg_start
+                jsr  dtmf_key2freq      ; calculate DTMF frequencies
+                jsr  dtone_start        ; start DTMF tone output
                 clrb
                 jsr  dac_filter        ; deactivate additional DAC filter
                 ldab #4
-                stab tone_timer        ; 0,3 sek Ton ausgeben
+                stab tone_timer        ; 0,4 sek Ton ausgeben
 
                 jmp  m_end
 m_dtmf_ctab
