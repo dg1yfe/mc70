@@ -105,7 +105,7 @@ m_set_freq_x
 
                 tsx                   ; Zeiger auf Zwischenspeicher (Stack) nach X
                 ldd  #f_in_buf        ; Zeiger auf Eingabestring holen
-                jsr  atoi    	      ; Frequenz berechnen
+                jsr  atol    	      ; Frequenz berechnen
 
                 tsx                   ; Zeiger auf Frequenz DWord nach X
                 jsr  frq_update       ; Control Task mitteilen, dass neue Frequenz gesetzt wurde

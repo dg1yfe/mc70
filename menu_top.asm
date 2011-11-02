@@ -423,7 +423,7 @@ msh_set_str
                 pshx                  ; für Ergebnis der Frequenzberechnung
                 tsx                   ; Zeiger auf Zwischenspeicher (Stack) nach X
                 ldd  #f_in_buf        ; Zeiger auf Eingabestring holen
-                jsr  atoi             ; Frequenz berechnen
+                jsr  atol             ; Frequenz berechnen
                 ldd  #100             ; durch 100 teilen, da erste Ziffer der Eingabe als *10^8 (100 Mio) betrachtet wird
                 jsr  divide32
                 ldab cpos

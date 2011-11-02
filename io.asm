@@ -1671,7 +1671,7 @@ pdc_print
 
 
 ;*********
-; A T O I
+; A T O L
 ;*********
 ;
 ; Umrechnung String -> Integer (long)
@@ -1690,7 +1690,7 @@ pdc_print
 ; local Stack variables:
 ; 0 - *input
 ; 2 - *frequenz
-atoi
+atol
 frq_calc_freq
                 pshx                       ; Adresse für output auf Stack sichern
                 pshb
