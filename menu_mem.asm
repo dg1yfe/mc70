@@ -68,6 +68,7 @@ m_recall_submenu
                 ldab #MEM_SELECT
                 stab m_state
 mre_nosave
+                jsr  m_reset_timer    ; Menü-Timer Reset (Timeout für Eingabe setzen)
                 ldx  #m_recall_load
                 stx  m_svar1
 mre_show_slot

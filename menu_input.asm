@@ -53,7 +53,7 @@ mnn_tab
                 .dw m_none                 ; D1
                 .dw m_none                 ; D2
                 .dw m_none                 ; D3
-                .dw m_clr_displ            ; D4 - Clear
+                .dw m_end_restore          ; D4 - Clear
                 .dw m_none                 ; D5
                 .dw m_none                 ; D6
                 .dw m_set_shift            ; D7
