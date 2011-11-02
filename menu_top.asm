@@ -294,8 +294,10 @@ mts_print
                 clrb
                 jsr  lcd_cpos
                 tsx
-                ldaa #$45
-                ldab #3
+                jsr  sig_inv32s         ; invert longint
+                                        ; (for historical reasons, inverted shift is saved & used)
+                ldaa #$45               ; print sign, maximum 5 digits
+                ldab #3                 ; truncate 3 digits at the end
                 jsr  decout
                 pulx
                 pulx

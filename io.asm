@@ -1228,7 +1228,7 @@ ulo2_notrunc
                andb #$40               ; check if sign should be printed
                beq  ulo2_nosign        ; branch if not
                tab
-               andb #$0f               ; check min number of digits is given
+               andb #$0f               ; check if min number of digits is given
                beq  ulo2_nosign        ; dont change anything if it isn't given
                deca                    ; decrease number of digits if sign
                                        ; is to be printed
