@@ -21,15 +21,7 @@ m_menu_str	.db "MENU    ",0
 
 		.db "STORE   ",0
 		.dw m_store_submenu
-
-		.db "TX CTCSS",0
-		.dw m_none
-
-		.db "RX CTCSS",0
-		.dw m_none
-
-		.db "DTMF    ",0
-		.dw m_none
+		
 #ifdef EVA9
 		.db "POWER   ",0
 		.dw m_power_submenu
@@ -662,8 +654,8 @@ mmsd_loop_str
                 inx
                 ldab 0,x
                 bne  mmsd_loop_str    ; search for end of string
-		inx
-		inx
+                inx
+                inx
                 inx                   ; skip function pointer
                 deca
                 bra  mmsd_loop

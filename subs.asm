@@ -290,7 +290,7 @@ pwr_sw_chk
 
                 tstb                       ; Frequenzeinstellungen
                 bne  psc_no_store          ; speichern?
-;                jsr  store_current        ; derzeit angezeigten Kanal speichern
+                jsr  store_current        ; derzeit angezeigten Kanal speichern
 psc_no_store
                 ldaa #%01111111
                 ldab #%00000000
@@ -753,14 +753,22 @@ scu_ofs_nonzero
                 ins
                 tsx
                 pshx                        ; Adresse im RAM
+                ldd  #$01FA                 ; Adresse im EEPROM
+                ldx  #3                     ; Anzahl der Bytes
+                jsr  eep_seq_verify         ; Prüfen ob dieser Inhalt bereits im EEPROM steht
+                tsta
+                beq  scu_omit_write         ; falls dem so ist, keinen Schreibzugriff durchführen
+                                            ; andernfalls
                 ldx  #$01FA                 ; Adresse im EEPROM $01FA
                 pshx                        ; auf Stack legen
                 ldx  #3                     ; 3 Byte schreiben
                 pshx                        ; auf Stack legen
+
                 jsr  eep_write_seq
 
                 pulx
                 pulx
+scu_omit_write
                 pulx
 
                 pulx

@@ -578,3 +578,105 @@ ewc_write_err
                 bra  ewc_end
 
 
+;******************************
+; E E P   S E Q   V E R I F Y
+;******************************
+;
+; Vergleicht den Inhalt in EEPROM(s) und RAM ab den gegebenen Adressen
+;
+;
+; Parameter: A - Device&Page Adresse (3 Bit)
+;            B - Startadresse
+;            X - Bytecount
+;            STACK - Datenadresse (im RAM)
+;
+; Ergebnis : A - Status: 0 - OK
+;                        1 - Kein ACK nach Device/Pageadresse
+;                           (kein EEPROM mit der Adresse vorhanden?)
+;                        2 - Kein ACK nach Byteadresse
+;                        3 - Kein ACK nach Device/Pageadresse in "eep_current_read"
+;
+;            X - Zahl der geprüften Bytes
+;
+;
+eep_seq_verify
+                pshx                    ; Bytecount sichern
+                pshb                    ; Startadresse sichern
+                psha                    ; Device & Pageadresse sichern
+
+                ldx  #0                 ; Bytecounter auf 0 initialisieren
+                pshx                    ; und speichern
+                inc  bus_busy
+                inc  tasksw_en          ; Keine Taskswitches während Schreibzugriff
+esv_page_read
+                tsx
+                ldaa 2,x                ; Device & Pageadresse und
+                oraa #$80               ; Keine STOP Condition von eep_rand_read senden lassen
+                ldab 3,x                ; Byteadresse wiederholen
+                jsr  eep_rand_read      ; SEQ Read mit Random Read an Startadresse beginnen
+                tsta                    ; Fehler aufgetreten?
+                bne  esv_end            ; dann hier abbrechen
+                tsx
+                ldx  8,x                ; Zieladresse holen
+                cmpb 0,x                ; Byte prüfen
+                bne  esv_error          ; Abbrechen bei Fehler
+                inx                     ; Zieladresse++
+                xgdx                    ; Zialadresse nach D
+                tsx
+                std  8,x                ; Zieladresse wieder speichern
+                pulx
+                inx                     ; geprüfte_Bytes++
+                pshx
+                tsx
+                ldx  4,x                ; Bytecount holen
+                dex                     ; Bytecount--
+                beq  esv_read_ok        ; letztes Byte kopiert? Dann zum Ende springen
+                xgdx
+                tsx
+                std  4,x                ; Bytecount sichern
+                inc  3,x                ; Byteadresse++
+                beq  esv_new_page       ; Page Ende erreicht? Dann neue Device&Pageadresse berechnen
+
+esv_sr_loop                             ; hier beginnt der eigentliche Sequential Read
+                jsr  i2c_ack            ; ACK senden
+                jsr  i2c_rx             ; Byte vom I2C Bus lesen
+                tsx
+                ldx  8,x                ; Zieladresse holen
+                cmpb 0,x                ; Byte prüfen
+                bne  esv_error          ; Abbrechen bei Fehler
+                inx                     ; Zieladresse++
+                xgdx                    ;
+                tsx
+                std  8,x                ; Zieladresse wieder speichern
+                pulx
+                inx                     ; geprüfte_Bytes++
+                pshx
+                tsx
+                ldx  4,x                ; Bytecount holen
+                dex                     ; Bytecount--
+                beq  esv_read_ok        ; letztes Byte geprüft? Dann zum Ende springen
+                xgdx
+                tsx
+                std  4,x                ; Bytecount sichern
+                inc  3,x                ; Byteadresse++
+                bne  esv_sr_loop        ; Page Ende noch nicht erreicht? Dann weitermachen
+esv_new_page
+                jsr  i2c_stop           ; STOP Condition senden
+                inc  2,x                ; Device & Pageadresse erhöhen
+                bra  esv_page_read
+esv_read_ok
+                clra                    ; keine Fehler aufgetreten
+                jsr  i2c_stop           ; STOP Condition senden
+esv_end
+                pulx                    ; Zahl der gelesenen Bytes holen
+                ins
+                ins
+                ins
+                ins                     ; Stack bereinigen
+                dec  bus_busy           ; WD Reset wieder zulassen
+                dec  tasksw_en          ; Taskswitches wieder zulassen
+                rts
+esv_error
+                ldaa #4                 ; Verify Error
+                jsr  i2c_stop           ; STOP Condition senden
+                bra  esv_end
