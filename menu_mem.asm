@@ -19,8 +19,7 @@ mfs_nosave
                 PRINTF(m_stored)         ; 'STORED' ausgeben
                 jsr  lcd_fill
                 WAIT(1000)               ; 1sek warten
-                jsr  restore_dbuf        ; Displayinhalt wiederherstellen
-                jmp  m_end               ;
+                jmp  m_end_restore
 mfs_fail
                 psha                     ; Fehlerstatus sichern
                 clra
@@ -31,8 +30,7 @@ mfs_fail
                 ldaa #'x'
                 jsr  putchar             ; Fehlercode ausgeben
                 WAIT(1000)               ; 1s warten
-                jsr  restore_dbuf        ; Displayinhalt wiederherstellen
-                jmp  m_end               ;
+                jmp  m_end_restore
 
 ;
 ;

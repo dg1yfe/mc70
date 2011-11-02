@@ -8,9 +8,9 @@
 ;
 ;
 #ifdef EVA5
-#DEFINE M_MENU_ENTRIES 5
+#DEFINE M_MENU_ENTRIES 3
 #else
-#DEFINE M_MENU_ENTRIES 6
+#DEFINE M_MENU_ENTRIES 4
 #endif
 
 m_menu_str	.db "MENU    ",0
@@ -21,7 +21,10 @@ m_menu_str	.db "MENU    ",0
 
 		.db "STORE   ",0
 		.dw m_store_submenu
-		
+
+		.db "SET DEFT",0
+		.dw m_frq_store
+
 #ifdef EVA9
 		.db "POWER   ",0
 		.dw m_power_submenu

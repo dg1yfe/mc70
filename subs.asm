@@ -759,6 +759,10 @@ scu_ofs_nonzero
                 tsta
                 beq  scu_omit_write         ; falls dem so ist, keinen Schreibzugriff durchführen
                                             ; andernfalls
+
+                pulx                        ; remove RAM address from Stack (was altered)
+                tsx
+                pshx                        ; set RAM address (data is on Stack)
                 ldx  #$01FA                 ; Adresse im EEPROM $01FA
                 pshx                        ; auf Stack legen
                 ldx  #3                     ; 3 Byte schreiben
