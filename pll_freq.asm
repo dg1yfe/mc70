@@ -230,6 +230,7 @@ pli_error
 ;
 pll_led
                 ldab LOCKPORT
+                andb #LOCKBIT
                 tsta
                 bne  plc_force_update
 
@@ -238,13 +239,12 @@ pll_led
                 ldaa #PLLCHKTIMEOUT
                 staa pll_timer
 
-                andb #LOCKBIT
                 tba
-                eorb pll_locked_flag         ; Wenn sich nichts geändert hat (Bit6=0)
+                eora pll_locked_flag         ; Wenn sich nichts geändert hat (Bit6=0)
                 beq  plc_end                 ; gleich zum Ende springen
 plc_force_update
-                staa pll_locked_flag         ; sonst neuen Status speichern
-                tsta
+                stab pll_locked_flag         ; sonst neuen Status speichern
+                tstb
                 bne  plc_locked
                 ldab #RED_LED+LED_ON         ; Rote LED an
                 jsr  led_set
