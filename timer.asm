@@ -57,15 +57,33 @@ upt_lcdt_loop
 upt_store_lcdt
                 stab lcd_timer                 ; und speichern
 upt_no_lcd_dec
-                ldab ui_timer
-                beq  upt_no_ui_dec
+upt_ui_timer
+                ldab ui_timer                  ; lcd_timer holen
+                beq  upt_no_uit_dec            ; falls lcd_timer schon =0, kein decrement mehr
                 tsx
-                subb 0,x
-                bpl  upt_store_uit
-                clrb
+                ldaa 0,x                       ; get number of ms to subtract
+upt_uit_loop
+                decb                           ; decrement LCD timer by 1 ms
+                beq  upt_store_uit             ; exit if timer reaches 0
+                deca
+                bne  upt_uit_loop
 upt_store_uit
-                stab ui_timer
-upt_no_ui_dec
+                stab ui_timer                  ; und speichern
+upt_no_uit_dec
+upt_sql_timer
+; Squelch Timer
+                ldab sql_timer                 ; sql timer holen
+                beq  upt_no_sqlt_dec           ; falls auf 0, nicht mehr runterzaehlen
+                tsx
+                ldaa 0,x
+upt_sqlt_loop
+                decb                           ; ansonsten timer--
+                beq  upt_store_sqlt
+                deca
+                bne  upt_sqlt_loop
+upt_store_sqlt
+                stab sql_timer                 ; und speichern
+upt_no_sqlt_dec
                 pulb
                 ldaa next_hms
                 sba
@@ -92,18 +110,9 @@ upt_hms_timer
                 stx  m_timer          ;+4 12; und sichern
 upt_pll_timer
                 ldab pll_timer        ;+3 15
-                beq  upt_sql_timer    ;+3 18
+                beq  upt_tone_timer   ;+3 18
                 decb                  ;+1 19
                 stab pll_timer        ;+3 22
-upt_sql_timer
-; Squelch Timer
-                ldab sql_timer             ; sql timer holen
-                beq  upt_tone_timer        ; falls auf 0, nicht mehr runterzaehlen
-                decb                       ; ansonsten timer--
-                stab sql_timer             ; und speichern
-
-                bra  upt_end
-
 upt_tone_timer
                 ldab tone_timer
                 beq  upt_end
