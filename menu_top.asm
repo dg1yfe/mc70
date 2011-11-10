@@ -22,8 +22,9 @@ m_menu_str	.db "MENU    ",0
 		.db "STORE   ",0
 		.dw m_store_submenu
 
-		.db "SET DEFT",0
-		.dw m_frq_store
+		.db "DEF CH  ",0
+        .dw m_defch_submenu
+;		.dw m_frq_store
 
 #ifdef EVA9
 		.db "POWER   ",0
@@ -247,8 +248,8 @@ mss_end
 ; 1750 Hz Ton ausgeben
 ;
 m_tone
-                ldab #1
-                stab ui_ptt_req        ; PTT drücken
+
+                oim  #1,ui_ptt_req     ; PTT drücken
                 clrb
                 jsr  dac_filter        ; deactivate additional DAC filter
                 ldab tone_timer

@@ -121,7 +121,7 @@ dg1yfe_str
 mc70_str
                 .db "MC 70",0
 ver_str
-                .db "1_0_6",0
+                .db "11 01",0
 rom_init_str
                 .db "ROM INIT",0
 ram_err_str

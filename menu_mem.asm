@@ -1,36 +1,4 @@
 #define MEM_SLOT_MAX 25
-;**************************************
-; M   F R Q   S T O R E
-;
-; Eingestellte Frequenz und TX Shift im EEPROM als default speichern
-;
-m_frq_store
-                ldab m_timer_en
-                bne  mfs_nosave
-                jsr  save_dbuf        ; Displayinhalt in dbuf2 sichern
-
-mfs_nosave
-                jsr  store_current
-                tsta                     ; Schreiben erfolgreich?
-                bne  mfs_fail
-
-                clrb
-                jsr  lcd_cpos            ; Display löschen
-                PRINTF(m_stored)         ; 'STORED' ausgeben
-                jsr  lcd_fill
-                WAIT(1000)               ; 1sek warten
-                jmp  m_end_restore
-mfs_fail
-                psha                     ; Fehlerstatus sichern
-                clra
-                jsr  lcd_clr             ; Display löschen
-                PRINTF(m_failed)         ; 'FAILED' ausgeben
-                WAIT(500)                ; 500 ms warten
-                pulb
-                ldaa #'x'
-                jsr  putchar             ; Fehlercode ausgeben
-                WAIT(1000)               ; 1s warten
-                jmp  m_end_restore
 
 ;
 ;

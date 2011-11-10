@@ -122,7 +122,7 @@ upt_tone_timer
 ; TONE STOP
 ;***********
                 jsr  tone_stop
-                clr  ui_ptt_req				; TODO: rename to tone_ptt_req / use bitfields
+                aim  #$FE, ui_ptt_req				; TODO: rename to tone_ptt_req / use bitfields
 
                 bra  upt_end
 

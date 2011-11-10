@@ -54,6 +54,10 @@
 #DEFINE MEM_RECALL_LOAD 4
 #DEFINE TXSHIFT_SW   5
 #DEFINE MENU_SELECT  6
+#DEFINE DEFCH_SELECT  7
+#ifdef EVA9
+#DEFINE POWER_SELECT  8
+#endif
 ;#DEFINE MEM_SEL_DIGIT 5
 ;
 ;
@@ -129,6 +133,10 @@ m_state_tab
                 .dw m_recall_load
                 .dw m_txshift
                 .dw m_menu_select
+                .dw m_defch_select
+#ifdef EVA9
+                .dw m_power_select
+#endif
 m_state_tab_end
 
 ;*************

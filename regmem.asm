@@ -263,6 +263,8 @@ ui_txshift      .dw                                    ; Über UI eingegebene Fre
 
 rxtx_state      .db                                   ; 0=RX
 ptt_debounce    .db
+
+cfg_defch_save
 ui_ptt_req      .db                                   ;
 
 cfg_head        .db                                   ; Type of Control Head

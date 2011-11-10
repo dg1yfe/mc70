@@ -88,4 +88,149 @@ mpws_common
                 jmp  m_end
 mpws_exit
                 jmp  m_end_restore
-#endif                
+#endif
+;**************************************
+;
+;
+m_defch_submenu
+                jsr  m_reset_timer             ; Menü-Timer Reset (Timeout für Eingabe setzen)
+                clrb
+                jsr  lcd_cpos
+                ldaa #DEFCH_SELECT             ; go to "default channel select" state
+                staa m_state
+                ldab cfg_defch_save
+                stab m_svar2
+                andb #2                        ; Isolate Bit 1
+                beq  mdcm_manual               ; Print current state (auto or manual)
+                PRINTF(m_defch_str_auto)
+                ldab #1                        ; start at index 1 (auto)
+                bra  mdcm_end
+mdcm_manual
+                PRINTF(m_defch_str_man)
+                ldab #2                        ; start at index 2 (manual)
+mdcm_end
+                stab m_svar1
+                jsr  lcd_fill
+                jmp  m_end
+
+m_defch_str_store
+                .db "STORE",0
+m_defch_str_auto
+                .db "AUTO",0
+m_defch_str_man
+                .db "MANUAL",0
+
+mdcs_strtab
+                .dw m_defch_str_store
+                .dw m_defch_str_auto
+                .dw m_defch_str_man
+m_defch_select
+                jsr  m_reset_timer     ; Menü-Timer Reset (Timeout für Eingabe setzen)
+                ldaa cfg_head          ; different keys for different control heads
+                cmpa #3
+                beq  mdcs_hd3
+                cmpa #2
+                beq  mdcs_hd2
+mdcs_hd2
+                cmpb #HD2_ENTER
+                beq  mdcs_enter       ;
+                cmpb #HD2_EXIT
+                beq  mdcs_exit        ;
+                bra  mdcs_common
+mdcs_hd3
+                cmpb #HD3_ENTER
+                beq  mdcs_enter       ;
+                cmpb #HD3_EXIT
+                beq  mdcs_exit        ;
+mdcs_common
+                cmpb #HD2_UP
+                beq  mdcs_up          ;
+                cmpb #HD2_DN
+                beq  mdcs_dn          ;
+                jmp  m_end
+mdcs_exit
+                jmp  m_end_restore     ; Cancel & exit Menu
+mdcs_up
+                ldab m_svar1           ; get current index
+                incb                   ; advance by 1
+                cmpb #3
+                bne  mdcs_print        ; stay within 0-2
+                clrb
+mdcs_print
+                stab m_svar1           ; store new index
+                clrb
+                jsr  lcd_cpos
+                ldab m_svar1           ; print new state by using index
+                lslb
+                ldx  #mdcs_strtab
+                abx
+                ldx  0,x               ; get pointer to string from table
+                jsr  printf            ; print string
+                jsr  lcd_fill          ; clear rest of display
+                jmp  m_end
+mdcs_dn
+                ldab m_svar1           ; get current index
+                decb                   ; decrease by 1
+                bpl  mdcs_print
+                ldab #2                ; stay within 0-2
+                bra  mdcs_print
+;*********
+mdcs_enter
+                ldab m_svar1           ; get selected state
+                beq  mdcs_store        ; decide what to do, if 0, then store current channel settings now
+                decb                   ; if 1, set config to auto store
+                beq  mdcs_auto_on
+mdcs_auto_off
+                clrb                   ; else set config to manual store
+                stab m_svar2
+mdcs_eep
+                ldaa cfg_defch_save    ; get config byte
+                anda #%11111101        ; discard current state (in A)
+                andb #%00000010        ; isolate new state (in B)
+                aba                    ; add new state
+                staa cfg_defch_save    ; store new state to RAM
+                tab
+                ldx  #$01fd            ; and also to EEPROM at address 0x1fd
+                pshx
+                jsr  eep_write
+                pulx
+                tsta                   ; check write status
+                bne  mdcs_fail         ; if write failed, print Failed & errorcode
+                clrb
+                jsr  lcd_cpos
+                ldx  #m_ok             ; print ok
+                jsr  printf
+                jsr  lcd_fill
+                WAIT(300)
+                jmp  m_end_restore     ; restore display content
+;**************
+mdcs_auto_on
+                ldab #2                ; enable auto store
+                stab m_svar2
+                bra  mdcs_eep
+;**************************************
+; Store current frequency and shift to EEPROM as power-up default
+;
+mdcs_store
+                jsr  store_current
+                tsta                     ; Schreiben erfolgreich?
+                bne  mdcs_fail
+
+                clrb
+                jsr  lcd_cpos            ; Display löschen
+                PRINTF(m_stored)         ; 'STORED' ausgeben
+                jsr  lcd_fill
+                WAIT(1000)               ; 1sek warten
+                jmp  m_end_restore
+mdcs_fail
+                psha                     ; Fehlerstatus sichern
+                clra
+                jsr  lcd_clr             ; Display löschen
+                PRINTF(m_failed)         ; 'FAILED' ausgeben
+                WAIT(500)                ; 500 ms warten
+                pulb
+                ldaa #'x'
+                jsr  putchar             ; Fehlercode ausgeben
+                WAIT(1000)               ; 1s warten
+                jmp  m_end_restore
+

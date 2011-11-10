@@ -284,7 +284,7 @@ esr_end
 ;
 ;
 eep_write
-                inc  bus_busy       ; I2C Zugriff, kein Watchdog Reset
+                inc  bus_busy           ; I2C Zugriff, kein Watchdog Reset
                 inc  tasksw_en          ; Keine Taskswitches während Schreibzugriff
                 pshb
                 pshx

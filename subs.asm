@@ -77,8 +77,8 @@ ptt_get_status
 ptc_on
                 ldab #1
 ptc_end
-
                 orab ui_ptt_req             ; Senderequest von UI Task?
+                andb #1
                 cba                         ; Mit aktuellen Status vergleichen
                 bne  pgs_change             ; Verzweigen, wenn Status ungleich (PTT gedrückt & RX / PTT frei & TX)
                 clr  ptt_debounce           ; Es hat sich nix geändert, "debounce" auf 0
@@ -289,7 +289,7 @@ pwr_sw_chk
                 beq  still_on
 
                 tstb                       ; Frequenzeinstellungen
-                bne  psc_no_store          ; speichern?
+                beq  psc_no_store          ; speichern?
                 jsr  store_current        ; derzeit angezeigten Kanal speichern
 psc_no_store
                 ldaa #%01111111
@@ -459,45 +459,6 @@ notask
                 ldx  start_task            ; Um Task 2 zu starten, Adresse in 'start_task' schreiben
                 jmp  0,x
 
-;**********************
-; T O N E   S T A R T
-;**********************
-;
-; Startet Ausgabe des 1750 Hz Ruftons
-;
-; Parameter : None
-;
-; Ergebnis : None
-;
-; changed Regs : None
-;
-; tone_start
-;                 ;aim #$fe,tone_index
-;                 clr  tone_index
-;                 ldd  FRC
-; ;                addd #570                  ; ca 3500 mal pro sek Int auslösen (1749,47 Hz)
-;                 addd #TONE_DPHASE
-;                 std  OCR2
-;                 aim  #%11110111, TCSR1     ; OCI1 Int deaktivieren
-;                 oim  #%00001000, TCSR2     ; OCI2 Interrupt aktivieren
-; 
-;                 rts
-
-;********************
-; T O N E   S T O P
-;********************
-;
-;
-;
-; tone_stop
-;                 aim  #%11110111, TCSR2     ;
-;
-;                 ldd  FRC
-;                 addd #1194                 ; in einer ms wieder OCI ausführen
-;                 std  OCR1
-;                 oim  #%00001000, TCSR1     ; Timer compare Interrupt aktivieren
-;                 aim  #%10011111, Port6_Data; Pin auf 0 setzen
-;                 rts
 
 ;*************************
 ; R E A D   E E P   C H

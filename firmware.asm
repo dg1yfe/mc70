@@ -63,6 +63,16 @@ sim_loop
                 jsr  freq_init             ; Frequenzeinstellungen initialisieren
                 psha
 
+                ldab #3
+                stab cfg_head
+                ldd  #$01FD                 ; get config Byte
+                jsr  eep_rand_read
+                andb #2                     ; isolate Bit 1
+                ldaa cfg_defch_save         ; get config value
+                anda #%11111101             ; exclude Bit 1
+                aba                         ; add Bit 1 from Reg B
+                staa cfg_defch_save         ; store new config value
+
                 jsr  ui_start               ; UI Task starten
 
                 clr  tasksw_en              ; Taskswitch spätestens jede Millisekunde
@@ -70,8 +80,7 @@ sim_loop
                 ldab #GRN_LED+LED_ON
                 jsr  led_set                ; Grüne LED aktivieren
 
-                ldab #3
-                stab cfg_head
+
                 WAIT(500)
                 jsr  s_timer_init
 ;
@@ -88,7 +97,8 @@ start_over
                 jsr  send2shift_reg         ; enable Audio PA
 
 loop
-                clrb                        ; Frequenz etc. speichern wenn Gerät ausgeschaltet wird
+                ldab cfg_defch_save         ; Frequenz etc. speichern wenn Gerät ausgeschaltet wird
+                andb #2
                 jsr  pwr_sw_chk             ; Ein/Ausschalter abfragen & bedienen
 ;                jsr  trx_check              ; PTT abfragen und Sende/Empfangsstatus ändern
 ;*** TRX check
