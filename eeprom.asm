@@ -127,13 +127,16 @@ err_error2
 ; Ergebnis : B - gelesenes Byte
 ;            A - Status: 0 - OK
 ;                        3 - Kein ACK nach Device/Pageadresse
+;                        5 - Power Failure
 ;
 eep_read
-                pshx
+               ldab Port5_Data
+               andb #2                  ; check power fail input
+               bne  epr_err5            ; don't start read access if power is failing NOW
 
+                pshx
                 inc  bus_busy       ; I2C Zugriff, kein Watchdog Reset
                 inc  tasksw_en          ; Keine Taskswitches während Schreibzugriff
-
                 jsr  i2c_start          ; Start Condition senden
                 psha                    ; Device & Pageadresse sichern
                 lsla                    ; Adresse ein Bit nach links schieben
@@ -163,6 +166,9 @@ epr_end
 epr_error
                 ldaa #3                 ; Fehler aufgetreten
                 bra  epr_end
+epr_err5
+                ldaa #5                 ; Fehler aufgetreten
+                rts
 ;******************************
 ; E E P   S E Q   R E A D
 ;******************************
@@ -194,9 +200,13 @@ eep_seq_read
                 pshx                    ; Bytecount sichern
                 pshb                    ; Startadresse sichern
                 psha                    ; Device & Pageadresse sichern
-
                 ldx  #0                 ; Bytecounter auf 0 initialisieren
                 pshx                    ; und speichern
+
+               ldaa Port5_Data
+               anda #2                  ; check power fail input
+               bne  esr_err5            ; don't start read access if power is failing NOW
+
                 inc  bus_busy
                 inc  tasksw_en          ; Keine Taskswitches während Schreibzugriff
 esr_page_read
@@ -265,7 +275,9 @@ esr_end
                 dec  bus_busy       ; WD Reset über IRQ wieder zulassen
                 dec  tasksw_en          ; Keine Taskswitches während Schreibzugriff
                 rts
-
+esr_err5
+                ldaa #5
+                bra  esr_end
 ;*****************************
 ; E E P   W R I T E
 ;*****************************
@@ -281,9 +293,12 @@ esr_end
 ;                        2 - Kein ACK nach Byteadresse
 ;                        3 - Kein ACK nach Datenbyte
 ;                        4 - Timeout beim ACK Polling nach Schreibvorgang
-;
+;                        5 - Power Fail
 ;
 eep_write
+               ldaa Port5_Data
+               anda #2                  ; check power fail input
+               bne  epw_err5            ; don't start write access if power is failing NOW
                 inc  bus_busy           ; I2C Zugriff, kein Watchdog Reset
                 inc  tasksw_en          ; Keine Taskswitches während Schreibzugriff
                 pshb
@@ -335,6 +350,7 @@ epw_end
                 pulb
                 dec  tasksw_en          ; Taskswitches wieder erlauben
                 dec  bus_busy       ; WD Reset über IRQ wieder zulassen
+epw_exit
                 rts
 epw_err1
                 ldaa #1
@@ -345,6 +361,9 @@ epw_err2
 epw_err3
                 ldaa #3
                 bra  epw_end
+epw_err5
+                ldaa #5
+                rts
 
 ;***************************
 ; E E P   W R I T E   S E Q
@@ -363,7 +382,7 @@ epw_err3
 ;                        2 - Kein ACK nach Byteadresse
 ;                        3 - Kein ACK nach Datenbyte
 ;                        4 - Timeout beim ACK Polling nach Schreibvorgang
-;
+;                        5 - Power Failure
 ;
 eep_write_seq
                 inc  bus_busy       ; I2C Zugriff, kein Watchdog Reset

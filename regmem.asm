@@ -126,8 +126,8 @@ TRCSR1 		.db
 RDR 		.db             ; SCI Data Rx Register
 TDR 		.db    			; SCI Data Tx Register
 RP5CR 		.db
-Port5_Data 	.db                     ; 50 - Pin17 - Emergency Input
-                			; 51 - Pin18 - Power Fail Input
+Port5_Data 	.db             ; 50 - Pin17 - Emergency Input
+                			; 51 - Pin18 - Power Fail Input (1=Power Fail, 0=Power Good)
                 			; 52 - Pin19 - SW B+
                 			; 53 - Pin20 - Ext Alarm
                 			; 54 - Pin21 - HUB/PGM (mit NMI&Alert Tone verbunden)

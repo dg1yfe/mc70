@@ -284,13 +284,16 @@ sq_end
 ; prüft den Ein-/Ausschalter und schaltet das Gerät ggf. aus (CPU in Standby Mode)
 ;
 pwr_sw_chk
-                ldaa Port5_Data
-                anda #%100                 ; SWB+ ?
-                beq  still_on
+                ldaa Port5_Data            ; SWB+ && not power fail?
+                lsra                       ; Ignore emergency bit
+                lsra                       ; Shift power fail bit to carry
+                bcs  psc_no_store          ; Power is failing, dont access EEPROM
+                lsra                       ; Check SWB+
+                bcc  still_on              ; We're still in busines
 
                 tstb                       ; Frequenzeinstellungen
                 beq  psc_no_store          ; speichern?
-                jsr  store_current        ; derzeit angezeigten Kanal speichern
+                jsr  store_current         ; derzeit angezeigten Kanal speichern
 psc_no_store
                 ldaa #%01111111
                 ldab #%00000000
