@@ -217,8 +217,12 @@ mdcs_store
                 bne  mdcs_fail
 
                 clrb
-                jsr  lcd_cpos            ; Display löschen
-                PRINTF(m_stored)         ; 'STORED' ausgeben
+                jsr  lcd_cpos            ; goto pos 0
+                PRINTF(m_ok)             ; print 'OK'
+                jsr  lcd_fill
+                clrb
+                jsr  lcd_cpos            ; goto pos 0
+                PRINTF(m_stored)         ; print 'STORED'
                 jsr  lcd_fill
                 WAIT(1000)               ; 1sek warten
                 jmp  m_end_restore
@@ -234,3 +238,15 @@ mdcs_fail
                 WAIT(1000)               ; 1s warten
                 jmp  m_end_restore
 
+;**************************************
+;
+;
+m_version_submenu
+                jsr  m_reset_timer             ; Menü-Timer Reset (Timeout für Eingabe setzen)
+                clrb
+                jsr  lcd_cpos
+                ldaa #M_VERSION             ;
+                staa m_state
+                PRINTF(ver_str)
+                jsr  lcd_fill
+                jmp  m_end

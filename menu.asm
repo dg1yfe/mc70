@@ -55,8 +55,9 @@
 #DEFINE TXSHIFT_SW   5
 #DEFINE MENU_SELECT  6
 #DEFINE DEFCH_SELECT  7
+#DEFINE M_VERSION    8
 #ifdef EVA9
-#DEFINE POWER_SELECT  8
+#DEFINE POWER_SELECT  9
 #endif
 ;#DEFINE MEM_SEL_DIGIT 5
 ;
@@ -134,6 +135,7 @@ m_state_tab
                 .dw m_txshift
                 .dw m_menu_select
                 .dw m_defch_select
+                .dw m_end_restore
 #ifdef EVA9
                 .dw m_power_select
 #endif
@@ -142,7 +144,7 @@ m_state_tab_end
 ;*************
 ; M   N O N E
 ;
-; Frequenz einen Kanal nach oben
+; Dont do anything
 ;
 m_none
                 jmp  m_end            ; Nix zu tun dann nix machen

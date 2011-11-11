@@ -8,9 +8,9 @@
 ;
 ;
 #ifdef EVA5
-#DEFINE M_MENU_ENTRIES 3
-#else
 #DEFINE M_MENU_ENTRIES 4
+#else
+#DEFINE M_MENU_ENTRIES 5
 #endif
 
 m_menu_str	.db "MENU    ",0
@@ -21,6 +21,9 @@ m_menu_str	.db "MENU    ",0
 
 		.db "STORE   ",0
 		.dw m_store_submenu
+
+		.db "VERSION ",0
+		.dw m_version_submenu
 
 		.db "DEF CH  ",0
         .dw m_defch_submenu
