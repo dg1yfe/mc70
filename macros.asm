@@ -1,13 +1,32 @@
 ;****************************************************************************
 ;
-;    MC2_E9   v1.0   - Firmware for Motorola mc micro trunking radio
-;                      for use as an Amateur-Radio transceiver
+;    MC70 - Firmware for the Motorola MC micro trunking radio
+;           to use it as an Amateur-Radio transceiver
 ;
-;    Copyright (C) 2004 - 2009  Felix Erckenbrecht, DG1YFE
+;    Copyright (C) 2004 - 2011  Felix Erckenbrecht, DG1YFE
 ;
+;     This file is part of MC70.
+;
+;     MC70 is free software: you can redistribute it and/or modify
+;     it under the terms of the GNU General Public License as published by
+;     the Free Software Foundation, either version 3 of the License, or
+;     (at your option) any later version.
+; 
+;     MC70 is distributed in the hope that it will be useful,
+;     but WITHOUT ANY WARRANTY; without even the implied warranty of
+;     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;     GNU General Public License for more details.
+; 
+;     You should have received a copy of the GNU General Public License
+;     along with MC70.  If not, see <http://www.gnu.org/licenses/>.
+; 
 ;
 ;
 ;****************************************************************************
+#DEFINE EVA5
+;#DEFINE EVA9
+;#DEFINE 2M
+;#DEFINE 70CM
 ;************************
 ; Stack
 ;
@@ -17,6 +36,13 @@
 #DEFINE STACK2  $1EFF
 ;************************
 ; Timing
+; Frequency of crystal in EVA5
+#DEFINE XTAL 7977600
+; Frequency of crystal in EVA9
+;#DEFINE XTAL 4924800
+;
+; System clock ("E") is 1/4th of that
+#DEFINE SYSCLK XTAL/4
 ;
 #DEFINE MENUTIMEOUT   40  ; 4 sek Eingabetimeout
 #DEFINE PLLCHKTIMEOUT 2   ; 200ms Timeout für PLL Check
@@ -25,14 +51,15 @@
 #DEFINE RX_TO_TX_TIME 5  ; 5 ms RX -> TX Umschaltung
 ;
 ;************************
-#DEFINE TONE_DPHASE 352  ; Tone Phase Delta (Xtal/4/2 /Tone -1)
-;
-;
+; remove this comment to run the binary in the simulator
+;#define SIM
 ;************************
 ; Frequenzkram
 ;
-;#DEFINE FBASE 140000000         ; lowest frequency (for eeprom storage) = 140MHz (430 MHz with 70 cm)
 #DEFINE FBASE 430000000         ; lowest frequency (for eeprom storage) = 140MHz (430 MHz with 70 cm)
+#DEFINE FBASE_MEM_RECALL 400000000
+;#DEFINE FBASE 140000000         ; lowest frequency (for eeprom storage) = 140MHz (430 MHz with 70 cm)
+;#DEFINE FBASE_MEM_RECALL 140000000
 ;
 ;#DEFINE FDEF  145500000         ; Default Frequency
 #DEFINE FDEF  433500000         ; Default Frequency
@@ -51,20 +78,31 @@
 ;#DEFINE PLLREF     1152
 ;#DEFINE PLLREF     2304
 ;
+;************************
+; Squelch
+;
+#DEFINE SQL_HYST   10           ; define squelch hysteresis in 5 ms steps
 ;
 ; **************************************************************
 #DEFINE RED_LED       $33
 #DEFINE YEL_LED       $31
 #DEFINE GRN_LED       $32
-#DEFINE OFF           0
-#DEFINE ON            4
-#DEFINE BLINK         8
-#DEFINE INVERT        128
+#DEFINE LED_OFF       0
+#DEFINE LED_ON        4
+#DEFINE LED_BLINK     8
+#DEFINE LED_INVERT    128
 
 #DEFINE ARROW         $6D
 #DEFINE A_OFF           0
 #DEFINE A_ON            1
 #DEFINE A_BLINK         2
+
+;******************************************************************
+#DEFINE P_SIGIN 1
+
+;******************************************************************
+; Blink Char
+#DEFINE CHR_BLINK     $80
 ; non printable chars
 #DEFINE semikolon  $3B
 #DEFINE komma      $2C
@@ -72,7 +110,7 @@
 
 
 #DEFINE WAIT(ms)    pshx \ ldx  #ms \ jsr wait_ms \ pulx
-#DEFINE LCDDELAY  41     ; 41ms
+#DEFINE LCDDELAY  42     ; 41ms
 
 #DEFINE PCHAR(cmd)  ldaa #'c' \ ldab #cmd \ jsr putchar
 #DEFINE PUTCHAR     ldaa #'c' \ jsr putchar
@@ -219,22 +257,5 @@
 #DEFINE STERN $14
 #DEFINE N0 $10
 #DEFINE RAUTE $0C
-;
-;
-; Tastencodes nach "Key-Convert" Tabelle ( 0 - 9 = Numerische Tasten)
-;
-;
-#DEFINE KC_D1 $11
-#DEFINE KC_D2 $12
-#DEFINE KC_D3 $13
-#DEFINE KC_D4 $14
-#DEFINE KC_D5 $15
-#DEFINE KC_D6 $16
-#DEFINE KC_D7 $17
-#DEFINE KC_D8 $18
-#DEFINE KC_RAUTE $19
-#DEFINE KC_STERN $10
-
-#DEFINE KC_CLEAR KC_D4
 
 

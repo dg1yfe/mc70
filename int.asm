@@ -1,10 +1,25 @@
 ;****************************************************************************
 ;
-;    MC2_E9   v1.0   - Firmware for Motorola mc micro trunking radio
-;                      for use as an Amateur-Radio transceiver
+;    MC70 - Firmware for the Motorola MC micro trunking radio
+;           to use it as an Amateur-Radio transceiver
 ;
-;    Copyright (C) 2004 - 2009  Felix Erckenbrecht, DG1YFE
+;    Copyright (C) 2004 - 2011  Felix Erckenbrecht, DG1YFE
 ;
+;     This file is part of MC70.
+;
+;     MC70 is free software: you can redistribute it and/or modify
+;     it under the terms of the GNU General Public License as published by
+;     the Free Software Foundation, either version 3 of the License, or
+;     (at your option) any later version.
+; 
+;     MC70 is distributed in the hope that it will be useful,
+;     but WITHOUT ANY WARRANTY; without even the implied warranty of
+;     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;     GNU General Public License for more details.
+; 
+;     You should have received a copy of the GNU General Public License
+;     along with MC70.  If not, see <http://www.gnu.org/licenses/>.
+; 
 ;
 ;
 ;****************************************************************************
@@ -15,20 +30,21 @@
 ; I N I T   O C I   I N T
 ;************************
 init_OCI
-                clr   irq_wd_reset                ; IRQ Routine darf Watchdog zurücksetzen
-                ldd   FRC
-;                addd  #1994                       ; etwa alle 1ms einen Int auslösen
-                addd  #1230                       ; etwa alle 1ms einen Int auslösen
-                std   OCR1
-                ldab  #%1000
-                stab  TCSR1                       ; enable Output Compare Interrupt
-                ldd   #0
-                std   tick_ms
-                std   tick_hms
-                addd  #10
-                std   next_hms
-
-                rts
+               clr  bus_busy                ; IRQ Routine darf Watchdog zurücksetzen
+               ldd  FRC
+               addd #SYSCLK/1000                ; Interrupt every millisecond
+               std  OCR1
+               ldab #%1000
+               stab TCSR1                       ; enable Output Compare Interrupt
+               ldd  #0
+               std  tick_ms
+               stab tick_hms
+               addb #100
+               stab next_hms
+;               ldx  #OCI1_WD_RESET
+               ldx  #OCI_LCD
+               stx  oci_vec
+               rts
 ;************************
 ; I N I T   S I O   I N T
 ;************************
@@ -75,42 +91,21 @@ ICI_SR               ; no ICI
                 rti
 ;************************************
 OCI_SR
-                ldab TCSR2                 ; Timer Sontrol / Status Register 2 lesen
-                tba
-                andb #%00001000            ; Auf EOCI2 testen (Tone Interrupt)
-                beq  OCI1_SR               ; ansonsten beim normalen 1ms Int weitermachen
-;
-                ldab TCSR2                 ; Timer Sontrol / Status Register 2 lesen
-                ldd  OCR2
-                addd #TONE_DPHASE          ; ca 3500 mal pro sek Int auslösen
-                std  OCR2
+                ldx  oci_vec
 
-                ldab tone_index
-                bne  ocf1_f2_tonelo
-                oim  #%01100000, Port6_Data		; TODO: MACRO einfŸhren? (EVA5/EVA9 diff)
-                eim  #1,tone_index
-                bra  ocf1_test
-ocf1_f2_tonelo
-                aim  #%10011111, Port6_Data		; TODO: MACRO einfŸhren? (EVA5/EVA9 diff)
-                eim  #1,tone_index
-ocf1_test
-                ldab TCSR1                 ; Timer Control & Status Reg 1 lesen
-                andb #%01000000            ; auf OCF1 (1ms Flag) testen
-
-                bne  OCI1_SR               ; falls gesetzt, den 1 ms Int ausführen
-                rti                        ; ansonsten ist hier Schluß
-;**********************************************************************
+                jmp  0,x
+;************************************
+OCI_LCD
+                ldaa lcd_timer
+                beq  OCI1_WD_RESET
+                deca
+                staa lcd_timer
 ;
 ; OCI1 ISR (1 ms Interrupt)
 ;
-OCI1_SR
-                ldab TCSR1                 ; Interruptflag zurücksetzen
-                ldd  OCR1H
-                addd #1994				   ; TODO: MACRO einfŸhren!
-                std  OCR1H                 ; in 1ms wieder einen Int ausführen
-
-                tst  irq_wd_reset          ; währen I2C Zugriff,
-                bne  oci_no_wd_reset       ; keinen Watchdog Reset durchführen
+OCI1_WD_RESET
+                tst  bus_busy              ; währen I2C Zugriff,
+                bne  OCI1_SR               ; keinen Watchdog Reset durchführen
 ;***********
 ; Watchdog Toggle
                 ldab Port2_DDR_buf               ; Port2 DDR lesen
@@ -119,84 +114,37 @@ OCI1_SR
                 stab Port2_DDR                   ; neuen Status setzen
                 aim  #%11111101,Port2_Data       ;Data auf 0
 ;***********
-oci_no_wd_reset
+OCI1_SR
+OCI1_MS
+                ldab TCSR1                 ; Interruptflag zurücksetzen
+                ldd  OCR1H
+                addd #SYSCLK/1000          ;
+                std  OCR1H                 ; in 1ms wieder einen Int ausführen
+
+OCI_MAIN
 ; General Purpose Timer
-                dec  gp_timer              ; Universalvtimer--
+                dec  gp_timer         ; +6  6  ; Universaltimer-- / HW Task
 ; Basis Tick Counter
-                ldx  tick_ms
-                inx                        ; 1ms Tick-Counter erhöhen
-                stx  tick_ms
-; 100ms Tick Counter						; TODO: AUSLAGERN in mainloop
-                cpx  next_hms              ; schon 100ms vergangen?
-                bne  oci_no_hms
+                ldx  tick_ms          ; +4 10
+                inx                   ; +1 11  ; 1ms Tick-Counter erhöhen
+                stx  tick_ms          ; +4 15
 
-                xgdx
-                addd #100                  ; nächsten 100ms Tick Berechnen
-                std  next_hms              ; und speichern
+                ldab tasksw_en        ; +3 18  ; auf Taskswitch prüfen?
+                bne  end_int          ; +3 21  ; Nein? Dann Ende
 
-                ldx  tick_hms
-                inx                        ; 100ms Tick Counter erhöhen
-                stx  tick_hms
-
-;***************
-; OCI HMS                                   ; Alle 100ms Timer erhöhen
-;
-;  100 MS Timer (menu, pll)
-;
-                ldx  m_timer               ; m_timer = 0 ?
-                beq  oci_pll_timer         ; Dann kein decrement
-                dex                        ; m_timer --
-                stx  m_timer               ; und sichern
-oci_pll_timer
-                ldab  pll_timer
-                beq   oci_tone_timer       ; falls auf 0, nicht mehr runterzaehlen
-                decb
-                stab  pll_timer
-oci_tone_timer
-                ldab tone_timer
-                beq  oci_hms_timer_end
-                dec  tone_timer
-                bne  oci_hms_timer_end
-;***********
-; TONE STOP
-                aim  #%11110111, TCSR2     ; OCI2 Int deaktivieren
-
-                oim  #%00001000, TCSR1     ; OCI1 Int aktivieren
-                oim  #%01000000, Port6_Data; Pin auf 0 setzen
-                aim  #%11011111, Port6_Data; Pin auf 0 setzen
-;***********
-                clr  ui_ptt_req				; TODO: rename to tone_ptt_req / use bitfields
-oci_hms_timer_end
-oci_no_hms
-; LCD Timeout Timer aktualisieren
-                ldx  lcd_timer             ; lcd_timer holen
-                beq  oci_no_lcd_dec        ; falls lcd_timer schon =0, kein decrement mehr
-                dex                        ; ansonsten lcd_timer--
-oci_store_lcdt
-                stx  lcd_timer             ; und speichern
-oci_no_lcd_dec
-; Squelch Timer
-                ldab sql_timer             ; sql timer holen
-                beq  oci_no_sql_dec        ; falls auf 0, nicht mehr runterzaehlen
-                decb                       ; ansonsten timer--
-                stab sql_timer             ; und speichern
-oci_no_sql_dec
-                ldab tasksw_en             ; auf Taskswitch prüfen?
-                bne  end_int               ; Nein? Dann Ende
-
-                ldaa last_tasksw           ; Letzten Taskswitch Counter holen
-                ldab tasksw                ; Mit aktuellem Zählerstand vergleichen
-                stab last_tasksw           ; und merken
-                cba                        ; Gabs einen Taskswitch innerhalb der letzten Millisekunde?
-                bne  end_int               ; Ja, dann Int beenden
-                                           ; ansonsten Taskswitch durchführen
-                ldx  stackbuf              ; anderen Stackpointer holen
-                sts  stackbuf              ; aktuellen Stackpointer sichern
-                inx                        ; X anpassen für Transfer
-                txs                        ; anderen Stackpointer laden
-                inc  tasksw                ; Taskswitch Counter erhöhen
+                ldaa last_tasksw      ; +3 24  ; Letzten Taskswitch Counter holen
+                ldab tasksw           ; +3 27  ; Mit aktuellem Zählerstand vergleichen
+                stab last_tasksw      ; +3 30  ; und merken
+                cba                   ; +1 31  ; Gabs einen Taskswitch innerhalb der letzten Millisekunde?
+                bne  end_int          ; +3 34  ; Ja, dann Int beenden
+                                               ; ansonsten Taskswitch durchführen
+                ldx  stackbuf         ; +4 38  ; anderen Stackpointer holen
+                sts  stackbuf         ; +4 42  ; aktuellen Stackpointer sichern
+                inx                   ; +1 43  ; X anpassen für Transfer
+                txs                   ; +1 44  ; anderen Stackpointer laden
+                inc  tasksw           ; +6 50  ; Taskswitch Counter erhöhen
 end_int
-                rti
+                rti                   ;+10 31 / 44 / 60
 
 ;************************************
 ;************************************
@@ -218,7 +166,7 @@ ocf2_tonelo
 ;    P65 P66
 tone_tab
 
-sin_tab
+;sin_tab
                 .db %00000000
                 .db %01000000
 ;************************************
@@ -234,21 +182,21 @@ TOI_SR               ; no TOI
 ; Datenbytes von Schnittstelle abholen - falls vorhanden - und in Puffer speichern
 ; Datenbytes aus Puffer abholen - falls vorhanden - und über Schnittstelle senden
 ;
-SIO_SR
-                ldaa TRCSR1                ; Status lesen
-                tab
-                andb #%01000000
-                bne  sio_orfe              ; Overrun / Framing Error
-                ldab TRCSR2
-                andb #%00010000            ; Auf Parity Error prüfen
-                bne  sio_per
-                tab
-                andb #%10000000
-                bne  sio_rdrf              ; Receive Data Register Full
-                tab
-                andb #%00100000
-                bne  sio_tdre              ; Transmit Data Register Empty Int
-                rti                        ; Interrupt beenden
+SIO_SR                                     ;+10 10
+                ldaa TRCSR1                ; +3 13 ; Status lesen
+                tab                        ; +1 14
+                andb #%01000000            ; +2 16
+                bne  sio_orfe              ; +3 19 ; Overrun / Framing Error
+                ldab TRCSR2                ; +3 21
+                andb #%00010000            ; +2 23 ; Auf Parity Error prüfen
+                bne  sio_per               ; +3 26
+                tab                        ; +1 27
+                andb #%10000000            ; +2 29
+                bne  sio_rdrf              ; +3 32 Receive Data Register Full
+                tab                        ; +1 33
+                andb #%00100000            ; +2 35
+                bne  sio_tdre              ; +3 38 Transmit Data Register Empty Int
+                rti                        ;+10 48 Interrupt beenden
 ;
 ;******************
 ;
@@ -259,6 +207,7 @@ sio_per
                 rti
 sio_rdrf
                 ldaa RDR                   ; Datenregister lesen
+                cli
                 ldab io_inbuf_w            ; Zeiger auf Schreibadresse holen
                 incb                       ; prüfen ob Puffer schon voll
                 andb #io_inbuf_mask        ; maximal 15 Einträge
@@ -300,8 +249,8 @@ sio_tdre
                 stab io_outbuf_r           ; Neue Zeigerposition speichern
                 staa TDR                   ; Datenbyte ins Transmit Data Register schreiben
                 bmi  sio_tdre_end          ; MSB gesetzt -> nächstes Byte darf sofort gesendet werden (2 Byte Kommando)
-;                ldx  #LCDDELAY             ; Wartezeit holen
-;                stx  lcd_timer             ; und Timer entsprechend setzen
+;                ldab #LCDDELAY             ; Wartezeit holen
+;                stab lcd_timer             ; und Timer entsprechend setzen
 sio_ob_empty
                 aim  #%11111011,TRCSR1     ; "Transmit Data Register Empty"-Interrupt deaktivieren
 sio_tdre_end

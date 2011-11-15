@@ -1,9 +1,25 @@
 ;****************************************************************************
 ;
-;    MC 70    v1.6   - Firmware for Motorola mc micro trunking radio
-;                      for use as an Amateur-Radio transceiver
+;    MC70 - Firmware for the Motorola MC micro trunking radio
+;           to use it as an Amateur-Radio transceiver
 ;
-;    Copyright (C) 2004 - 2010  Felix Erckenbrecht, DG1YFE
+;    Copyright (C) 2004 - 2011  Felix Erckenbrecht, DG1YFE
+;
+;     This file is part of MC70.
+;
+;     MC70 is free software: you can redistribute it and/or modify
+;     it under the terms of the GNU General Public License as published by
+;     the Free Software Foundation, either version 3 of the License, or
+;     (at your option) any later version.
+; 
+;     MC70 is distributed in the hope that it will be useful,
+;     but WITHOUT ANY WARRANTY; without even the implied warranty of
+;     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;     GNU General Public License for more details.
+; 
+;     You should have received a copy of the GNU General Public License
+;     along with MC70.  If not, see <http://www.gnu.org/licenses/>.
+; 
 ;
 ;
 ;****************************************************************************
@@ -64,7 +80,7 @@
 eep_rand_read
                 pshx                    ; X sichern
 
-                inc  irq_wd_reset       ; I2C Zugriff, kein Watchdog Reset im IRQ
+                inc  bus_busy       ; I2C Zugriff, kein Watchdog Reset im IRQ
                 inc  tasksw_en          ; Keine Taskswitches während Schreibzugriff
 
                 jsr  i2c_start          ; Start Condition senden
@@ -79,7 +95,6 @@ eep_rand_read
                 tsta
                 pulb                    ; Byteadresse wiederholen
                 bne  err_error1         ; Fehler aufgetreten, abbrechen
-
                 jsr  i2c_tx             ; Byte Adresse senden
                 jsr  i2c_tstack         ; ACK testen
                 tsta
@@ -100,7 +115,7 @@ err_no_stop
                 clra                    ; Kein Fehler aufgetreten
                                         ; Datenbyte in B
 err_end
-                dec  irq_wd_reset       ; I2C Zugriff beendet, Watchdig Reset wieder über Timer IRQ
+                dec  bus_busy       ; I2C Zugriff beendet, Watchdig Reset wieder über Timer IRQ
                 dec  tasksw_en          ; Keine Taskswitches während Schreibzugriff
 
                 ins
@@ -128,13 +143,16 @@ err_error2
 ; Ergebnis : B - gelesenes Byte
 ;            A - Status: 0 - OK
 ;                        3 - Kein ACK nach Device/Pageadresse
+;                        5 - Power Failure
 ;
 eep_read
+               ldab Port5_Data
+               andb #2                  ; check power fail input
+               bne  epr_err5            ; don't start read access if power is failing NOW
+
                 pshx
-
-                inc  irq_wd_reset       ; I2C Zugriff, kein Watchdog Reset
+                inc  bus_busy       ; I2C Zugriff, kein Watchdog Reset
                 inc  tasksw_en          ; Keine Taskswitches während Schreibzugriff
-
                 jsr  i2c_start          ; Start Condition senden
                 psha                    ; Device & Pageadresse sichern
                 lsla                    ; Adresse ein Bit nach links schieben
@@ -156,7 +174,7 @@ eep_read
 epr_no_stop
                 ldaa #0                 ; kein Fehler
 epr_end
-                dec  irq_wd_reset       ; WD Reset über IRQ wieder zulassen
+                dec  bus_busy       ; WD Reset über IRQ wieder zulassen
                 dec  tasksw_en          ; Keine Taskswitches während Schreibzugriff
                 ins
                 pulx
@@ -164,6 +182,9 @@ epr_end
 epr_error
                 ldaa #3                 ; Fehler aufgetreten
                 bra  epr_end
+epr_err5
+                ldaa #5                 ; Fehler aufgetreten
+                rts
 ;******************************
 ; E E P   S E Q   R E A D
 ;******************************
@@ -195,10 +216,14 @@ eep_seq_read
                 pshx                    ; Bytecount sichern
                 pshb                    ; Startadresse sichern
                 psha                    ; Device & Pageadresse sichern
-
                 ldx  #0                 ; Bytecounter auf 0 initialisieren
                 pshx                    ; und speichern
-                inc  irq_wd_reset
+
+               ldaa Port5_Data
+               anda #2                  ; check power fail input
+               bne  esr_err5            ; don't start read access if power is failing NOW
+
+                inc  bus_busy
                 inc  tasksw_en          ; Keine Taskswitches während Schreibzugriff
 esr_page_read
                 tsx
@@ -263,10 +288,12 @@ esr_end
                 ins
                 ins
                 ins                     ; Stack bereinigen
-                dec  irq_wd_reset       ; WD Reset über IRQ wieder zulassen
+                dec  bus_busy       ; WD Reset über IRQ wieder zulassen
                 dec  tasksw_en          ; Keine Taskswitches während Schreibzugriff
                 rts
-
+esr_err5
+                ldaa #5
+                bra  esr_end
 ;*****************************
 ; E E P   W R I T E
 ;*****************************
@@ -282,10 +309,13 @@ esr_end
 ;                        2 - Kein ACK nach Byteadresse
 ;                        3 - Kein ACK nach Datenbyte
 ;                        4 - Timeout beim ACK Polling nach Schreibvorgang
-;
+;                        5 - Power Fail
 ;
 eep_write
-                inc  irq_wd_reset       ; I2C Zugriff, kein Watchdog Reset
+               ldaa Port5_Data
+               anda #2                  ; check power fail input
+               bne  epw_err5            ; don't start write access if power is failing NOW
+                inc  bus_busy           ; I2C Zugriff, kein Watchdog Reset
                 inc  tasksw_en          ; Keine Taskswitches während Schreibzugriff
                 pshb
                 pshx
@@ -317,7 +347,7 @@ eep_write
                 jsr  i2c_stop           ; Kein Fehler -> STOP Condition senden
 
                 ldab #11
-                stab gp_timer           ; maximal 11ms warten
+                stab ui_timer           ; maximal 11ms warten
                 tsx
 epw_ack_poll
                 jsr  i2c_start
@@ -326,7 +356,7 @@ epw_ack_poll
                 jsr  i2c_tstack
                 tsta
                 beq  epw_end            ; ACK empfangen, Byte erfolgreich geschrieben
-                ldaa gp_timer
+                ldaa ui_timer
                 bne  epw_ack_poll       ; maximal 11ms warten
                 ldaa #4                 ; Timeout
 epw_end
@@ -335,7 +365,8 @@ epw_end
                 pulx                    ; X zurückholen
                 pulb
                 dec  tasksw_en          ; Taskswitches wieder erlauben
-                dec  irq_wd_reset       ; WD Reset über IRQ wieder zulassen
+                dec  bus_busy       ; WD Reset über IRQ wieder zulassen
+epw_exit
                 rts
 epw_err1
                 ldaa #1
@@ -346,6 +377,9 @@ epw_err2
 epw_err3
                 ldaa #3
                 bra  epw_end
+epw_err5
+                ldaa #5
+                rts
 
 ;***************************
 ; E E P   W R I T E   S E Q
@@ -364,10 +398,10 @@ epw_err3
 ;                        2 - Kein ACK nach Byteadresse
 ;                        3 - Kein ACK nach Datenbyte
 ;                        4 - Timeout beim ACK Polling nach Schreibvorgang
-;
+;                        5 - Power Failure
 ;
 eep_write_seq
-                inc  irq_wd_reset       ; I2C Zugriff, kein Watchdog Reset
+                inc  bus_busy       ; I2C Zugriff, kein Watchdog Reset
                 inc  tasksw_en          ; Keine Taskswitches während Schreibzugriff
                 pshb
                 pshx
@@ -398,7 +432,7 @@ ews_loop
 ews_end
                 pulx                   ; X wiederherstellen
                 pulb                   ; B wiederherstellen
-                dec  irq_wd_reset       ; I2C Zugriff, Watchdog Reset wieder zulassen
+                dec  bus_busy       ; I2C Zugriff, Watchdog Reset wieder zulassen
                 dec  tasksw_en          ; Keine Taskswitches während Schreibzugriff
                 rts
 
@@ -579,3 +613,105 @@ ewc_write_err
                 bra  ewc_end
 
 
+;******************************
+; E E P   S E Q   V E R I F Y
+;******************************
+;
+; Vergleicht den Inhalt in EEPROM(s) und RAM ab den gegebenen Adressen
+;
+;
+; Parameter: A - Device&Page Adresse (3 Bit)
+;            B - Startadresse
+;            X - Bytecount
+;            STACK - Datenadresse (im RAM)
+;
+; Ergebnis : A - Status: 0 - OK
+;                        1 - Kein ACK nach Device/Pageadresse
+;                           (kein EEPROM mit der Adresse vorhanden?)
+;                        2 - Kein ACK nach Byteadresse
+;                        3 - Kein ACK nach Device/Pageadresse in "eep_current_read"
+;
+;            X - Zahl der geprüften Bytes
+;
+;
+eep_seq_verify
+                pshx                    ; Bytecount sichern
+                pshb                    ; Startadresse sichern
+                psha                    ; Device & Pageadresse sichern
+
+                ldx  #0                 ; Bytecounter auf 0 initialisieren
+                pshx                    ; und speichern
+                inc  bus_busy
+                inc  tasksw_en          ; Keine Taskswitches während Schreibzugriff
+esv_page_read
+                tsx
+                ldaa 2,x                ; Device & Pageadresse und
+                oraa #$80               ; Keine STOP Condition von eep_rand_read senden lassen
+                ldab 3,x                ; Byteadresse wiederholen
+                jsr  eep_rand_read      ; SEQ Read mit Random Read an Startadresse beginnen
+                tsta                    ; Fehler aufgetreten?
+                bne  esv_end            ; dann hier abbrechen
+                tsx
+                ldx  8,x                ; Zieladresse holen
+                cmpb 0,x                ; Byte prüfen
+                bne  esv_error          ; Abbrechen bei Fehler
+                inx                     ; Zieladresse++
+                xgdx                    ; Zialadresse nach D
+                tsx
+                std  8,x                ; Zieladresse wieder speichern
+                pulx
+                inx                     ; geprüfte_Bytes++
+                pshx
+                tsx
+                ldx  4,x                ; Bytecount holen
+                dex                     ; Bytecount--
+                beq  esv_read_ok        ; letztes Byte kopiert? Dann zum Ende springen
+                xgdx
+                tsx
+                std  4,x                ; Bytecount sichern
+                inc  3,x                ; Byteadresse++
+                beq  esv_new_page       ; Page Ende erreicht? Dann neue Device&Pageadresse berechnen
+
+esv_sr_loop                             ; hier beginnt der eigentliche Sequential Read
+                jsr  i2c_ack            ; ACK senden
+                jsr  i2c_rx             ; Byte vom I2C Bus lesen
+                tsx
+                ldx  8,x                ; Zieladresse holen
+                cmpb 0,x                ; Byte prüfen
+                bne  esv_error          ; Abbrechen bei Fehler
+                inx                     ; Zieladresse++
+                xgdx                    ;
+                tsx
+                std  8,x                ; Zieladresse wieder speichern
+                pulx
+                inx                     ; geprüfte_Bytes++
+                pshx
+                tsx
+                ldx  4,x                ; Bytecount holen
+                dex                     ; Bytecount--
+                beq  esv_read_ok        ; letztes Byte geprüft? Dann zum Ende springen
+                xgdx
+                tsx
+                std  4,x                ; Bytecount sichern
+                inc  3,x                ; Byteadresse++
+                bne  esv_sr_loop        ; Page Ende noch nicht erreicht? Dann weitermachen
+esv_new_page
+                jsr  i2c_stop           ; STOP Condition senden
+                inc  2,x                ; Device & Pageadresse erhöhen
+                bra  esv_page_read
+esv_read_ok
+                clra                    ; keine Fehler aufgetreten
+                jsr  i2c_stop           ; STOP Condition senden
+esv_end
+                pulx                    ; Zahl der gelesenen Bytes holen
+                ins
+                ins
+                ins
+                ins                     ; Stack bereinigen
+                dec  bus_busy           ; WD Reset wieder zulassen
+                dec  tasksw_en          ; Taskswitches wieder zulassen
+                rts
+esv_error
+                ldaa #4                 ; Verify Error
+                jsr  i2c_stop           ; STOP Condition senden
+                bra  esv_end

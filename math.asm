@@ -1,9 +1,25 @@
 ;****************************************************************************
 ;
-;    MC 70    v1.0.6 - Firmware for Motorola mc micro trunking radio
-;                      for use as an Amateur-Radio transceiver
+;    MC70 - Firmware for the Motorola MC micro trunking radio
+;           to use it as an Amateur-Radio transceiver
 ;
-;    Copyright (C) 2004 - 2010  Felix Erckenbrecht, DG1YFE
+;    Copyright (C) 2004 - 2011  Felix Erckenbrecht, DG1YFE
+;
+;     This file is part of MC70.
+;
+;     MC70 is free software: you can redistribute it and/or modify
+;     it under the terms of the GNU General Public License as published by
+;     the Free Software Foundation, either version 3 of the License, or
+;     (at your option) any later version.
+; 
+;     MC70 is distributed in the hope that it will be useful,
+;     but WITHOUT ANY WARRANTY; without even the implied warranty of
+;     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;     GNU General Public License for more details.
+; 
+;     You should have received a copy of the GNU General Public License
+;     along with MC70.  If not, see <http://www.gnu.org/licenses/>.
+; 
 ;
 ;
 ;****************************************************************************
@@ -13,7 +29,7 @@
 ;
 ; mathematische Funktionen, die nicht direkt von der CPU zur Verfügung gestellt werden
 ;
-; last change : 02/2009
+; last change : 04/2011
 ;
 ;***********************
 ; DIVIDE:
@@ -98,6 +114,8 @@
 ;
 ; changed Regs: A,B,X
 ;
+; required Stack Space : 10 Byte
+;
 divide
                pshb
                psha                        ; Dividend speichern
@@ -154,6 +172,8 @@ divide_cont
 ;
 ;
 ; changed Regs: A,B,X
+;
+; required Stack Space : 10 Byte
 ;
 divide32
                tsx
@@ -223,7 +243,7 @@ divide32_cont
 ;************************
 ; Parameter:
 ;           D     Divisor  (16Bit)
-;           Stack *Dividend(16Bit)
+;           Stack *Dividend(32Bit)
 ; Ergebnis:
 ;           Mem   Quotient (32Bit)
 ;           D Quotient-lo  (16Bit)
@@ -231,6 +251,8 @@ divide32_cont
 ;
 ;
 ; changed Regs: A,B,X
+;
+; required Stack Space : 10 Byte
 ;
 divide32s
                tsx
@@ -316,6 +338,8 @@ divide32s_cont
 ;
 ;
 ; changed Regs: A,B,X
+;
+; required Stack Space : 10 Byte
 ;
 divide3232
                tsx
@@ -437,6 +461,7 @@ div3232_cont
 ;
 ; changed Regs: A,B,X
 ;
+; required Stack Space : 10 Byte
 ;
 multiply
                pshb                 ; Faktor 1 LoByte auf Stack
@@ -496,6 +521,9 @@ multiply_end
 ;           Stack Produkt(32Bit)
 ;
 ; changed Regs: A,B,X
+;
+; required Stack Space : 10 Byte
+;
 multiply32
 ;        a4  a3  a2  a1 *b4  b3  b2  b1
 ;   ------------------------------------
@@ -627,6 +655,8 @@ exp10          ; Tabelle um 10 zu potenzieren - 32Bit Einträge
 ;
 ; changed Regs: A,B,X
 ;
+; required Stack Space : 4 Byte
+;
 add32
                pshx                 ; HiWord des 1. Summanden sichern
                tsx                  ; Stackpointer nach X
@@ -643,6 +673,43 @@ add32
                staa 4,x             ; HiWord/HiByte speichern
 
                rts
+;*************
+; A D D 3 2 S
+;*************
+; Parameter:
+;           X     *Summand (32Bit)
+;           Stack  Summand (32Bit)
+; Ergebnis:
+;           X     *Summe   (32Bit)
+;
+; changed Regs: A,B
+;
+; changed Mem : X
+;
+; required Stack Space : 4 Byte
+;
+; 4 - Summand2
+; 2 - *Return
+; 0 - *Summand1
+add32s
+               pshx                 ; Pointer auf 1. Summanden sichern
+               ldd  2,x             ; LoWord/1. Summand
+               tsx                  ; Stackpointer nach X
+               addd 6,x             ; LoWord / 1.Summand + LoWord / 2.Summand
+               ldx  0,x             ; Pointer auf 1. Summanden holen
+               std  2,x             ; LoWord speichern
+               ldd  0,x             ; HiWord 1. Summand holen
+               tsx
+               adcb 5,x             ; + HiWord/LoByte 2. Summand
+               ldx  0,x             ; Pointer auf 1. Summanden holen
+               stab 1,x             ; HiWord/LoByte speichern
+               tsx
+                                    ; HiWord/HiByte 1. Summand
+               adca 4,x             ; + HiWord/HiByte 2. Summand
+               ldx  0,x             ; Pointer auf 1. Summanden holen
+               staa 0,x             ; HiWord/HiByte speichern
+               pulx
+               rts
 
 ;***********
 ; S U B 3 2
@@ -652,6 +719,8 @@ add32
 ;           X:D   Subtrahend (32Bit)
 ; Ergebnis:
 ;           Stack Differenz  (32Bit)
+;
+; required Stack Space : 6 Byte
 ;
 sub32
                pshb
@@ -675,35 +744,125 @@ sub32
                pulb
                rts
 
+;*************
+; S U B 3 2 S
+;*************
+; Parameter:
+;           X     *Minuend   (32Bit)
+;           Stack Subtrahend (32Bit)
+; Ergebnis:
+;           X     *Differenz (32Bit)
+;
+; required Stack Space : 4 Byte
+;
+; 4 - Subtrahend2
+; 2 - *Return
+; 0 - *Minuend1
+sub32s
+               pshx                 ; Pointer auf Minuenden sichern
+               ldd  2,x             ; LoWord/Minuend
+               tsx                  ; Stackpointer nach X
+               subd 6,x             ; LoWord / Minuend - LoWord / Subtrahend
+               ldx  0,x             ; Pointer auf Minuend/Differenz holen
+               std  2,x             ; LoWord speichern
+               ldd  0,x             ; HiWord Minuend holen
+               tsx
+               sbcb 5,x             ; - HiWord/LoByte Subtrahend
+               ldx  0,x             ; Pointer auf Minuend/Differenz holen
+               stab 1,x             ; HiWord/LoByte speichern
+               tsx
+                                    ; HiWord/HiByte Minuend
+               sbca 4,x             ; - HiWord/HiByte Subtrahend
+               ldx  0,x             ; Pointer auf Minuend/Differenz holen
+               staa 0,x             ; HiWord/HiByte speichern
+               pulx
+               rts
 ;*******************
 ; S I G   I N V 3 2
 ;*******************
 ;
-; Vorzeichenumkehr
+; Vorzeichenumkehr / Two's complement
 ;
 ; Parameter:
 ;           X:D   Zahl  (32Bit)
 ; Ergebnis:
 ;           Not(Zahl)+1 (Vorzeichenumkehr)
 ;
+; required Stack Space : 7 Byte
+;
 sig_inv32
+               pshx
                coma
                comb                 ; LoWord invertieren
+               addd #1              ; add 1
                xgdx
-               pshx                 ; und auf Stack schieben
-               coma
-               comb                 ; HiWord invertieren
-               xgdx
-               pshx                 ; und auf Stack schieben
-               ldd  #1
-               ldx  #0              ; 1 addieren
-               jsr  add32
-               pulx
+               pshx
+               tpa
+               psha                 ; save Status
+               tsx
+               ldab 4,x             ; get 3rd Byte
+               comb                 ; invert it
+               pula
+               tap                  ; Get status (Carry) back
+               adcb #0              ; add carry
+               tpa
+               psha                 ; save status
+               stab 4,x             ; save 3rd byte
+               ldab 3,x             ; get 4th byte
+               comb                 ; invert it
+               pula
+               tap
+               adcb #0              ; add carry
+               stab 3,x             ; save 4th byte
+
                pula                 ; Ergebnis holen
                pulb
+               pulx
 
                rts
+;*********************
+; S I G   I N V 3 2 S
+;*********************
+;
+; Vorzeichenumkehr
+;
+; Parameter:
+;           X   Pointer to int32_t
+; Ergebnis:
+;           -1*(*X)
+;
+; changed Regs: A,B
+;
+; changed Mem : *X
+;
+; required Stack Space : 5 Byte
+;
+sig_inv32s
+               pshx
+               ldd  2,x
+               coma
+               comb                 ; LoWord invertieren
+               addd #1              ; add #1
+               std  2,x
+               tpa
+               psha                 ; save Status
+               ldab 1,x             ; get 3rd Byte
+               comb                 ; invert it
+               pula
+               tap                  ; Get status (Carry) back
+               adcb #0              ; add carry
+               tpa
+               psha                 ; save status
+               stab 1,x             ; save 3rd byte
+               ldab 0,x             ; get 4th byte
+               comb                 ; invert it
+               pula
+               tap
+               adcb #0              ; add carry
+               stab 0,x             ; save 4th byte
 
+               pulx                 ; get x back
+               rts
 ;************
 ; R A I S E
 ;************
@@ -714,6 +873,7 @@ sig_inv32
 ;
 ; Ergebnis:  B - Potenz (Bereich 1 - 128, 2^0 - 2^7 )
 ;
+; required Stack Space : 3 Byte
 ;
 raise
                psha
@@ -728,3 +888,55 @@ rse_loop
                tab
                pula
                rts
+;*************
+; S I N
+;*************
+;
+; Liefert 127*sin(x)
+;
+; Parameter: B - argument ( B= angle[rad]/pi * 32 or B= angle[deg]/360 * 64)
+;
+; Ergebnis : B - 127*sin(x)
+;
+sin
+               psha                    ;+2  2
+               pshx                    ;+3  5
+               andb #63                ;+2  7  Argument >63 -> Argument-64
+               ldx  #sin_tab           ;+3 10
+               abx                     ;+1 11
+               ldab 0,x                ;+4 15  Tabelleneintrag holen
+sin_end
+               pulx                    ;+4 19
+               pulb                    ;+3 22
+               rts                     ;+5 27
+
+sin_tab
+               .db 134,147,159,171,183,194,204,214,222,230,237,243,248,252,254,255
+               .db 255,254,252,248,243,237,230,222,214,204,194,183,171,159,147,134
+               .db 122,109,97,85,73,62,52,42,34,26,19,13,8,4,2,1
+               .db 1,2,4,8,13,19,26,34,42,52,62,73,85,97,109,122
+sin_tab32      ;    1  2  3  4  5  6  7  8  9 10 11 12 13 14 15  0
+               .db 16,17,19,20,22,23,24,26,27,28,29,30,30,31,31,31
+               .db 31,31,31,31,30,30,29,28,27,26,24,23,22,20,19,17
+               .db 16,14,13,11,10, 8, 7, 6, 5, 4, 3, 2, 1, 1, 0, 0
+               .db  0, 0, 0, 1, 1, 2, 3, 4, 5, 6, 7, 8,10,11,13,14
+sin_tab8       ;    1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16
+               .db  3, 4, 4, 4, 5, 5, 5, 6, 6, 7, 7, 7, 7, 7, 7, 7
+               .db  7, 7, 7, 7, 7, 7, 7, 7, 6, 6, 5, 5, 5, 4, 4, 4
+               .db  3, 3, 3, 2, 2, 2, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0
+               .db  0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 2, 2, 2, 3, 3
+sin_tab8l      ;    1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16
+               .db  3, 3, 4, 4, 4, 4, 4, 5, 5, 5, 5, 5, 5, 6, 6, 6
+               .db  6, 6, 6, 6, 5, 5, 5, 5, 5, 5, 4, 4, 4, 4, 4, 3
+               .db  3, 3, 3, 3, 2, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1, 1
+               .db  1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 3, 3, 3
+rect_tab8
+               .db  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+               .db  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+               .db  7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7
+               .db  7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7
+saw_tab32
+               .db  0, 1, 2, 3, 4, 5, 6, 7, 8, 9,10,11,12,13,14,15
+               .db 16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31
+               .db  0, 0, 0, 0, 0, 0, 0,16, 4, 4, 4, 4, 5, 5, 5,16
+               .db  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 8

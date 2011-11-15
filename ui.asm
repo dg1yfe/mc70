@@ -1,9 +1,25 @@
 ;****************************************************************************
 ;
-;    MC 70    v1.0.4a - Firmware for Motorola MC micro trunking radio
-;                       to use it as an Amateur-Radio transceiver
+;    MC70 - Firmware for the Motorola MC micro trunking radio
+;           to use it as an Amateur-Radio transceiver
 ;
-;    Copyright (C) 2004 - 2007  Felix Erckenbrecht, DG1YFE
+;    Copyright (C) 2004 - 2011  Felix Erckenbrecht, DG1YFE
+;
+;     This file is part of MC70.
+;
+;     MC70 is free software: you can redistribute it and/or modify
+;     it under the terms of the GNU General Public License as published by
+;     the Free Software Foundation, either version 3 of the License, or
+;     (at your option) any later version.
+; 
+;     MC70 is distributed in the hope that it will be useful,
+;     but WITHOUT ANY WARRANTY; without even the implied warranty of
+;     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;     GNU General Public License for more details.
+; 
+;     You should have received a copy of the GNU General Public License
+;     along with MC70.  If not, see <http://www.gnu.org/licenses/>.
+; 
 ;
 ;
 ;****************************************************************************
@@ -67,10 +83,7 @@ ui_start
 ;
 ;
 ui
-                ldaa #'1'                   ; LCD inkl. LEDs löschen
-                jsr  lcd_clr
-
-;                bra  no_intro
+                bra  no_intro
 
                 PRINTF(dg1yfe_str)
                 jsr  lcd_fill
@@ -91,30 +104,40 @@ ui
 no_intro
                 ldx  #frequency
                 jsr  freq_print             ; Frequenz anzeigen
+                WAIT(150)
+                clra
+;                jsr  lcd_clr
 
                 jsr  freq_offset_print      ; Frequenz anzeigen
+
+                ldab #1
+                jsr  pll_led                ; PLL Lock Status auf rote LED ausgeben
 
                 jsr  menu_init
 ui_loop                                     ; komplette Display Kommunikation
                 jsr  menu                   ; Menü für Frequenzeingabe etc.
-                jsr  sci_trans_cmd          ; Eingabe prüfen und ggf. in Menü Puffer legen
-                jsr  pll_led                ; PLL Lock Status auf rote LED ausgeben
-                jsr  led_update             ; LED Puffer lesen und ggf LEDs neu setzen
+#define UI_UPD_LOOP jsr  sci_trans_cmd          ; Eingabe prüfen und ggf. in Menü Puffer legen
+#defcont \ clra   
+                                            ; PLL Lock Status auf rote LED ausgeben
+#defcont \ jsr  pll_led
+#defcont \ jsr  led_update                  ; LED Puffer lesen und ggf LEDs neu setzen
+
+                UI_UPD_LOOP
 
                 swi
                 jmp  ui_loop
 
 
-
 ;*******************************************
-qrg
-                .db "QRG?",0
+test_str
+;                .db "x30 Z",0
+                .db "X%+04iZ",0
 dg1yfe_str
                 .db "DG1YFE",0
 mc70_str
                 .db "MC 70",0
 ver_str
-                .db "1.0.5",0
+                .db "11 01",0
 rom_init_str
                 .db "ROM INIT",0
 ram_err_str

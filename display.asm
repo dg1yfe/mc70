@@ -1,10 +1,25 @@
 ;****************************************************************************
 ;
-;    MC2_E9   v1.0   - Firmware for Motorola mc micro trunking radio
-;                      for use as an Amateur-Radio transceiver
+;    MC70 - Firmware for the Motorola MC micro trunking radio
+;           to use it as an Amateur-Radio transceiver
 ;
-;    Copyright (C) 2004 - 2009  Felix Erckenbrecht, DG1YFE
+;    Copyright (C) 2004 - 2011  Felix Erckenbrecht, DG1YFE
 ;
+;     This file is part of MC70.
+;
+;     MC70 is free software: you can redistribute it and/or modify
+;     it under the terms of the GNU General Public License as published by
+;     the Free Software Foundation, either version 3 of the License, or
+;     (at your option) any later version.
+; 
+;     MC70 is distributed in the hope that it will be useful,
+;     but WITHOUT ANY WARRANTY; without even the implied warranty of
+;     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;     GNU General Public License for more details.
+; 
+;     You should have received a copy of the GNU General Public License
+;     along with MC70.  If not, see <http://www.gnu.org/licenses/>.
+; 
 ;
 ;
 ;****************************************************************************
@@ -34,12 +49,12 @@ lcd_h_reset
                 pshb
                 psha
 
-                ldaa  #%11111111
-                ldab  #%100
+                ldaa  #-1
+                ldab  #SR_LCDRESET
                 jsr   send2shift_reg ; LCD Reset Leitung auf High (=Reset)
-
-                ldaa  #%11111011
-                ldab  #0
+                WAIT(1)
+                ldaa  #~SR_LCDRESET
+                clrb
                 jsr   send2shift_reg ; und wieder low
 
                 pula
@@ -56,41 +71,56 @@ lcd_h_reset
 ;              1 = Timeout / No Display detected
 ;
 lcd_s_reset
-               ldd  #0
-               std  lcd_timer
+               clr  lcd_timer
+
+               clrb
+               jsr  sci_tx
+
+               sei
+               clr  io_inbuf_w
+               clr  io_inbuf_r
+               cli
+
+               WAIT(80)
+
                ldd  tick_hms
-               addd #20              ; 2 Sek Timeout
+               addd #20               ; 2 Sek Timeout
                xgdx
 lcs_wait_res
-               pshx
-               jsr  sci_rx
+		       pshx
+               jsr  check_inbuf        ; get number of bytes in inbuf
                pulx
-               tsta
-               bne  lcs_wait_count
-               cmpb #$7E               ; Reset Poll Char?
-               beq  lcs_disp_resp      ;
+		       tsta
+		       beq  lcs_wait_count     ; if zero, loop until time's up
+		       pshx
+		       psha
+               jsr  sci_read           ; read char from inbuf
+               pula
+               pulx
+		       deca
+		       beq  lcs_chk            ; if there was only one byte left, respond
+               bra  lcs_wait_count     ; loop until time is up
+lcs_chk
+               cmpb #$7E               ; Reset Poll Char received?
+               beq  lcs_disp_resp      ; Yes - then respond
 lcs_wait_count
-               cpx  tick_hms
-               bne  lcs_wait_res       ; Nein, dann nochmal
-               ldab #1                 ; Display antwortet nicht innerhalb ca 1 s
-               bra  lcs_nodisp         ; Annehmen, dass kein Display vorhanden ist (nur loopback)
+               cpx  tick_hms           ; check if time is up?
+               bne  lcs_wait_res       ; if not, loop another time
+               ldaa #1                 ; Display antwortet nicht innerhalb des Timeouts
+               ldab #$7F
+               jsr  sci_tx
+               rts                     ; Annehmen, dass kein Display vorhanden ist (nur loopback)
 lcs_disp_resp
                ldab #$7E               ; respond to reset message
                jsr  sci_tx             ; by sending it back
-               clrb
-lcs_nodisp
-               pshb
-               sei
-               ldab io_inbuf_w
-               stab io_inbuf_r
-               cli
 
-               ldx  #LCDDELAY*4
-               stx  lcd_timer
+               WAIT(100)
+               ldaa #LCDDELAY*4
+               staa lcd_timer
                ldaa #1
                jsr  lcd_clr            ; LEDs, LCD und Display Buffer löschen
 
-               pula
+               clra
                rts
 
 ;*******************
@@ -218,25 +248,6 @@ restore_loop
                 jsr  lcd_cpos
                 rts
 
-;*****************
-; L C D   S E N D
-;*****************
-;
-;  Parameter :
-;
-lcd_send
-                pshb
-lcs_retrans
-                jsr  sci_tx_w    ; Ansonsten Echo
-                jsr  sci_rx
-                tsta
-                bne  lcs_retrans
-
-lcs_end
-                pula
-                pulb
-                rts
-
 ;**********************************
 ; L C D   T I M E R   R E S E T
 ;**********************************
@@ -244,10 +255,10 @@ lcs_end
 ;  Parameter :
 ;
 lcd_timer_reset
-                pshx
-                ldx  #LCDDELAY
-                stx  lcd_timer
-                pulx
+                psha
+                ldaa #LCDDELAY
+                staa lcd_timer
+                pula
                 rts
 ;******************
 ; L C D   C P O S
@@ -321,6 +332,8 @@ lcf_end
 ; L E D   S E T
 ;****************
 ;
+; CONTROL TASK -> UI TASK
+;
 ; Setzt Bits in LED Buffer entsprechend Parameter
 ; Der Buffer wird zyklisch im UI Task abgefragt und eine Änderung
 ; an das Display ausgegeben.
@@ -329,15 +342,15 @@ lcf_end
 ;          dargestellt werden
 ;
 ;
-; Parameter : B - LED + Status (RED_LED/YEL_LED/GRN_LED + OFF/ON/BLINK/INVERT)
+; Parameter : B - LED + Status (RED_LED/YEL_LED/GRN_LED + LED_OFF/LED_ON/LED_BLINK/LED_INVERT)
 ;
-;                 RED_LED $33 - 00110011
-;                 YEL_LED $31 - 00110001
-;                 GRN_LED $32 - 00110010
-;                 OFF       0 - 00000000
-;                 ON        4 - 00000100
-;                 BLINK     8 - 00001000
-;                 INVERT  128 - 10000000
+;                 RED_LED    $33 - 00110011
+;                 YEL_LED    $31 - 00110001
+;                 GRN_LED    $32 - 00110010
+;                 LED_OFF      0 - 00000000
+;                 LED_ON       4 - 00000100
+;                 LED_BLINK    8 - 00001000
+;                 LED_INVERT 128 - 10000000
 ;
 ;
 ; Returns : nothing
@@ -612,5 +625,50 @@ aws_end
                 pula
                 pulx
                 rts
+;*************************
+; L C D   C H R   M O D E
+;*************************
+;
+; Parameter : B - Position  (0-7)
+;             A - Solid/Blink
+;                 0 = Solid,
+;                 1 = Blink
+;
+; Returns : nothing
+;
+; required Stack Space : 6+Subroutines
+;
+;
+lcd_chr_mode
+               pshx
+               psha
+               pshb
+               cmpb #8                      ; Only 8 characters
+               bcc  lcm_end                 ; if Pos >= 8, ignore
 
+               tsta                         ; check if mode Parameter is 0 / solid
+               beq  lcm_read_buf
+               ldaa #CHR_BLINK              ; if not, load mode bit "blinking"
+lcm_read_buf
+               ldx  #dbuf                   ; Get dbuf base address
+               abx                          ; add char position
+               ldab 0,x
+               andb #CHR_BLINK              ; check if char is blinking
+               aba                          ; add current status and new status (XOR)
+               beq  lcm_end                 ; zero indicates, that state is already correct,
+                                            ; no action required
+
+               pulb
+               pshb                         ; get position from stack
+               jsr  lcd_cpos                ; set cursor to position
+
+               ldab 0,x
+               eorb #CHR_BLINK
+               ldaa #'c'
+               jsr  putchar                 ; print char in different mode
+lcm_end
+               pulb                         ; restore registers
+               pula
+               pulx
+               rts                          ; return
 

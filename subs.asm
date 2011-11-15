@@ -1,10 +1,25 @@
 ;****************************************************************************
 ;
-;    MC 70    v1.0.1 - Firmware for Motorola mc micro trunking radio
-;                      for use as an Amateur-Radio transceiver
+;    MC70 - Firmware for the Motorola MC micro trunking radio
+;           to use it as an Amateur-Radio transceiver
 ;
-;    Copyright (C) 2004 - 2009  Felix Erckenbrecht, DG1YFE
+;    Copyright (C) 2004 - 2011  Felix Erckenbrecht, DG1YFE
 ;
+;     This file is part of MC70.
+;
+;     MC70 is free software: you can redistribute it and/or modify
+;     it under the terms of the GNU General Public License as published by
+;     the Free Software Foundation, either version 3 of the License, or
+;     (at your option) any later version.
+; 
+;     MC70 is distributed in the hope that it will be useful,
+;     but WITHOUT ANY WARRANTY; without even the implied warranty of
+;     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;     GNU General Public License for more details.
+; 
+;     You should have received a copy of the GNU General Public License
+;     along with MC70.  If not, see <http://www.gnu.org/licenses/>.
+; 
 ;
 ;
 ;****************************************************************************
@@ -29,38 +44,31 @@
 ; W A T C H D O G   T O G G L E
 ;********************************
 watchdog_toggle
-                ldab Port2_DDR_buf               ; Port2 DDR lesen
-                eorb #%10                        ; Bit 1 invertieren
-                stab Port2_DDR_buf
-                stab Port2_DDR                   ; neuen Status setzen
-                aim  #%11111101,Port2_Data       ;Data auf 0
-                rts
-;************************
-; W A I T _ M S
-;************************
-wait_ms         ; X : Time to wait in ms
-                ; changed Regs: X
-
-                pshb
-                psha
-
-                xgdx                  ; Wartezeit nach D
-                addd tick_ms          ; aktuellen Tickzähler addieren
-                xgdx                  ; wieder nach X
-                bcc  wms_loop2        ; Kein Überlauf bei der Addition? Dann Sprung
-wms_loop1
-                cpx  tick_ms          ; Es gab einen Überlauf - Dann müssen wir warten
-                swi
-                bcs  wms_loop1        ; bis tick_ms auch überläuft
-wms_loop2
-                cpx  tick_ms          ; und dann noch solange bis tick_ms
-                swi
-                bcc  wms_loop2        ; größer ist als unsere Wartezeit
-
-                pula
-                pulb
-                rts
-
+               ldaa Port2_DDR_buf               ; Port2 DDR lesen
+               eora #2
+               staa Port2_DDR_buf
+               staa Port2_DDR                   ; neuen Status setzen
+               aim  #%11111101,Port2_Data       ;Data auf 0
+               rts
+watchdog_toggle_ms
+               ldab tick_ms+1                  ; toggle wd line every ms
+               andb #2                         ; even if called more often
+               ldaa Port2_DDR_buf               ; Port2 DDR lesen
+               anda #%11111101
+               aba
+               staa Port2_DDR_buf
+               staa Port2_DDR                   ; neuen Status setzen
+               aim  #%11111101,Port2_Data       ;Data auf 0
+               rts
+;******************
+; W D   R E S E T
+;******************
+wd_reset
+               tst  bus_busy                    ; währen I2C Zugriff,
+               bne  wd_reset_end                ; keinen Watchdog Reset durchführen
+               bra  watchdog_toggle_ms
+wd_reset_end
+               rts
 
 ;******************************
 ; P T T   G E T   S T A T U S
@@ -76,16 +84,16 @@ wms_loop2
 ptt_get_status
                 ldaa rxtx_state             ; Alten Status holen
 
-                ldab Port6_Data             ; Port6 Data lesen 				  - TODO: PTTPORT Macro einfŸhren 
-                andb #%10000000             ; alles ausser PTT Bit ausblenden - TODO: PTTBIT Macro einfŸhren
+                ldab PTTPORT                ; Port6 Data lesen 				  - TODO: PTTPORT Macro einfŸhren
+                andb #PTTBIT                ; alles ausser PTT Bit ausblenden - TODO: PTTBIT Macro einfŸhren
                 bne  ptc_on                 ;
                 clrb
                 bra  ptc_end
 ptc_on
                 ldab #1
 ptc_end
-
                 orab ui_ptt_req             ; Senderequest von UI Task?
+                andb #1
                 cba                         ; Mit aktuellen Status vergleichen
                 bne  pgs_change             ; Verzweigen, wenn Status ungleich (PTT gedrückt & RX / PTT frei & TX)
                 clr  ptt_debounce           ; Es hat sich nix geändert, "debounce" auf 0
@@ -113,11 +121,13 @@ pgs_end
 ; aktiviert Empfänger
 ;
 receive
-                ldab #YEL_LED+OFF
+                ldab #YEL_LED+LED_OFF
                 jsr  led_set                ; gelbe LED aus
 
-                ldab #%01000000             ; PA disable
-                ldaa #%11011111             ; Mic disable
+;                ldab #%01000000             ; PA disable
+;                ldaa #%11011111             ; Mic disable
+                ldaa #~SR_MIC                ; disable Mic
+                ldab #SR_nTXPWR              ; disable tx power control
                 jsr  send2shift_reg
 
                 ldab #TX_TO_RX_TIME
@@ -127,8 +137,10 @@ rcv_wait
                 ldab gp_timer
                 bne  rcv_wait               ; Timer schon bei 0 angekommen?
 
-                ldab #%00000000             ;
-                ldaa #%11111110             ; TX/RX Switch auf RX
+;                ldab #%00000000             ;
+;                ldaa #%11111110             ; TX/RX Switch auf RX
+                ldaa #~SR_RFPA               ; Disable RF PA
+                clrb
                 jsr  send2shift_reg
 
                 clrb
@@ -140,10 +152,10 @@ rcv_wait
                 clr  rxtx_state             ; Status auf RX setzen
 
 ;                ldab #%00010000            ; Audio PA enable
-                ldab #%10000000             ; RX Audio enable
-                ldaa #%11111111             ;
+                ldaa #-1
+                ldab #SR_RXAUDIO            ; RX Audio enable
                 jsr  send2shift_reg
-                com  sql_flag               ; Squelch auf jedenfall neu prüfen/setzen lassen
+
                 clr  sql_timer              ; und zwar sofort
 
                 rts
@@ -164,7 +176,7 @@ rcv_wait
 ;
 transmit
 
-                ldab #YEL_LED+ON            ; gelbe LED an
+                ldab #YEL_LED+LED_ON        ; gelbe LED an
                 jsr  led_set
 
                 ldab #1
@@ -173,8 +185,8 @@ transmit
                 ldx  #frequency
                 jsr  set_tx_freq            ; Frequenz setzen
 
-                ldab #%00000001
-                ldaa #%11111111             ; TX/RX Switch auf TX
+                ldaa #-1
+                ldab #SR_RFPA               ; activate rf pa
                 jsr  send2shift_reg
 
                 ldab #RX_TO_TX_TIME
@@ -184,13 +196,16 @@ tnt_wait
                 ldab gp_timer
                 bne  tnt_wait               ; Timer schon bei 0 angekommen?
 
-                ldab #%00100000             ; Mic enable
-                ldaa #%10111111             ; Driver enable
+                ldab #SR_MIC                ; enable Mic Amp
+                ldaa #~SR_nTXPWR            ; enable TX power control loop
+;                ldab #%00100000             ; Mic enable
+;                ldaa #%10111111             ; Driver enable
                 jsr  send2shift_reg
 
-                ldab #%00000000             ;
+                ldaa #~SR_RXAUDIO            ; RX Audio disable
+                clrb
 ;                ldaa #%11101111             ; Audio PA disable
-                ldaa #%01111111             ; RX Audio disable
+;                ldaa #%01111111
                 jsr  send2shift_reg
 
                 ldab #1
@@ -201,7 +216,7 @@ tnt_wait
 ; S Q U E L C H
 ;****************
 ;
-; last change: 6.2.07 / 1.0.0
+; last change: 29.11.2011 / 1.0.6
 ;
 ; Parameter: none
 ;
@@ -216,36 +231,58 @@ tnt_wait
 squelch
                 ldab sql_timer
                 orab rxtx_state            ; Im Sendefall Squelch nicht prüfen
-                bne  cql_end
+                bne  sq_end
 
-                ldab #150                  ; alle 150ms checken
+                ldab #5                    ; alle 5ms checken
                 stab sql_timer
 
-                ldab sql_mode              ; Squelch aktiviert?
-                cmpb #$20
-                beq  sq_audio_on
+                ldab sql_mode
+                beq  sq_audio_on           ; Squelch off -> activate Audio
+sq_check
+                ldaa sql_ctr               ; get squelch counter
 
-                ldab Port5_Data            ; Squelch Input auslesen
-;                andb #%01000000
-                andb sql_mode              ; Carrier Squelch oder RSSI Input wählen
-                cmpb sql_flag              ; mit gespeicherten Werten vergleichen
-                beq  cql_end               ; Keine Änderung -> nichts machen
-                tstb                       ; Signal vorhanden
-                beq  sql_no_sig            ; Wenn nicht, dann springen
+                andb SQPORT                ; Squelch Input auslesen
+                beq  sq_cnt_down           ; Kein Signal vorhanden? Dann springen
+
+                cmpa #SQL_HYST             ; Hysteresis level reached?
+                beq  sq_audio_on           ; yes? then activate audio
+                inca                       ; otherwise increment hysteresis counter
+                staa sql_ctr
+                bra  sq_end
 sq_audio_on
-                stab sql_flag
-                aim  #%11110111, Port5_Data; "Ext Alarm" auf 0
-                ldaa #%01111111
-                ldab #%10000000
+                ldab SR_data_buf
+                andb #SR_RXAUDIO           ; check if audio is already activated
+                bne  sq_end                ; do nothing if it is
+
+                aim  #~SQEXTBIT, SQEXTPORT ; "Ext Alarm" auf 0
+
+                ldaa #-1
+                ldab #SR_RXAUDIO
                 jsr  send2shift_reg        ; RX Audio an
-                bra  cql_end
-sql_no_sig
-                stab sql_flag
-                oim  #%00001000, Port5_Data; "Ext Alarm" auf 1
-                ldaa #%01111111
-                ldab #%00000000
+
+                ldab #YEL_LED+LED_ON
+                jsr  led_set
+                bra  sq_end
+sq_cnt_down
+                tsta                       ; hysteresis counter at zero?
+                beq  sq_audio_off          ; yes? then deactivate audio
+                deca                       ; otherwise decrement (wait a bit longer)
+                staa sql_ctr
+                bra  sq_end
+sq_audio_off
+                ldab SR_data_buf
+                andb #SR_RXAUDIO           ; check if audio is already DEactivated
+                beq  sq_end                ; exit here if it is
+
+                oim  #SQEXTBIT, SQEXTPORT  ; "Ext Alarm" auf 1
+
+                ldaa #~SR_RXAUDIO
+                clrb
                 jsr  send2shift_reg        ; RX Audio aus
-cql_end
+
+                ldab #YEL_LED+LED_OFF
+                jsr  led_set
+sq_end
                 rts
 
 ;**********************
@@ -262,13 +299,16 @@ cql_end
 ; prüft den Ein-/Ausschalter und schaltet das Gerät ggf. aus (CPU in Standby Mode)
 ;
 pwr_sw_chk
-                ldaa Port5_Data
-                anda #%100                 ; SWB+ ?
-                beq  still_on
+                ldaa Port5_Data            ; SWB+ && not power fail?
+                lsra                       ; Ignore emergency bit
+                lsra                       ; Shift power fail bit to carry
+                bcs  psc_no_store          ; Power is failing, dont access EEPROM
+                lsra                       ; Check SWB+
+                bcc  still_on              ; We're still in busines
 
                 tstb                       ; Frequenzeinstellungen
-                bne  psc_no_store          ; speichern?
-;                jsr  store_current        ; derzeit angezeigten Kanal speichern
+                beq  psc_no_store          ; speichern?
+                jsr  store_current         ; derzeit angezeigten Kanal speichern
 psc_no_store
                 ldaa #%01111111
                 ldab #%00000000
@@ -437,45 +477,6 @@ notask
                 ldx  start_task            ; Um Task 2 zu starten, Adresse in 'start_task' schreiben
                 jmp  0,x
 
-;**********************
-; T O N E   S T A R T
-;**********************
-;
-; Startet Ausgabe des 1750 Hz Ruftons
-;
-; Parameter : None
-;
-; Ergebnis : None
-;
-; changed Regs : None
-;
-tone_start
-                ;aim #$fe,tone_index
-                clr  tone_index
-                ldd  FRC
-;                addd #570                  ; ca 3500 mal pro sek Int auslösen (1749,47 Hz)
-                addd #TONE_DPHASE
-                std  OCR2
-                aim  #%11110111, TCSR1     ; OCI1 Int deaktivieren
-                oim  #%00001000, TCSR2     ; OCI2 Interrupt aktivieren
-
-                rts
-
-;********************
-; T O N E   S T O P
-;********************
-;
-;
-;
-; tone_stop
-;                 aim  #%11110111, TCSR2     ;
-;
-;                 ldd  FRC
-;                 addd #1194                 ; in einer ms wieder OCI ausführen
-;                 std  OCR1
-;                 oim  #%00001000, TCSR1     ; Timer compare Interrupt aktivieren
-;                 aim  #%10011111, Port6_Data; Pin auf 0 setzen
-;                 rts
 
 ;*************************
 ; R E A D   E E P   C H
@@ -519,7 +520,7 @@ read_eep_ch
                 ldd  0,x                    ; Kanal holen
                 lsrd
                 lsrd
-                lsrd                        ; Nur obere 12 Bit berücksichtigen
+                lsrd                        ; Nur obere 13 Bit berücksichtigen
 
                 ldx  #1250                  ; Frequenz berechnen
                 jsr  multiply               ; 16 Bit Multiply
@@ -528,7 +529,7 @@ read_eep_ch
                 psha
                 pshx                        ; 32 Bit Ergebnis sichern
 
-                ldd  #FBASE%65536       ; Basisfrequenz (unterste einstellbare Frequenz) holen
+                ldd  #FBASE%65536           ; Basisfrequenz (unterste einstellbare Frequenz) holen
                 ldx  #FBASE>>16
                 jsr  add32                  ; Basisadresse addieren
 
@@ -611,7 +612,7 @@ store_eep_ch
                 ldx  offset
                 pshx
                 ldd  #25000
-                jsr  divide32               ; Shift durch 12500 teilen
+                jsr  divide32               ; Shift durch 25000 teilen
 
                 pulx
                 pulx
@@ -731,14 +732,26 @@ scu_ofs_nonzero
                 ins
                 tsx
                 pshx                        ; Adresse im RAM
+                ldd  #$01FA                 ; Adresse im EEPROM
+                ldx  #3                     ; Anzahl der Bytes
+                jsr  eep_seq_verify         ; Prüfen ob dieser Inhalt bereits im EEPROM steht
+                tsta
+                beq  scu_omit_write         ; falls dem so ist, keinen Schreibzugriff durchführen
+                                            ; andernfalls
+
+                pulx                        ; remove RAM address from Stack (was altered)
+                tsx
+                pshx                        ; set RAM address (data is on Stack)
                 ldx  #$01FA                 ; Adresse im EEPROM $01FA
                 pshx                        ; auf Stack legen
                 ldx  #3                     ; 3 Byte schreiben
                 pshx                        ; auf Stack legen
+
                 jsr  eep_write_seq
 
                 pulx
                 pulx
+scu_omit_write
                 pulx
 
                 pulx
@@ -765,6 +778,94 @@ scu_ofs_nonzero
 read_current
                 pshb
                 pshx                        ; Zieladresse sichern
+
+                pshx
+                pshb                        ; 3 Byte Stackspeicher reservieren
+
+                tsx                         ; Zieladresse = Stackspeicher
+                pshx                        ; Zieladresse auf Stack speichern
+                ldd  #$01FA                 ; EEPROM Adresse $01FA
+                ldx  #3                     ; 3 Bytes lesen
+                jsr  eep_seq_read
+                pulx                        ; Adresse von Stack löschen
+                tsta
+                bne  rcu_end                ; Fehler zurückgeben
+                tsx
+                ldd  0,x                    ; Kanal holen
+                lsrd
+                lsrd
+                lsrd                        ; Nur obere 12 Bit berücksichtigen
+                ldx  #1250                  ; Frequenz berechnen
+                jsr  multiply               ; 16 Bit Multiply
+                pshb
+                psha
+                pshx                        ; 32 Bit Ergebnis sichern
+                ldx  #FBASE>>16
+                ldd  #FBASE%65536
+                jsr  add32                  ; Basisfrequenz addieren
+                tsx
+                ldx  7,x                    ; Zieladresse für Frequenz holen
+                pula
+                pulb
+                std  0,x                    ; HiWord speichern
+                pula
+                pulb
+                std  2,x                    ; LoWord speichern
+                tsx
+                ldd  1,x
+                anda #%00000001             ; Nur 1 Bit vom Highword
+                ldx  #25000
+                jsr  multiply               ; mit 25000 multiplizieren
+
+                pshb
+                psha
+                pshx
+                tsx
+                ldab 5,x
+                andb #%00000010             ; Vorzeichen testen (+/- Shift)
+                beq  rcu_keep_sign
+                pulx
+                pula
+                pulb
+                jsr  sig_inv32              ; Vorzeichen umkehren
+                bra  rcu_store_txshift
+rcu_keep_sign
+                pulx
+                pula
+                pulb
+rcu_store_txshift
+
+                pshx                        ; HiWord sichern
+                tsx
+                ldx  5,x                    ; Zeiger auf Zwischenspeicher holen
+                std  6,x                    ; LoWord vom Offset speichern
+                pula
+                pulb
+                std  4,x                    ; HiWord vom Offset speichern
+
+                tsx
+                ldab 1,x
+                ldx  3,x                    ; Zeiger auf Zwischenspeicher holen
+                andb #%00000100             ; TX Shift aktiviert?
+                bne  rcu_store_offset       ; Ja, dann Shiftwert auch nach "Offset" kopieren
+                ldd  #0
+                std  8,x
+                std  10,x                   ; Offset deaktiviert
+                bra  rcu_end
+rcu_store_offset
+                ldd  6,x                    ; LoWord TxShift holen
+                std  10,x                   ; Im Platz für Offset speichern
+                ldd  4,x                    ; HiWord TXShift holen
+                std  8,x                    ; Im Platz für Offset speichern
+
+                clra
+rcu_end
+                pulb
+                pulx                        ; Stackspeicher freigeben
+
+                pulx
+                pulb
+                rts
 
 ;*************************
 ; C R C   T A B E L L E N

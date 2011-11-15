@@ -1,10 +1,25 @@
 ;****************************************************************************
 ;
-;    MC2_E9   v1.0   - Firmware for Motorola mc micro trunking radio
-;                      for use as an Amateur-Radio transceiver
+;    MC70 - Firmware for the Motorola MC micro trunking radio
+;           to use it as an Amateur-Radio transceiver
 ;
-;    Copyright (C) 2004 - 2009  Felix Erckenbrecht, DG1YFE
+;    Copyright (C) 2004 - 2011  Felix Erckenbrecht, DG1YFE
 ;
+;     This file is part of MC70.
+;
+;     MC70 is free software: you can redistribute it and/or modify
+;     it under the terms of the GNU General Public License as published by
+;     the Free Software Foundation, either version 3 of the License, or
+;     (at your option) any later version.
+; 
+;     MC70 is distributed in the hope that it will be useful,
+;     but WITHOUT ANY WARRANTY; without even the implied warranty of
+;     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;     GNU General Public License for more details.
+; 
+;     You should have received a copy of the GNU General Public License
+;     along with MC70.  If not, see <http://www.gnu.org/licenses/>.
+; 
 ;
 ;
 ;****************************************************************************
@@ -94,7 +109,6 @@ freq_init_eep
                 jsr  read_current        ; Frequenz, TXShift und Offset aus EEPROM lesen
                 tsta                     ; Lesen erfolgreich?
                 beq  ife_ok              ; Ja? Dann alles ok
-ife_fail
                 tsx
                 xgdx
                 addd #12
@@ -103,9 +117,9 @@ ife_fail
                 bra  ife_end             ; Mit Fehlermeldung enden
 ife_ok
                 pulx
-                stx  offset              ; Offset holen
-                pulx
-                stx  offset+2            ; und speichern
+                stx  frequency
+                pulx                     ; Frequenz holen
+                stx  frequency+2         ; und speichern
 
                 pulx
                 stx  txshift
@@ -113,9 +127,10 @@ ife_ok
                 stx  txshift+2           ; Und speichern
 
                 pulx
-                stx  frequency
-                pulx                     ; Frequenz holen
-                stx  frequency+2         ; und speichern
+                stx  offset              ; Offset holen
+                pulx
+                stx  offset+2            ; und speichern
+
                 clra                     ; Alles ok -> A=0
 ife_end
                 rts
@@ -222,31 +237,35 @@ pli_error
 ; Überprüft PLL Lock wenn PLL Timer abgelaufen ist
 ; aktiviert rote LED, wenn PLL nicht eingerastet ist
 ;
-; Parameter    : Keine
+; Parameter    : A : Force (A=1 forces update)
 ;
 ; Ergebnis     : Nichts
 ;
 ; changed Regs : A,B
 ;
 pll_led
-                ldab pll_timer
-                bne  plc_end                 ; PLL check timer abgelaufen? nein, dann Ende
-                ldab #PLLCHKTIMEOUT
-                stab pll_timer
-
-                ldab Port5_Data
-                andb #%01000000
-                tba
-                eorb pll_locked_flag         ; Wenn sich nichts geändert hat (Bit6=0)
-                beq  plc_end                 ; gleich zum Ende springen
-                staa pll_locked_flag         ; sonst neuen Status speichern
+                ldab LOCKPORT
+                andb #LOCKBIT
                 tsta
+                bne  plc_force_update
+
+                ldaa pll_timer
+                bne  plc_end                 ; PLL check timer abgelaufen? nein, dann Ende
+                ldaa #PLLCHKTIMEOUT
+                staa pll_timer
+
+                tba
+                eora pll_locked_flag         ; Wenn sich nichts geändert hat (Bit6=0)
+                beq  plc_end                 ; gleich zum Ende springen
+plc_force_update
+                stab pll_locked_flag         ; sonst neuen Status speichern
+                tstb
                 bne  plc_locked
-                ldab #RED_LED+ON             ; Rote LED an
+                ldab #RED_LED+LED_ON         ; Rote LED an
                 jsr  led_set
                 bra  plc_end
 plc_locked
-                ldab #RED_LED+OFF
+                ldab #RED_LED+LED_OFF
                 jsr  led_set
 plc_end
                 rts
@@ -545,85 +564,6 @@ frq_get_freq
                 ins  ; Kanal vom Stack löschen
                 rts
 
-;***************************
-; F R Q   C A L C   F R E Q
-;***************************
-;
-; Umrechnung Eingabe -> Frequenz (long)
-;
-; Parameter    : D  - Adresse vom Eingabe-Buffer (Eingabe = Nullterminierter String)
-;                X  - Adresse für Ergebnis (Frequenz, DWord)
-;
-; Ergebnis     : *X - 32Bit Frequenzwert
-;
-; changed Regs : A, B , X
-;
-;
-frq_calc_freq
-                pshx                       ; Adresse für Frequenz auf Stack sichern
-                pshb
-                psha                       ; Adresse vom Eingabepuffer auf Stack
-
-                ldd  #0
-                std  0,x
-                std  2,x                   ; Frequenz = 0
-
-                pulx                       ; Adresse vom String wiederholen
-                clra                       ; Zähler auf 0
-fcf_loop
-                ldab 0,x
-                beq  fcf_end               ; Schon das Stringende erreicht?
-                pshx                       ; save bufferaddress (index)
-                psha                       ; save counter
-                subb #$30                  ; get number from ascii code
-
-                pshb                       ; store on stack
-                clrb
-                pshb
-                pshb
-                pshb                       ; Faktor 1 auf Stack - Ziffer von Eingabe
-
-                tab
-                lslb
-                lslb                       ; calc Index for 4 Byte entries
-
-                clra
-                addd #exp10                ; add base address
-                xgdx
-                ldd  2,x
-                ldx  0,x                   ; Faktor 2 nach D:X
-                jsr  multiply32            ; Multiplizieren
-                ins
-                ins
-                ins
-                ins                        ; Faktor 1 vom Stack löschen
-
-                pshx                       ; Highword vom Ergebnis sichern
-                tsx
-                ldx  5,x                   ; Zieladresse vom Stack holen
-
-                addd 2,x                   ; add new digit to frequency
-                std  2,x
-
-                pula
-                pulb                       ; Highword vom Stack holen
-
-                adcb 1,x
-                stab 1,x
-                adca 0,x
-                staa 0,x                   ; store new frequency
-
-                pula                       ; Zähler wiederholen
-                pulx                       ; String Adresse wiederholen
-                inx                        ; Adresse ++
-                inca                       ; Zähler --
-                cmpa #8                    ; Zähler <8 (maximale Eingabelänge)
-                bcs  fcf_loop              ; dann loop
-fcf_end
-                pulx                       ; sonst: Zieladresse vom Stack löschen und
-                rts                        ; Rücksprung
-
-
 ;**********************
 ; F R Q   U P D A T E
 ;**********************
@@ -637,7 +577,6 @@ fcf_end
 ; changed Regs : None
 ;
 frq_update
-                pshx
                 pshb
                 psha
                 ldd  2,x                      ; Frequenz holen
@@ -647,7 +586,6 @@ frq_update
                 swi                           ; Taskswitch durchführen
                 pula
                 pulb
-                pulx
                 rts
 
 ;********************
