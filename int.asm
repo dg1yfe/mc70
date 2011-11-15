@@ -94,31 +94,6 @@ OCI_SR
                 ldx  oci_vec
 
                 jmp  0,x
-oci_sel
-                ldab TCSR2                     ; Timer Control / Status Register 2 lesen
-                tba
-                andb #%00001000                ; Auf EOCI2 testen (Tone Interrupt)
-                beq  OCI1_SR                   ; ansonsten beim normalen 1ms Int weitermachen
-;
-                ldab TCSR2                     ; Timer Sontrol / Status Register 2 lesen
-                ldd  OCR2
-                addd #TONE_DPHASE              ; ca 3500 mal pro sek Int auslösen
-                std  OCR2
-
-                ldab tone_index
-                bne  ocf1_f2_tonelo
-                oim  #%01100000, Port6_Data    ; TODO: MACRO einfŸhren? (EVA5/EVA9 diff)
-                eim  #1,tone_index
-                bra  ocf1_test
-ocf1_f2_tonelo
-                aim  #%10011111, Port6_Data    ; TODO: MACRO einfŸhren? (EVA5/EVA9 diff)
-                eim  #1,tone_index
-ocf1_test
-                ldab TCSR1                     ; Timer Control & Status Reg 1 lesen
-                andb #%01000000                ; auf OCF1 (1ms Flag) testen
-
-                bne  OCI1_SR                   ; falls gesetzt, den 1 ms Int ausführen
-                rti                            ; ansonsten ist hier Schluß
 ;************************************
 OCI_LCD
                 ldaa lcd_timer
