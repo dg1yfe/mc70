@@ -36,8 +36,11 @@
 #DEFINE STACK2  $1EFF
 ;************************
 ; Timing
-; Frequency of crystal
+; Frequency of crystal in EVA5
 #DEFINE XTAL 7977600
+; Frequency of crystal in EVA9
+;#DEFINE XTAL 4924800
+;
 ; System clock ("E") is 1/4th of that
 #DEFINE SYSCLK XTAL/4
 ;
@@ -48,17 +51,15 @@
 #DEFINE RX_TO_TX_TIME 5  ; 5 ms RX -> TX Umschaltung
 ;
 ;************************
-#DEFINE TONE_DPHASE SYSCLK/(2*1750)-1  ; Tone Phase Delta (Xtal/4/2 /Tone -1)
-;
+; remove this comment to run the binary in the simulator
 ;#define SIM
-;
 ;************************
 ; Frequenzkram
 ;
-;#DEFINE FBASE 140000000         ; lowest frequency (for eeprom storage) = 140MHz (430 MHz with 70 cm)
 #DEFINE FBASE 430000000         ; lowest frequency (for eeprom storage) = 140MHz (430 MHz with 70 cm)
 #DEFINE FBASE_MEM_RECALL 400000000
-;#DEFINE FBASE_MEM_RECALL 140000000	
+;#DEFINE FBASE 140000000         ; lowest frequency (for eeprom storage) = 140MHz (430 MHz with 70 cm)
+;#DEFINE FBASE_MEM_RECALL 140000000
 ;
 ;#DEFINE FDEF  145500000         ; Default Frequency
 #DEFINE FDEF  433500000         ; Default Frequency

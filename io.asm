@@ -151,7 +151,7 @@ s2sr_dec
 ;             B = Divider Value ( A )
 ;             X = Divider Value ( N / R)
 ;
-;             gÃ¼ltige Werte fÃ¼r N: 3-1023
+;             gültige Werte für N: 3-1023
 ;                               A: 0-127
 ;                               R: 3-16383
 ;
@@ -284,7 +284,6 @@ i2c_ack
 ;
 i2c_tstack
                 I2C_DI                  ; Data Input
-;                I2C_CTGL                ; clock Hi/Lo
                 I2C_CH                  ; I2C Clock Hi
                 ldaa Port2_Data         ;
                 I2C_CLb                 ; I2C Clock Lo
@@ -374,8 +373,8 @@ irx_shift
 ; I N I T _ S C I
 ;***********************
 sci_init
-                ldab #51						; TODO: MACRO
-                stab TCONR                      ; Counter fÃ¼r 1200 bps
+                ldab #(SYSCLK/(32* 1200 ))-1    ; 
+                stab TCONR                      ; Counter für 1200 bps
 
                 ldab #%10000
                 stab TCSR3                      ; Timer 2 aktivieren, Clock = E (Sysclk/4=2MHz), no Timer output
