@@ -119,6 +119,76 @@ tos_intloop
                pula
                pulb
                rts
+;**********************
+; T O N E   S T A R T
+;**********************
+;
+; Startet Ton Oszillator
+;
+; Parameter : D - Tonfrequenz in 1/10 Hz
+;
+;
+; delta phase = f / 8000 * 64 * 256
+; wegen Integer rechnung:
+; dp = f*256*64 / 8000
+; einfacher (da *65536 einem Shift um 2 ganze Bytes entspricht)
+; dp = f*256*64*4 / (8000*4)
+; dp = f*  65536  /  32000
+;
+; Frequenzabweichung maximal 8000 / (64 (Schritte in Sinus Tabelle) * 256 (8 Bit 'hinterm Komma')
+; = 0,488 Hz
+;
+atone_start
+               pshb
+               psha
+               pshx
+
+               ldx  #0
+               pshx                   ; Lo Word = 0
+               pshb                   ; Hi Word sichern
+               psha                   ; => f*65536 auf Stack speichern
+
+               ldd  #32000            ; Divisor  = Samplefrequenz * 4
+               jsr  divide32          ; equivalent (Frequenz*256) / 16
+               pulx
+               pulx                   ; 'kleiner' (16 Bit) Quotient reicht aus
+
+               std  osc1_pd           ; Quotient = delta für phase
+
+               ldab Port5_DDR_buf
+               orab #%00001000
+               stab Port5_DDR_buf
+               stab Port5_DDR
+
+               ldab #0
+               stab tasksw_en         ; disable preemptive task switching
+               sei
+               ldab tick_ms+1
+ats_intloop
+               cli
+               nop                    ; don't remove these NOPs
+               nop                    ; HD6303 needs at least 2 clock cycles between cli & sei
+               sei                    ; otherwise interrupts aren't processed
+               cmpb tick_ms+1
+               beq  ats_intloop
+
+               ldab TCSR2
+               ldd  OCR1
+               std  OCR2
+               subd #SYSCLK/1000
+               addd #249*5            ; add 5 sample periods to ensure there is enough time
+                                      ; before next interrupt occurs even on EVA9
+               std  OCR1
+               ldx  #OCI_OSC_ALERT
+               stx  oci_vec           ; OCI Interrupt Vektor 'verbiegen'
+                                      ; Ausgabe startet automatisch beim nächsten OCI
+                                      ; 1/8000 s Zeitintervall wird automatisch gesetzt
+;               clr  tasksw_en         ; re-enable preemptive task switching
+               cli
+               pulx
+               pula
+               pulb
+               rts
 
 ;**********************
 ; D T O N E   S T A R T
@@ -193,6 +263,11 @@ tone_stop
                stx  oci_vec            ; OCI wieder auf Timer Interrupt zurücksetzen
                                        ; Zeitbasis für Timerinterrupt (1/1000 s) wird im Int zurückgestellt
                                        ; DAC wieder auf Mittelwert zurücksetzen
+               ldab Port5_DDR_buf
+               andb #%11110111
+               stab Port5_DDR
+               stab Port5_DDR_buf
+
                ldab Port6_DDR_buf
                andb #%10011111
                stab Port6_DDR

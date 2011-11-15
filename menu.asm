@@ -113,7 +113,6 @@ menu
                 jmp  m_end
 m_keypressed
                 pshb                             ; save key
-
 		        ldab m_state                     ; Status holen
                 aslb
                 ldx  #m_state_tab                ; Tabellenbasisadresse holen
