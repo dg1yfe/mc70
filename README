@@ -1,0 +1,7 @@
+The MC70 project provides an alternative firmware for Motorola MC micro transceivers to enable the use of those radios for HAM radio.
+
+Check out the details on the projects homepage:
+http://mc70.stus-disco.de
+
+
+The poject uses the Telemark Cross Assembler (TASM) to create the executable. You can find the tool here: http://home.comcast.net/~tasm/
