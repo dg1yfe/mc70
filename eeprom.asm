@@ -3,7 +3,7 @@
 ;    MC70 - Firmware for the Motorola MC micro trunking radio
 ;           to use it as an Amateur-Radio transceiver
 ;
-;    Copyright (C) 2004 - 2011  Felix Erckenbrecht, DG1YFE
+;    Copyright (C) 2004 - 2012  Felix Erckenbrecht, DG1YFE
 ;
 ;     This file is part of MC70.
 ;
@@ -11,15 +11,15 @@
 ;     it under the terms of the GNU General Public License as published by
 ;     the Free Software Foundation, either version 3 of the License, or
 ;     (at your option) any later version.
-; 
+;
 ;     MC70 is distributed in the hope that it will be useful,
 ;     but WITHOUT ANY WARRANTY; without even the implied warranty of
 ;     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ;     GNU General Public License for more details.
-; 
+;
 ;     You should have received a copy of the GNU General Public License
 ;     along with MC70.  If not, see <http://www.gnu.org/licenses/>.
-; 
+;
 ;
 ;
 ;****************************************************************************
@@ -461,156 +461,6 @@ egs_page_loop
                 bcs  egs_page_loop
 egs_r_error
                 rts
-
-;***********************
-; E E P   C H K   C R C *BROKEN*
-;***********************
-;
-; Bildet CRC über den Config Bereich
-;
-; Parameter: keine
-;
-; Ergebnis : A - Read Status :  0 = OK
-;                               1 = CRC Error
-;                              >8 = Lesefehler:
-;
-;
-;
-;
-;            X - CRC
-;
-; changed Regs : A, X
-;
-eep_chk_crc
-                pshb
-                tsx
-                xgdx
-;                subd #EP_CONF_MEM  ; Platz für Config auf dem Stack schaffen
-                xgdx
-                txs
-                ldx  #0            ;
-                pshx               ; CRC auf 0 initialisieren
-
-                xgdx               ; Start im EEPROM bei Adresse 0 (EEPROM Adresse in A:B)
-
-                tsx
-                xgdx
- ;               subd #EP_CONF_MEM
-                xgdx
-                txs                ; 52 Byte auf dem Stack reservieren
-                pshx               ; Adresse auf Stack
-;                ldx  #EP_CONF_MEM  ; 52 Byte lesen (nur den Config Bereich + CRC)
-                jsr  eep_seq_read  ; Block lesen
-                ins
-                ins                ; Adresse vom Stack löschen
-;                cpx  #EP_CONF_MEM  ; komplette Config gelesen ?
-                bne  ecc_read_err  ; Nein? Dann Fehler
-                xgdx               ; Bytecount nach D
-                tsx                ; Startadresse im RAM
-                pshb               ;
-                ldab #2            ; für CRC Calc
-                abx                ; berechnen (Daten liegen auf Stack)
-                pulb               ; B wiederholen (Bytecount/LoByte)
-                                   ; Auf Stack liegt CRC Init Wert bzw.
-                jsr  crc16         ; CRC über den Block berechnen
-                xgdx               ; CRC nach X
-                cpx  #0            ; CRC =0?
-                bne  ecc_crc_err   ; Nein? Dann CRC Error
-                clra               ; kein Lese Fehler aufgetreten
-ecc_end
-                tsx
-                xgdx
-;                addd #EP_CONF_MEM+2; Stack bereinigen
-                xgdx
-                txs
-                pulb               ; B wiederherstellen
-                rts
-ecc_read_err
-                oraa #8            ; Lesefehler
-                bra  ecc_end
-ecc_crc_err
-                ldaa #1
-                bra  ecc_end
-
-;***************************
-; E E P   W R I T E   C R C *BROKEN*
-;***************************
-;
-; CRC16 über Config Block bilden und schreiben
-;
-; Parameter: keine
-;
-; Ergebnis : X - CRC
-;          : A - Read Status :   0 = OK
-;                             >= 8 = Read-Error
-;                             >=16 = Write-Error
-;
-eep_write_crc
-                pshb
-                psha
-                pshx
-                tsx
-                xgdx
-                subd #50           ; 50 Byte Platz auf dem Stack schaffen
-                xgdx
-                txs
-                ldx  #0            ;
-                pshx               ; CRC auf 0 initialisieren
-                xgdx               ; Start im EEPROM bei Adresse 0 (EEPROM Adresse in A:B)
-ewc_loop
-                pshb               ; Daten aus EEPROM sollen auf
-                tsx                ;
-                xgdx
-                subd
-                ldab #4            ; den Stack gelegt werden,
-                abx                ; dazu die Adresse berechnen
-                pulb
-                pshx               ; Bytecount auf Stack
-                ldx  #50           ; 50 Byte lesen (nur den Config Bereich)
-                jsr  eep_seq_read  ; Block lesen
-                ins
-                ins                ; Bytecount vom Stack löschen
-                cpx  #50           ; 50 Bytes gelesen ?
-                bne  ewc_read_err  ; Nein? Dann Fehler
-                xgdx               ; Bytecount nach D
-                tsx                ; Startadresse im RAM
-                pshb               ;
-                ldab #2            ; für CRC Calc
-                abx                ; berechnen (Daten liegen auf Stack)
-                pulb               ; B wiederholen (Bytecount/LoByte)
-                                   ; Auf Stack liegt CRC Init Wert
-                jsr  crc16         ; CRC über den Block berechnen
-                                   ; CRC liegt auf Stack, zuerst LoByte ins EEPROM schreiben
-                pulb
-                ldx  #50
-                pshx
-                jsr  eep_write     ; Byte schreiben
-                pulx
-                tsta
-                bne  ewc_write_err ; Schreibfehler
-                pulb
-                ldx #51
-                pshx
-                jsr  eep_write     ; Byte schreiben
-                pulx
-                tsta
-                bne  ewc_write_err ; Schreibfehler
-ewc_end
-                tsx
-                xgdx
-                addd #51           ; Stack bereinigen
-                xgdx
-                txs
-                pula
-                pulb
-                pulx
-                rts
-ewc_read_err
-                oraa #$8
-                bra  ewc_end
-ewc_write_err
-                oraa #$10
-                bra  ewc_end
 
 
 ;******************************

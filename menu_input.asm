@@ -3,7 +3,7 @@
 ;    MC70 - Firmware for the Motorola MC micro trunking radio
 ;           to use it as an Amateur-Radio transceiver
 ;
-;    Copyright (C) 2004 - 2011  Felix Erckenbrecht, DG1YFE
+;    Copyright (C) 2004 - 2012  Felix Erckenbrecht, DG1YFE
 ;
 ;     This file is part of MC70.
 ;
@@ -33,10 +33,10 @@ m_start_input
                 jsr  save_dbuf        ; Displayinhalt in dbuf2 sichern
                 clra
                 jsr  lcd_clr          ; Display löschen
-m_print
-                jsr  m_reset_timer    ; Menü-Timer Reset (Timeout für Eingabe setzen)
                 ldaa #F_IN            ; Frequenzeingabe beginnt
   		        staa m_state
+m_print
+                jsr  m_reset_timer    ; Menü-Timer Reset (Timeout für Eingabe setzen)
                 addb #$30             ; aus Taste/Nummer ASCII Char erzeugen
                 tba
                 ldab cpos             ; Position holen

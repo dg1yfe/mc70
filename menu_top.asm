@@ -3,7 +3,7 @@
 ;    MC70 - Firmware for the Motorola MC micro trunking radio
 ;           to use it as an Amateur-Radio transceiver
 ;
-;    Copyright (C) 2004 - 2011  Felix Erckenbrecht, DG1YFE
+;    Copyright (C) 2004 - 2012  Felix Erckenbrecht, DG1YFE
 ;
 ;     This file is part of MC70.
 ;
@@ -33,12 +33,13 @@
 ;
 ;
 #ifdef EVA5
-#DEFINE M_MENU_ENTRIES 4
+#DEFINE M_MENU_ENTRIES 6
 #else
-#DEFINE M_MENU_ENTRIES 5
+#DEFINE M_MENU_ENTRIES 7
 #endif
 
-m_menu_str	.db "MENU    ",0
+m_menu_str	
+        .db "MENU    ",0
 		.dw m_recall_submenu
 
 		.db "RECALL  ",0
@@ -47,6 +48,16 @@ m_menu_str	.db "MENU    ",0
 		.db "STORE   ",0
 		.dw m_store_submenu
 
+		.db "TX CTCSS",0
+		.dw m_ctcss_tx_submenu
+
+		.db "DTMF    ",0
+		.dw m_dtmf_submenu
+
+#ifdef EVA9
+		.db "POWER   ",0
+		.dw m_power_submenu
+#endif
 		.db "VERSION ",0
 		.dw m_version_submenu
 
@@ -54,10 +65,6 @@ m_menu_str	.db "MENU    ",0
         .dw m_defch_submenu
 ;		.dw m_frq_store
 
-#ifdef EVA9
-		.db "POWER   ",0
-		.dw m_power_submenu
-#endif
                 .db 0
 ;*****************************
 ; M E N U   I D L E
@@ -154,8 +161,8 @@ m_top_tab
                 .dw m_frq_up          ; D1 - Kanal+
                 .dw m_frq_down        ; D2 - Kanal-
                 .dw m_sql_switch      ; D3 - Squelch ein/aus
-;                .dw m_none            ; D4 - none
-                .dw m_test            ; D4 - Test
+                .dw m_power           ; D4 - TX Power Toggle
+;                .dw m_test            ; D4 - Test
 ;                .dw m_prnt_tc         ; D4 - Taskswitches/s anzeigen
                 .dw m_tone            ; D5 - 1750 Hz Ton
                 .dw m_none            ; D6 -
@@ -188,7 +195,8 @@ m_top_h2
                 .dw m_frq_up          ; D1 - Kanal+
                 .dw m_frq_down        ; D2 - Kanal-
                 .dw m_sql_switch      ; D3 - Squelch ein/aus
-                .dw m_test            ; D4 - Taskswitches/s anzeigen
+                .dw m_power           ; D4 - TX Power Toggle
+;                .dw m_test            ; D4 - Taskswitches/s anzeigen
                 .dw m_test3           ; D5 - 1750 Hz Ton
                 .dw m_digit           ; D6 - Select Digit
                 .dw m_txshift         ; D7 - TX Shift ändern
@@ -243,6 +251,7 @@ mfd_end
 ;
 m_sql_switch
                 ldab sql_mode
+#ifdef EVA5
                 cmpb #SQM_RSSI
                 beq  mss_none          ; RSSI -> none
                 cmpb #SQM_CARRIER
@@ -267,7 +276,22 @@ mss_none                               ; Raussperre deaktivieren
                 ldaa #0
                 ldab #2
                 jsr  arrow_set
+#endif
+#ifdef EVA9
+                andb #SQBIT
+                bne  mss_none          ; RSSI -> none
+mss_carrier                            ; Carrier Squelch Pin auswerten
+                ldaa #1
+                ldab #2
+                jsr  arrow_set
+                bra  mss_end
+mss_none                               ; Raussperre deaktivieren
+                ldaa #0
+                ldab #2
+                jsr  arrow_set
+#endif
 mss_end
+                eim  #SQBIT, sql_mode
                 jmp  m_end
 
 ;**************************************
@@ -278,8 +302,10 @@ mss_end
 m_tone
 
                 oim  #1,ui_ptt_req     ; PTT drücken
+#IFDEF EVA5
                 clrb
                 jsr  dac_filter        ; deactivate additional DAC filter
+#ENDIF
                 ldab tone_timer
                 bne  mtn_reset_timer
                 ldd  #1750
@@ -535,45 +561,10 @@ m_test3
                 jmp  m_end
 
 m_tone_stop
-                jsr  tone_stop
+                jsr  tone_stop_sig
                 jmp  m_end
 
 m_test2
-                ldab m_timer_en
-                bne  mtst2_nosave
-                ldx  #dbuf2
-                jsr  save_dbuf
-mtst2_nosave
-                jsr  m_reset_timer    ; Menü-Timer Reset (Timeout für Eingabe setzen)
-                clrb
-                jsr  lcd_cpos
-
-                ldab osc1_phase
-                incb
-                cmpb #16
-                bcs  mtst2_store
-                clrb
-mtst2_store
-                stab osc1_phase
-                ldx  #dac_out_tab2
-                lslb
-                abx
-                ldaa Port6_DDR_buf
-                ldab Port6_Data
-                andb #%10011111
-                anda #%10011111
-                addd 0,x
-                std  Port6_DDR
-
-                ldd  0,x
-                pshb
-                tab
-                ldaa #'x'
-                jsr  putchar
-                pulb
-                ldaa #'x'
-                jsr  putchar
-
                 jmp  m_end
 
 ;**************************************
@@ -757,13 +748,15 @@ m_dtmf_direct
 m_dtmf_go
                 ldaa tone_timer
                 beq  mdg_start          ; check if tone is still on
-                jsr  tone_stop          ; if it is, stop it
+                jsr  tone_stop_sig      ; if it is, stop it
                 WAIT(40)                ; wait 40 ms (DTMF minimum pause)
 mdg_start
                 jsr  dtmf_key2freq      ; calculate DTMF frequencies
                 jsr  dtone_start        ; start DTMF tone output
+#IFDEF EVA5
                 clrb
                 jsr  dac_filter        ; deactivate additional DAC filter
+#ENDIF
                 ldab #4
                 stab tone_timer        ; 0,4 sek Ton ausgeben
 

@@ -3,7 +3,7 @@
 ;    MC70 - Firmware for the Motorola MC micro trunking radio
 ;           to use it as an Amateur-Radio transceiver
 ;
-;    Copyright (C) 2004 - 2011  Felix Erckenbrecht, DG1YFE
+;    Copyright (C) 2004 - 2012  Felix Erckenbrecht, DG1YFE
 ;
 ;     This file is part of MC70.
 ;
@@ -11,15 +11,15 @@
 ;     it under the terms of the GNU General Public License as published by
 ;     the Free Software Foundation, either version 3 of the License, or
 ;     (at your option) any later version.
-; 
+;
 ;     MC70 is distributed in the hope that it will be useful,
 ;     but WITHOUT ANY WARRANTY; without even the implied warranty of
 ;     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ;     GNU General Public License for more details.
-; 
+;
 ;     You should have received a copy of the GNU General Public License
 ;     along with MC70.  If not, see <http://www.gnu.org/licenses/>.
-; 
+;
 ;
 ;
 ;****************************************************************************
@@ -52,9 +52,6 @@ init_OCI
 ; SIO Interrupt initialisieren
 ;
 init_SIO
-                clr  io_outbuf_w
-                clr  io_outbuf_r                  ; Output Ringbuffer initialisieren
-
                 clr  io_inbuf_w
                 clr  io_inbuf_r                   ; Input Ringbuffer initialisieren
 
@@ -70,7 +67,6 @@ init_SIO
 ; I S R
 ;*******
 NMI_SR               ; no NMI
-                jmp  isu_copy
                 rti
 ;************************************
 SWI_SR               ; SWI als Taskswitch
@@ -79,9 +75,6 @@ SWI_SR               ; SWI als Taskswitch
                 inx                        ; TXS subtrahiert 1 vom Wert vor Transfer
                 txs                        ; anderen Stackpointer laden
                 inc  tasksw                ; Taskswitch Counter erhöhen
-                ldx  ts_count
-                inx
-                stx  ts_count
                 rti                        ; Taskswitch durchführen
 ;************************************
 IRQ1_SR              ; no IRQ1
@@ -96,6 +89,7 @@ OCI_SR
                 jmp  0,x
 ;************************************
 OCI_LCD
+                dec  ui_timer
                 ldaa lcd_timer
                 beq  OCI1_WD_RESET
                 deca
@@ -147,28 +141,6 @@ end_int
                 rti                   ;+10 31 / 44 / 60
 
 ;************************************
-;************************************
-ocf2
-;                ldx  #tone_tab
-;                ldab TCSR2                 ; Timer Sontrol / Status Register 2 lesen
-
-                ldab tone_index
-                bne  ocf2_tonelo
-                oim  #%01100000, Port6_Data
-                eim  #1,tone_index
-                rts
-ocf2_tonelo
-                aim  #%10011111, Port6_Data
-                eim  #1,tone_index
-                rts
-
-;Pin 30 & 31
-;    P65 P66
-tone_tab
-
-;sin_tab
-                .db %00000000
-                .db %01000000
 ;************************************
 
 TOI_SR               ; no TOI
@@ -238,17 +210,6 @@ sio_ibo_stor
 ;******************
 ;
 sio_tdre
-                ldab io_outbuf_r           ; Zeiger auf Leseposition holen
-                cmpb io_outbuf_w           ; Befinden sich noch Zeichen im Output Buffer?
-                beq  sio_ob_empty          ; Sprung wenn es keine Daten gibt
-                ldx  #io_outbuf            ; Basisadresse holen
-                abx                        ; Zeiger addieren, Leseadresse berechnen
-                ldaa 0,x                   ; Daten aus Puffer lesen
-                incb                       ; Leseposition++
-                andb #io_outbuf_mask       ; Im gültigen Rahmen bleiben (0-15)
-                stab io_outbuf_r           ; Neue Zeigerposition speichern
-                staa TDR                   ; Datenbyte ins Transmit Data Register schreiben
-                bmi  sio_tdre_end          ; MSB gesetzt -> nächstes Byte darf sofort gesendet werden (2 Byte Kommando)
 ;                ldab #LCDDELAY             ; Wartezeit holen
 ;                stab lcd_timer             ; und Timer entsprechend setzen
 sio_ob_empty

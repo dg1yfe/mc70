@@ -3,7 +3,7 @@
 ;    MC70 - Firmware for the Motorola MC micro trunking radio
 ;           to use it as an Amateur-Radio transceiver
 ;
-;    Copyright (C) 2004 - 2011  Felix Erckenbrecht, DG1YFE
+;    Copyright (C) 2004 - 2012  Felix Erckenbrecht, DG1YFE
 ;
 ;     This file is part of MC70.
 ;
@@ -11,15 +11,15 @@
 ;     it under the terms of the GNU General Public License as published by
 ;     the Free Software Foundation, either version 3 of the License, or
 ;     (at your option) any later version.
-; 
+;
 ;     MC70 is distributed in the hope that it will be useful,
 ;     but WITHOUT ANY WARRANTY; without even the implied warranty of
 ;     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ;     GNU General Public License for more details.
-; 
+;
 ;     You should have received a copy of the GNU General Public License
 ;     along with MC70.  If not, see <http://www.gnu.org/licenses/>.
-; 
+;
 ;
 ;
 ;****************************************************************************
@@ -46,20 +46,9 @@
 ; (Initialisierung / Software Reset zusätzlich nötig)
 ;
 lcd_h_reset
-                pshb
-                psha
-
-                ldaa  #-1
-                ldab  #SR_LCDRESET
-                jsr   send2shift_reg ; LCD Reset Leitung auf High (=Reset)
-                WAIT(1)
-                ldaa  #~SR_LCDRESET
-                clrb
-                jsr   send2shift_reg ; und wieder low
-
-                pula
-                pulb
-                rts
+               ldab #$7E
+               jsr  sci_tx           ; LCD per Kommando zurücksetzen
+               rts
 
 ;***********************
 ; L C D _ S _ R E S E T
@@ -71,56 +60,60 @@ lcd_h_reset
 ;              1 = Timeout / No Display detected
 ;
 lcd_s_reset
-               clr  lcd_timer
-
-               clrb
+               jsr  sci_rx
+               tsta
+               beq  lcd_s_reset          ; clear RX buffer
+               ldd  #0
+               std  lcd_timer
+                                         ; EVA9 has no HW reset pin for the control head
+               WAIT(20)                  ; wait 20 ms, if control head is in reset
+               clra
+               psha
+lcs_chkres_loop
+               jsr  sci_rx               ; we should receive at least one $7E
+               tsta
+               pula                      ; put previous char into A
+               pshb                      ; put current char onto stack
+               beq  lcs_chkres_loop      ; loop if a char was read
+               ins
+               tab
+               cmpb #$7e
+               beq  lcs_disp_resp        ; rest char received, respond
+               ldab #$7e
                jsr  sci_tx
 
+               ldd  tick_hms
+               addd #20                  ; 2 Sek Timeout
+               xgdx
+lcs_wait_res
+               pshx
+               jsr  sci_rx
+               pulx
+               tsta
+               bne  lcs_wait_count
+               cmpb #$7E               ; Reset Poll Char?
+               beq  lcs_disp_resp      ;
+lcs_wait_count
+               cpx  tick_hms
+               bne  lcs_wait_res       ; Nein, dann nochmal
+               ldab #1                 ; Display antwortet nicht innerhalb ca 1 s
+               bra  lcs_nodisp         ; Annehmen, dass kein Display vorhanden ist (nur loopback)
+lcs_disp_resp
+               jsr  sci_tx             ; by sending it back
+               clrb
+lcs_nodisp
+               pshb
                sei
                clr  io_inbuf_w
                clr  io_inbuf_r
                cli
 
-               WAIT(80)
-
-               ldd  tick_hms
-               addd #20               ; 2 Sek Timeout
-               xgdx
-lcs_wait_res
-		       pshx
-               jsr  check_inbuf        ; get number of bytes in inbuf
-               pulx
-		       tsta
-		       beq  lcs_wait_count     ; if zero, loop until time's up
-		       pshx
-		       psha
-               jsr  sci_read           ; read char from inbuf
-               pula
-               pulx
-		       deca
-		       beq  lcs_chk            ; if there was only one byte left, respond
-               bra  lcs_wait_count     ; loop until time is up
-lcs_chk
-               cmpb #$7E               ; Reset Poll Char received?
-               beq  lcs_disp_resp      ; Yes - then respond
-lcs_wait_count
-               cpx  tick_hms           ; check if time is up?
-               bne  lcs_wait_res       ; if not, loop another time
-               ldaa #1                 ; Display antwortet nicht innerhalb des Timeouts
-               ldab #$7F
-               jsr  sci_tx
-               rts                     ; Annehmen, dass kein Display vorhanden ist (nur loopback)
-lcs_disp_resp
-               ldab #$7E               ; respond to reset message
-               jsr  sci_tx             ; by sending it back
-
-               WAIT(100)
                ldaa #LCDDELAY*4
                staa lcd_timer
                ldaa #1
                jsr  lcd_clr            ; LEDs, LCD und Display Buffer löschen
 
-               clra
+               pula
                rts
 
 ;*******************
@@ -141,7 +134,6 @@ lcd_clr
                psha
                pshx
 
-               psha
 
                ldab #$78
                ldaa #'p'
@@ -155,10 +147,11 @@ lcd_clr
                std  2,x
                std  4,x
                std  6,x               ; clear Display Buffer (fill with "Space")
-               clr  arrow_buf
+               ldx  #0
+               stx  arrow_buf         ; clear arrow buf
 
-               pula                   ; Wenn A<>0, LEDs auch löschen
-               tsta
+               tsx
+               tst  2,x               ; Wenn A<>0, LEDs auch löschen
                beq  lcc_end
                clr  led_dbuf          ; LED Display Puffer löschen
                ldab #$7A              ; LED clear Kommando senden
@@ -246,6 +239,25 @@ restore_loop
 
                 ldab 0,x         ; CPOS holen
                 jsr  lcd_cpos
+                rts
+
+;*****************
+; L C D   S E N D
+;*****************
+;
+;  Parameter :
+;
+lcd_send
+                pshb
+lcs_retrans
+                jsr  sci_tx_w    ; Ansonsten Echo
+                jsr  sci_rx
+                tsta
+                bne  lcs_retrans
+
+lcs_end
+                pula
+                pulb
                 rts
 
 ;**********************************
