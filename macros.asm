@@ -55,9 +55,13 @@
 ;************************
 ; Timing
 ; Frequency of crystal in EVA5
+#ifdef EVA5
 #DEFINE XTAL 7977600
+#endif
+#ifdef EVA9
 ; Frequency of crystal in EVA9
-;#DEFINE XTAL 4924800
+#DEFINE XTAL 4924800
+#endif
 ;
 ; System clock ("E") is 1/4th of that
 #DEFINE SYSCLK XTAL/4
@@ -72,29 +76,45 @@
 ; remove this comment to run the binary in the simulator
 ;#define SIM
 ;************************
-; Frequenzkram
+; Frequency settings
 ;
-#DEFINE FBASE 430000000         ; lowest frequency (for eeprom storage) = 140MHz (430 MHz with 70 cm)
-#DEFINE FBASE_MEM_RECALL 400000000
-;#DEFINE FBASE 140000000         ; lowest frequency (for eeprom storage) = 140MHz (430 MHz with 70 cm)
-;#DEFINE FBASE_MEM_RECALL 140000000
 ;
-;#DEFINE FDEF  145500000         ; Default Frequency
-#DEFINE FDEF  433500000         ; Default Frequency
-#DEFINE RXZF   21400000         ; 21,4 MHz IF (RX VCO has to be 21,4MHz below RX frequency)
-#DEFINE FREF   14400000         ; 14,4 MHz reference frequency
+#DEFINE RXZF   21400000         ; 21.4 MHz IF (RX VCO has to be 21,4MHz below RX frequency)
+#DEFINE FREF   14400000         ; 14.4 MHz reference frequency
 #DEFINE FOFF0         0         ; Offset0
 #DEFINE FOFF06  0600000         ; Offset1
-#DEFINE FOFF76  7600000         ; Offset1
+#DEFINE FOFF76  7600000         ; Offset2
 #DEFINE FSTEP     12500         ; Schrittweite !> 3,5 kHz für f<458,3MHz ( muß größer sein als Frequenz/(Vorteiler*1023) )
 ;
-#DEFINE PLLREF FREF/FSTEP
-;#DEFINE PRESCALER    40         ; PLL Prescaler (40 für 2m, 127 für 70cm)
+;
+#ifndef BAND2M
+#ifndef BAND70CM
+.ECHO "\r\nNo frequency band selected, using 2m / 144 MHz as default\r\n"
+#define BAND2M
+#endif
+#endif
+;
+#IFDEF BAND2M
+;
+.ECHO   "\r\nCompiling for 144 MHz\r\n\r\n"
+#DEFINE FBASE 140000000         ; lowest frequency (for eeprom storage) = 140MHz (430 MHz with 70 cm)
+#DEFINE FBASE_MEM_RECALL 140000000
+#DEFINE FDEF  145500000         ; Default Frequency
+#DEFINE FTXOFF  FOFF06          ; Offset1
+#DEFINE PRESCALER    40         ; PLL Prescaler (40 für 2m, 127 für 70cm)
+;
+#ELSE                           ; assume 70 cm
+;
+.ECHO   "\r\nCompiling for 430 MHz\r\n\r\n"
+#DEFINE FBASE 430000000         ; lowest frequency (for eeprom storage) = 140MHz (430 MHz with 70 cm)
+#DEFINE FBASE_MEM_RECALL 400000000
+#DEFINE FDEF  433500000         ; Default Frequency
+#DEFINE FTXOFF   FOFF76         ; Offset1
 #DEFINE PRESCALER   127         ; PLL Prescaler (40 für 2m, 127 für 70cm)
-#DEFINE PLLLOCKWAIT 200         ; Maximale Wartezeit in ms für PLL um einzurasten
-;#DEFINE FSTEP      6250        ; Schrittweite !> 3,5 kHz für f<458,3MHz ( muß größer sein als Frequenz/(128*1023) )
-;#DEFINE PLLREF     1152
-;#DEFINE PLLREF     2304
+;
+#ENDIF
+
+#DEFINE PLLREF FREF/FSTEP
 ;
 ;************************
 ; Squelch

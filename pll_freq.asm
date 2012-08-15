@@ -162,9 +162,9 @@ freq_init_rom
                 stx  offset
                 stx  offset+2
 
-                ldx  #FOFF76>>16		; TODO: MACRO einfŸhren
+                ldx  #FTXOFF>>16
                 stx  txshift
-                ldx  #FOFF76%65536
+                ldx  #FTXOFF%65536
                 stx  txshift+2
 
                 pula
