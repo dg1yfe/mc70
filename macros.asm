@@ -26,7 +26,25 @@
 #DEFINE EVA5
 ;#DEFINE EVA9
 ;#DEFINE 2M
-;#DEFINE 70CM
+;
+; Additional instructions for HD6303
+; HD6303 is a superset of MC6801/MC6803 which is a superset of MC6800
+;
+.ADDINSTR AIM     #*,*,X  61      3       COMB    8
+.ADDINSTR AIM     #*,*    71      3       COMB    8
+.ADDINSTR EIM     #*,*,X  65      3       COMB    8
+.ADDINSTR EIM     #*,*    75      3       COMB    8
+.ADDINSTR OIM     #*,*,X  62      3       COMB    8
+.ADDINSTR OIM     #*,*    72      3       COMB    8
+.ADDINSTR SLP     ""      1A      1       NOP     8
+.ADDINSTR TIM     #*,*,X  6B      3       COMB    8
+.ADDINSTR TIM     #*,*    7B      3       COMB    8
+.ADDINSTR XGDX    ""      18      1       NOP     8
+
+;#DEFINE EVA5
+;#DEFINE EVA9
+;#DEFINE BAND2M
+#DEFINE BAND70CM
 ;************************
 ; Stack
 ;
