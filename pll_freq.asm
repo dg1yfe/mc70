@@ -238,9 +238,9 @@ freq_init_rom
                 stx  offset
                 stx  offset+2
 
-                ldx  #FOFF06>>16
+                ldx  #FTXOFF>>16
                 stx  txshift
-                ldx  #FOFF06%65536
+                ldx  #FTXOFF%65536
                 stx  txshift+2
 
                 pula
