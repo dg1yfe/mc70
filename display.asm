@@ -155,7 +155,8 @@ lcd_clr
                std  2,x
                std  4,x
                std  6,x               ; clear Display Buffer (fill with "Space")
-               clr  arrow_buf
+               ldx  #0
+               stx  arrow_buf         ; clear arrow buf
 
                pula                   ; Wenn A<>0, LEDs auch löschen
                tsta
