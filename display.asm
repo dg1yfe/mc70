@@ -102,23 +102,32 @@ lcs_wait_res
                bra  lcs_wait_count     ; loop until time is up
 lcs_chk
                cmpb #$7E               ; Reset Poll Char received?
-               beq  lcs_disp_resp      ; Yes - then respond
+               beq  lcs_disp_resp      ; Yes - then respond...
+               jsr  sci_tx_w           ; respond by sending char back
+               ldab #$7E               ; request reset
+               jsr  sci_tx_w           ; respond by sending char back
 lcs_wait_count
                cpx  tick_hms           ; check if time is up?
                bne  lcs_wait_res       ; if not, loop another time
+               inx
+               cpx  tick_hms           ; check also for one tick behind
+               tpa                     ; in case sci_tx_w took more than 100 ms
+               dex
+               tap
+               bne  lcs_wait_res       ; if not, loop another time
+lcs_res_failed
                ldaa #1                 ; Display antwortet nicht innerhalb des Timeouts
                ldab #$7F
                jsr  sci_tx
-               rts                     ; Annehmen, dass kein Display vorhanden ist (nur loopback)
+               rts                     ; suppose no display is present
 lcs_disp_resp
-               ldab #$7E               ; respond to reset message
-               jsr  sci_tx             ; by sending it back
+               jsr  sci_tx             ; ...by sending it back
 
                WAIT(100)
                ldaa #LCDDELAY*4
                staa lcd_timer
                ldaa #1
-               jsr  lcd_clr            ; LEDs, LCD und Display Buffer löschen
+               jsr  lcd_clr            ; clear LEDs, LCD and Display Buffer
 
                clra
                rts
