@@ -73,7 +73,6 @@ sim_loop
 	bra  sim_loop
 #endif
                 jsr  lcd_h_reset           ; LCD Hardware Reset
-                jsr  lcd_s_reset           ; LCD Software Reset + Init
 
                 jsr  freq_init             ; Frequenzeinstellungen initialisieren
                 psha

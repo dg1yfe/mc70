@@ -83,6 +83,7 @@ ui_start
 ;
 ;
 ui
+                jsr  lcd_s_reset           ; LCD Software Reset + Init
                 bra  no_intro
 
                 PRINTF(dg1yfe_str)
@@ -137,7 +138,7 @@ dg1yfe_str
 mc70_str
                 .db "MC 70",0
 ver_str
-                .db "11 01",0
+                .db "12 001",0
 rom_init_str
                 .db "ROM INIT",0
 ram_err_str
