@@ -25,6 +25,7 @@
 ;****************************************************************************
  .ORG $A000
 #ifdef EVA9
+.ORG $F000
 ; Remark:
 ; these tables only make sense in EVA9 radios, since they posess a
 ; 4 Bit R2R DAC (for signalling) and a 3 Bit R2R DAC (for private line / CTCSS)
