@@ -73,12 +73,15 @@ NMI_SR               ; no NMI
                 jmp  isu_copy
                 rti
 ;************************************
-SWI_SR               ; SWI als Taskswitch
-                ldx  stackbuf              ; anderen Stackpointer holen
-                sts  stackbuf              ; aktuellen Stackpointer sichern
-                inx                        ; TXS subtrahiert 1 vom Wert vor Transfer
-                txs                        ; anderen Stackpointer laden
-                inc  tasksw                ; Taskswitch Counter erhöhen
+SWI_SR                                     ; use SWI for taskswitching
+
+                ldx  stackbuf              ; get 'other' stackpointer
+                sts  stackbuf              ; save current stackpointer
+                inx                        ; correct value (TXS implicitely
+                                           ; subtracts 1)
+                txs                        ; make 'other' stackpointer the
+                                           ; current one
+                inc  tasksw                ; increase Taskswitch Counter
                 ldx  ts_count
                 inx
                 stx  ts_count
@@ -90,14 +93,23 @@ IRQ1_SR              ; no IRQ1
 ICI_SR               ; no ICI
                 rti
 ;************************************
-OCI_SR
-                ldx  oci_vec
-
+OCI_SR                                   ; Timer 1 compare interrupt
+                ldx  oci_vec             ; entry point, get the vector from
+                                         ; RAM to execute the required code
                 jmp  0,x
 ;************************************
 OCI_LCD
+                                         ; this part should only be active
+                                         ; while software timers are not
+                                         ; yet running (e.g. after reset)
+                                         ; it updates timers required
+                                         ; for communication with the
+                                         ; control head
+
+                dec  ui_timer            ; This is like the gp_timer but
+                                         ; exclusively for the ui_task
                 ldaa lcd_timer
-                beq  OCI1_WD_RESET
+                beq  OCI1_WD_RESET       ; we also need to do the WD reset
                 deca
                 staa lcd_timer
 ;
