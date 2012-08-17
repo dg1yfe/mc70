@@ -128,7 +128,7 @@ OCI1_WD_RESET
 ;***********
 OCI1_SR
 OCI1_MS
-                ldab TCSR1                 ; Interruptflag zurücksetzen
+                ldab TCSR2                 ; Interruptflag zurücksetzen
                 ldd  OCR1H
                 addd #SYSCLK/1000          ;
                 std  OCR1H                 ; in 1ms wieder einen Int ausführen

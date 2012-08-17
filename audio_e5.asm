@@ -48,7 +48,7 @@ OCI_OSC1                            ;   +19
 
                ldab Port2_Data      ;+3  39    get noise from Signalling Decode Input
                andb #1              ;+2  41    this is cheaper than generating pseudo-noise
-               aba                  ;+1  42    using an LFSR and it is REAL noise
+;               aba                  ;+1  42    using an LFSR and it is REAL noise
 
                tab                  ;+1  37
                lslb                 ;+1  38
@@ -59,6 +59,7 @@ OCI_OSC1                            ;   +19
                andb #%10011111      ;+2  46
                addd 0,x             ;+5  51    ; add DAC value from sine table
                std  Port6_DDR       ;+4  55    ; store to DDR & Data
+
 oos1_timer
                ldab TCSR2           ;+3  58    ; Timer Control / Status Register 2 lesen
                ldd  OCR1H           ;+4  62
@@ -147,19 +148,12 @@ OCI_OSC_ALERT                       ;   +19
                std  osc1_phase      ;+4  31    phase speichern
 
                anda #%00100000      ;+2  33    nur MSB berücksichtigen
-               lsra                 ;+1  34
-               lsra                 ;+1  35
+               lsla                 ;+1  34
                tab
-
-               ldaa Port5_Data      ;+3  44
-               anda #%11110111      ;+2  46
+               ldaa Port2_Data      ;+3  44
+               anda #%10111111      ;+2  46
                aba
-               staa Port5_Data      ;+4  55    ; store to Port5 Data
-
-               ldab TCSR2           ;+3  58    ; Timer Control / Status Register 2 lesen
-               ldd  OCR1H           ;+4  62
-               addd #249            ;+3  65    ; ca 8000 mal pro sek Int auslösen
-               std  OCR1H           ;+4  69
+               staa Port2_Data      ;+4  55    ; store to Port2 Data
                jmp  oos1_timer
 
 ; CPU load with active NCO

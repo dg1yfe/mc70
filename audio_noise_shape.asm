@@ -143,7 +143,7 @@
                addd #err_tab        ;+3   9    ; build index
                xgdx                 ;+2  11
                ldab 0,x             ;+4  16    ; get e(n) from table
-               addd o2_en2          ;+3  20    ; add e(n-2)
+               addb o2_en2          ;+3  20    ; add e(n-2)
                ldaa #65             ;+2  20
                mul                  ;+7  27
                ldab o2_en1          ;+3  30

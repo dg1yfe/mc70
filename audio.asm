@@ -88,8 +88,9 @@ tone_start
                pshb                   ; Hi Word sichern
                psha                   ; => f*65536 auf Stack speichern
 
-               ldd  #12000            ; Divisor  = Samplefrequenz * 4
-;               ldd  #48000            ; Divisor  = Samplefrequenz * 4
+;               ldd  #12000            ; Divisor  = Samplefrequenz * 4
+;               ldd  #8000            ; Divisor  = Samplefrequenz * 4
+               ldd  #32000            ; Divisor  = Samplefrequenz * 4
                jsr  divide32          ; equivalent (Frequenz*256) / 16
                pulx
                pulx                   ; 'kleiner' (16 Bit) Quotient reicht aus
@@ -132,7 +133,7 @@ tos_intloop
                clra
                staa o2_en1
                staa o2_en2
-               ldx  #OCI_OSC1ns
+               ldx  #OCI_OSC1
                stx  oci_vec           ; OCI Interrupt Vektor 'verbiegen'
                                       ; Ausgabe startet automatisch beim nächsten OCI
                                       ; 1/8000 s Zeitintervall wird automatisch gesetzt
@@ -180,10 +181,10 @@ atone_start
 
                std  osc1_pd           ; Quotient = delta für phase
 
-               ldab Port5_DDR_buf
-               orab #%00001000
-               stab Port5_DDR_buf
-               stab Port5_DDR
+               ldab Port2_DDR_buf
+               orab #%01000000
+               stab Port2_DDR_buf
+               stab Port2_DDR
 
                ldab #0
                stab tasksw_en         ; disable preemptive task switching
@@ -288,10 +289,10 @@ tone_stop
                stx  oci_vec            ; OCI wieder auf Timer Interrupt zurücksetzen
                                        ; Zeitbasis für Timerinterrupt (1/1000 s) wird im Int zurückgestellt
                                        ; DAC wieder auf Mittelwert zurücksetzen
-               ldab Port5_DDR_buf
-               andb #%11110111
-               stab Port5_DDR
-               stab Port5_DDR_buf
+               ldab Port2_DDR_buf
+               andb #%10111111
+               stab Port2_DDR
+               stab Port2_DDR_buf
 
                ldab Port6_DDR_buf
                andb #%10011111
@@ -303,6 +304,27 @@ tone_stop
                staa Port6_Data
 
                pulx
+               pula
+               pulb
+               rts
+;**********************
+; T O N E   S T O P
+;**********************
+;
+; Stoppt Ton Oszillator
+;
+atone_stop
+               pshb
+               psha
+               ldd  #OCI1_MS
+               std  oci_vec            ; OCI wieder auf Timer Interrupt zurücksetzen
+                                       ; Zeitbasis für Timerinterrupt (1/1000 s) wird im Int zurückgestellt
+                                       ; DAC wieder auf Mittelwert zurücksetzen
+               ldab Port2_DDR_buf
+               andb #%10111111
+               stab Port2_DDR
+               stab Port2_DDR_buf
+
                pula
                pulb
                rts
