@@ -78,6 +78,60 @@ oos1_timer
 
 oos1_end
                rti                 ;+10  88 / 112/125/141
+;*****************
+;digital tone Oscillator
+;
+; Single tone oscillator without noise shaping (less CPU usage)
+;
+OCI_OSC1d                           ;   +19
+               ldd  osc1_phase      ;+4  23    Phase holen (16 Bit)
+               addd osc1_pd         ;+4  27    phasen delta addieren
+               std  osc1_phase      ;+4  31    phase speichern
+
+               ldx  #sin_256        ;+3  34    Start der Sinus-outputtabelle holen
+
+               tab                  ;+1  35
+               abx                  ;+1  36    Index addieren
+               ldaa 0,x             ;+4  40
+               ldab Port2_Data      ;+3  43    get noise from Signalling Decode Input
+               andb #1              ;+2  45    this is cheaper than generating pseudo-noise
+               aba
+
+               tab
+               ldx  #dac_out_tab2    ;+3  50    Start der DAC/Portvalue Tabelle holen
+               abx                  ;+1  51
+
+               ldaa Port6_DDR_buf   ;+3  54
+               ldab Port6_Data      ;+3  57
+               andb #%10011111      ;+2  59
+               addd 0,x             ;+5  64    ; add DAC value from sine table
+               std  Port6_DDR       ;+4  68    ; store to DDR & Data
+
+               ldab TCSR2           ;+3  71    ; Timer Control / Status Register 2 lesen
+               ldd  OCR1H           ;+4  75
+               addd #249            ;+3  78    ; ca 8000 mal pro sek Int auslösen
+               std  OCR1H           ;+4  82
+
+               ldd  osc1_dither     ;+4  86    ; get LFSR
+               lslb                 ;+1  87    ; shift LFSR
+               rola                 ;+1  88
+               bcc  $+4             ;+3  91    ; do nothing if MSB was 0
+               eorb #%010010011     ;+2  93    ; calculate Feedback
+               std  osc1_dither     ;+4  97/95 ; store LFSR
+                                    ;------
+               ldaa TCSR2           ;+3  99
+               anda #%00100000      ;+2 101
+               beq  oos1d_end       ;+3 104
+               ldd  OCR2            ;+4 108
+               addd #SYSCLK/1000    ;+3 111
+               std  OCR2            ;+4 115
+               dec  gp_timer        ;+6 121    ; Universaltimer-- / HW Task
+               ldx  tick_ms         ;+4 125
+               inx                  ;+1 126    ; 1ms Tick-Counter erhöhen
+               stx  tick_ms         ;+4 130
+
+oos1d_end
+               rti                 ;+10  106 / 140
 ;********
 ; N C O
 ;********
@@ -106,7 +160,7 @@ OCI_OSC_ALERT                       ;   +19
                ldd  OCR1H           ;+4  62
                addd #249            ;+3  65    ; ca 8000 mal pro sek Int auslösen
                std  OCR1H           ;+4  69
-               bra  oos1_timer
+               jmp  oos1_timer
 
 ; CPU load with active NCO
 ;

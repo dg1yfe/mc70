@@ -74,7 +74,7 @@
 ;
 ;************************
 ; remove this comment to run the binary in the simulator
-;#define SIM
+#define SIM
 ;************************
 ; Frequency settings
 ;

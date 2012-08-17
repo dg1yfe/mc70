@@ -285,7 +285,7 @@ m_tone
                 ldd  #1750
                 jsr  tone_start
 mtn_reset_timer
-                ldab #6
+                ldab #8
                 stab tone_timer        ; 0,6 sek Ton ausgeben
 
                 jmp  m_end

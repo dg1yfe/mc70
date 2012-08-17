@@ -160,7 +160,7 @@ Port6_DDR 	.db             ; 60 - Pin25 - Key 3/4 Detect (2nd SCI RX)           
                 			; 67 - Pin32 - PTT input                               - 0
 
 ;                                                                                      Flash Mod
-Port6_Data	.db                     ; 60 - Pin25 - Key 3/4 Detect, 2nd SCI RX
+Port6_Data	.db             ; 60 - Pin25 - Key 3/4 Detect, 2nd SCI RX
                 			; 61 - Pin26 - Key 1, Serial Data In (?)   *** /OE Override
                 			; 62 - Pin27 - Key 2                       *** A16
                 			; 63 - Pin28 - Syn Latch (PLL)

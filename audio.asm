@@ -88,7 +88,7 @@ tone_start
                pshb                   ; Hi Word sichern
                psha                   ; => f*65536 auf Stack speichern
 
-               ldd  #32000            ; Divisor  = Samplefrequenz * 4
+               ldd  #12000            ; Divisor  = Samplefrequenz * 4
 ;               ldd  #48000            ; Divisor  = Samplefrequenz * 4
                jsr  divide32          ; equivalent (Frequenz*256) / 16
                pulx
@@ -100,6 +100,9 @@ tone_start
                andb #%10011111
                stab Port6_DDR_buf
                stab Port6_DDR
+               ldab Port6_Data
+               andb #%10001111
+               stab Port6_Data
 
                ldab #0
                stab tasksw_en         ; disable preemptive task switching
@@ -112,9 +115,12 @@ tos_intloop
                sei                    ; otherwise interrupts aren't processed
                cmpb tick_ms+1
                beq  tos_intloop
+#ifdef EVA9
                ldab #1
                stab oci_int_ctr       ; Interrupt counter auf 1
                                       ; (Bit is left shifted during Audio OCI, on zero 1ms OCI will be executed)
+#endif
+#ifdef EVA5
                ldab TCSR2
                ldd  OCR1
                std  OCR2
@@ -122,11 +128,11 @@ tos_intloop
                addd #249*5            ; add 5 sample periods to ensure there is enough time
                                       ; before next interrupt occurs even on EVA9
                std  OCR1
-
+#endif
                clra
                staa o2_en1
                staa o2_en2
-               ldx  #OCI_OSC1
+               ldx  #OCI_OSC1ns
                stx  oci_vec           ; OCI Interrupt Vektor 'verbiegen'
                                       ; Ausgabe startet automatisch beim nächsten OCI
                                       ; 1/8000 s Zeitintervall wird automatisch gesetzt
@@ -361,4 +367,5 @@ dtmf_tab_y
 #include "audio_e9.asm"
 #else
 #include "audio_e5.asm"
+#include "audio_noise_shape.asm"
 #endif
