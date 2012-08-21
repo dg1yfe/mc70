@@ -195,7 +195,7 @@ OCI_OSC1ns                          ;   +19    Ausgabe
                                     ;    15
                                     ;+26 41
 
-               andb #1              ;+2   2    ; isolate 1 Bit as dither
+               andb #0              ;+2   2    ; isolate 1 Bit as dither
                ldaa 0,x             ;+4   6    ; DAC Wert holen
                suba o2_en_          ;+3   9    ; e'(n) abziehen
                staa osc_buf         ;+3  12
@@ -243,7 +243,7 @@ OCI_OSC1ns                          ;   +19    Ausgabe
 ;168
                SAMPOUT(0)
 ;+9
-               PUTSABUF(1)
+               PUTSABUF2(1)
 ;+10
                ERRFB
 ;+47
