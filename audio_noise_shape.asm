@@ -28,15 +28,14 @@
 ; 16 / 14 (average 15) cycles
 #DEFINE DITHER  ldd  osc1_dither
 #DEFCONT      \ lsld
-;#DEFCONT      \ rola
 #DEFCONT      \ bcc  $+4
-#DEFCONT      \ eorb #%010010011
+#DEFCONT      \ eorb #%01010011
 #DEFCONT      \ std  osc1_dither
 
 ; 29 cycles
 ; Input : X      - *Amplitude/Signal
 ;         B      - Dither LFSR
-#DEFINE PUTSABUF(nr) andb #0
+#DEFINE PUTSABUF(nr) andb #1
 #DEFCONT       \ ldaa 0,x
 #DEFCONT       \ suba o2_en_
 #DEFCONT       \ staa osc_buf
@@ -46,12 +45,12 @@
 #DEFCONT       \ abx
 #DEFCONT       \ abx
 #DEFCONT       \ ldd  0,x
-#DEFCONT       \ std  subaudiobuf+nr*2
+#DEFCONT       \ std  subaudiobuf+(nr*2)
 
 ; 19 cycles
 ; Input : X      - *Amplitude/Signal
 ;         B      - Dither LFSR
-#DEFINE PUTSABUF1 andb #0
+#DEFINE PUTSABUF1 andb #1
 #DEFCONT       \ ldaa 0,x
 #DEFCONT       \ suba o2_en_
 #DEFCONT       \ staa osc_buf
@@ -64,7 +63,7 @@
 ; 10 cycles
 ; Input : X      - *Amplitude/Signal
 #DEFINE PUTSABUF2(nr) ldd  0,x
-#DEFCONT       \ std  subaudiobuf+nr*2
+#DEFCONT       \ std  subaudiobuf+(nr*2)
 
 ; 47 cycles
 #DEFINE ERRFB  ldd  osc1_dither+1
@@ -79,8 +78,8 @@
 #DEFCONT     \ stab o2_en2
 #DEFCONT     \ lsrb
 #DEFCONT     \ aba
-;#DEFCONT     \ suba #48
-#DEFCONT     \ clra \ clra
+#DEFCONT     \ suba #48
+;#DEFCONT     \ clra \ clra
 #DEFCONT     \ staa o2_en_
 #DEFCONT     \ ldab 0,x
 #DEFCONT     \ stab o2_en1
@@ -102,8 +101,8 @@
 #DEFCONT     \ stab o2_en2
 #DEFCONT     \ lsrb
 #DEFCONT     \ aba
-;#DEFCONT     \ suba #48
-#DEFCONT     \ clra \ clra
+#DEFCONT     \ suba #48
+;#DEFCONT     \ clra \ clra
 #DEFCONT     \ staa o2_en_
 #DEFCONT     \ ldab 0,x
 #DEFCONT     \ stab o2_en1
@@ -121,8 +120,8 @@
 #DEFCONT     \ stab o2_en2
 #DEFCONT     \ lsrb
 #DEFCONT     \ aba
-;#DEFCONT     \ suba #32
-#DEFCONT     \ clra \ clra
+#DEFCONT     \ suba #32
+;#DEFCONT     \ clra \ clra
 #DEFCONT     \ staa o2_en_
 
 ; 7 cycles
@@ -130,7 +129,7 @@
 #DEFCONT     \ stab o2_en1
 
 ; 9 cycles
-#DEFINE SAMPOUT(nr) ldd  subaudiobuf+nr*2
+#DEFINE SAMPOUT(nr) ldd  subaudiobuf+(nr*2)
 #DEFCONT     \ std  Port6_DDR
 
 ;14 cycles
@@ -171,7 +170,7 @@
 OCI_OSC1ns                          ;   +19    Ausgabe
                                     ;------
                                     ;    19
-               ldd  subaudiobuf+11*2;+5   5    ; output sample 12
+               ldd  subaudiobuf+(11*2) ;+5   5    ; output sample 12
                std  Port6_DDR       ;+4   9
                                     ;------
                                     ;     9
@@ -189,13 +188,13 @@ OCI_OSC1ns                          ;   +19    Ausgabe
                ldd  osc1_dither     ;+4   4    ; get LFSR
                lsld                 ;+1   5    ; shift LFSR
                bcc  $+4             ;+3   8    ; do nothing if MSB was 0
-               eorb #%010010011     ;+2  12    ; calculate Feedback
+               eorb #%01010011      ;+2  12    ; calculate Feedback x^16+x^6+x^4+x^1+1
                std  osc1_dither     ;+4  16/14 ; store LFSR
                                     ;------
                                     ;    15
                                     ;+26 41
 
-               andb #0              ;+2   2    ; isolate 1 Bit as dither
+               andb #1              ;+2   2    ; isolate 1 Bit as dither
                ldaa 0,x             ;+4   6    ; DAC Wert holen
                suba o2_en_          ;+3   9    ; e'(n) abziehen
                staa osc_buf         ;+3  12
@@ -222,9 +221,9 @@ OCI_OSC1ns                          ;   +19    Ausgabe
                stab o2_en2          ;+3  33
                lsrb                 ;+1  34
                aba                  ;+1  35
-;               suba #32             ;+2  37    ; remove offset to get signed value
-               clra
-               clra
+               suba #32             ;+2  37    ; remove offset to get signed value
+;               clra
+;               clra
                staa o2_en_          ;+3  40
                ldab 0,x             ;+4  44    ; get e(n) from table (again)
                stab o2_en1          ;+3  47

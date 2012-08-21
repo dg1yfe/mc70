@@ -35,6 +35,8 @@
 ; If active, additional Attenuation 10-12 dB
 ; cutoff frequency lowered to ~700 Hz
 ;
+; Parameter : B - 0 = off
+;
 dac_filter
                pshb
                pshx
@@ -99,11 +101,12 @@ tone_start
 
                ldab Port6_DDR_buf
                andb #%10011111
+               orab #%00010000
                stab Port6_DDR_buf
                stab Port6_DDR
 
                ldab Port6_Data
-               andb #%10011111
+               andb #%10001111
                stab Port6_Data
 
                ldab #0

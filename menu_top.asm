@@ -282,7 +282,7 @@ m_tone
                 jsr  dac_filter        ; deactivate additional DAC filter
                 ldab tone_timer
                 bne  mtn_reset_timer
-                ldd  #000
+                ldd  #750
                 jsr  tone_start
 mtn_reset_timer
                 ldab #8
