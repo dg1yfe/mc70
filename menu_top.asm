@@ -277,12 +277,12 @@ mss_end
 ;
 m_tone
 
-;                oim  #1,ui_ptt_req     ; PTT drücken
+                oim  #1,ui_ptt_req     ; PTT drücken
                 clrb
                 jsr  dac_filter        ; deactivate additional DAC filter
                 ldab tone_timer
                 bne  mtn_reset_timer
-                ldd  #1750
+                ldd  #000
                 jsr  tone_start
 mtn_reset_timer
                 ldab #8

@@ -88,9 +88,9 @@ tone_start
                pshb                   ; Hi Word sichern
                psha                   ; => f*65536 auf Stack speichern
 
-;               ldd  #12000            ; Divisor  = Samplefrequenz * 4
+               ldd  #12000            ; Divisor  = Samplefrequenz * 4
 ;               ldd  #8000            ; Divisor  = Samplefrequenz * 4
-               ldd  #32000            ; Divisor  = Samplefrequenz * 4
+;               ldd  #32000            ; Divisor  = Samplefrequenz * 4
                jsr  divide32          ; equivalent (Frequenz*256) / 16
                pulx
                pulx                   ; 'kleiner' (16 Bit) Quotient reicht aus
@@ -101,8 +101,9 @@ tone_start
                andb #%10011111
                stab Port6_DDR_buf
                stab Port6_DDR
+
                ldab Port6_Data
-               andb #%10001111
+               andb #%10011111
                stab Port6_Data
 
                ldab #0

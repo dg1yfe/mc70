@@ -20,9 +20,15 @@
 #DEFCONT          \ tab
 #DEFCONT          \ abx
 
+;******************
+; 17 cycles
+; Input : -
+; Output: -
+; changes A & B
+; 16 / 14 (average 15) cycles
 #DEFINE DITHER  ldd  osc1_dither
-#DEFCONT      \ lslb
-#DEFCONT      \ rola
+#DEFCONT      \ lsld
+;#DEFCONT      \ rola
 #DEFCONT      \ bcc  $+4
 #DEFCONT      \ eorb #%010010011
 #DEFCONT      \ std  osc1_dither
@@ -30,7 +36,7 @@
 ; 29 cycles
 ; Input : X      - *Amplitude/Signal
 ;         B      - Dither LFSR
-#DEFINE PUTSABUF(nr) andb #1
+#DEFINE PUTSABUF(nr) andb #0
 #DEFCONT       \ ldaa 0,x
 #DEFCONT       \ suba o2_en_
 #DEFCONT       \ staa osc_buf
@@ -45,7 +51,7 @@
 ; 19 cycles
 ; Input : X      - *Amplitude/Signal
 ;         B      - Dither LFSR
-#DEFINE PUTSABUF1 andb #1
+#DEFINE PUTSABUF1 andb #0
 #DEFCONT       \ ldaa 0,x
 #DEFCONT       \ suba o2_en_
 #DEFCONT       \ staa osc_buf
@@ -73,7 +79,8 @@
 #DEFCONT     \ stab o2_en2
 #DEFCONT     \ lsrb
 #DEFCONT     \ aba
-#DEFCONT     \ suba #48
+;#DEFCONT     \ suba #48
+#DEFCONT     \ clra \ clra
 #DEFCONT     \ staa o2_en_
 #DEFCONT     \ ldab 0,x
 #DEFCONT     \ stab o2_en1
@@ -95,7 +102,8 @@
 #DEFCONT     \ stab o2_en2
 #DEFCONT     \ lsrb
 #DEFCONT     \ aba
-#DEFCONT     \ suba #48
+;#DEFCONT     \ suba #48
+#DEFCONT     \ clra \ clra
 #DEFCONT     \ staa o2_en_
 #DEFCONT     \ ldab 0,x
 #DEFCONT     \ stab o2_en1
@@ -113,9 +121,8 @@
 #DEFCONT     \ stab o2_en2
 #DEFCONT     \ lsrb
 #DEFCONT     \ aba
-#DEFCONT     \ suba #32
-#DEFCONT     \ clra
-#DEFCONT     \ clra
+;#DEFCONT     \ suba #32
+#DEFCONT     \ clra \ clra
 #DEFCONT     \ staa o2_en_
 
 ; 7 cycles
@@ -165,7 +172,7 @@ OCI_OSC1ns                          ;   +19    Ausgabe
                                     ;------
                                     ;    19
                ldd  subaudiobuf+11*2;+5   5    ; output sample 12
-;               std  Port6_DDR       ;+4   9
+               std  Port6_DDR       ;+4   9
                                     ;------
                                     ;     9
 
