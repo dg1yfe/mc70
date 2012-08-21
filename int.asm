@@ -159,29 +159,6 @@ end_int
                 rti                   ;+10 31 / 44 / 60
 
 ;************************************
-;************************************
-ocf2
-;                ldx  #tone_tab
-;                ldab TCSR2                 ; Timer Sontrol / Status Register 2 lesen
-
-                ldab tone_index
-                bne  ocf2_tonelo
-                oim  #%01100000, Port6_Data
-                eim  #1,tone_index
-                rts
-ocf2_tonelo
-                aim  #%10011111, Port6_Data
-                eim  #1,tone_index
-                rts
-
-;Pin 30 & 31
-;    P65 P66
-tone_tab
-
-;sin_tab
-                .db %00000000
-                .db %01000000
-;************************************
 
 TOI_SR               ; no TOI
                 rti

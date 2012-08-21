@@ -308,6 +308,7 @@ ts_count        .dw
 osc1_dither
 osc3_phase      .dw                        ; dual use: frequency input
 osc_buf         .db
+
 osc3_pd         .dw                        ; & oscialltor 1 & 2 (1750 Hz & DTMF)
 o2_en_          .db
 o2_en1          .db
@@ -340,7 +341,7 @@ io_outbuf       .block  io_outbuf_size                ; Output Ringbuffer - 16 B
 ;****************
 ; E X T   R A M
 ;****************
-#DEFINE SUBAUDIOBUF_LEN 24
+#DEFINE SUBAUDIOBUF_LEN 24+2
 ext_ram         .org $0200
 subaudiobuf     .org $0400
                 .block SUBAUDIOBUF_LEN

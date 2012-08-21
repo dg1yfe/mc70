@@ -165,7 +165,7 @@ OCI_OSC1ns                          ;   +19    Ausgabe
                                     ;------
                                     ;    19
                ldd  subaudiobuf+11*2;+5   5    ; output sample 12
-               std  Port6_DDR       ;+4   9
+;               std  Port6_DDR       ;+4   9
                                     ;------
                                     ;     9
 
@@ -180,8 +180,7 @@ OCI_OSC1ns                          ;   +19    Ausgabe
                                     ;+ 9 26
 
                ldd  osc1_dither     ;+4   4    ; get LFSR
-               lslb                 ;+1   4    ; shift LFSR
-               rola                 ;+1   5
+               lsld                 ;+1   5    ; shift LFSR
                bcc  $+4             ;+3   8    ; do nothing if MSB was 0
                eorb #%010010011     ;+2  12    ; calculate Feedback
                std  osc1_dither     ;+4  16/14 ; store LFSR
@@ -434,7 +433,9 @@ OCI_OSC1S10
                NEXTINT(166)
 ;+14
 ; int bei 1828
-               SETVEC(OCI_OSC1ns)
+;               SETVEC(OCI_OSC1ns)
+               ldx  subaudiobuf+24
+               stx  oci_vec
 ;+7
 ;1877
                dec  gp_timer        ;+6   6    ; Universaltimer-- / HW Task
@@ -448,6 +449,12 @@ OCI_OSC1S10
 ;
 ; 92+107+107+67 = 373/1994 = 18,7%
 ; CPU Last durch Interrupt/Soundausgabe: (1994-373)/1994 = 81,3 %
+
+OCI_OSC1_CLEANUP
+               ldx  #OCI1_MS
+               stx  oci_vec
+               NEXTINT(SYSCLK/1000-166)
+               rti
 
 ;******************
 ; 1
