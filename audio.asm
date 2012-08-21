@@ -143,6 +143,17 @@ tos_intloop
                std  osc1_dither
                ldaa Port6_DDR_buf
                ldab Port6_Data
+               std  subaudiobuf+ 0*2 ; initialize data buffers to current state
+               std  subaudiobuf+ 1*2
+               std  subaudiobuf+ 2*2
+               std  subaudiobuf+ 3*2
+               std  subaudiobuf+ 4*2
+               std  subaudiobuf+ 5*2
+               std  subaudiobuf+ 6*2
+               std  subaudiobuf+ 7*2
+               std  subaudiobuf+ 8*2
+               std  subaudiobuf+ 9*2
+               std  subaudiobuf+10*2
                std  subaudiobuf+11*2
                cli
                pulx
