@@ -48,7 +48,7 @@ OCI_OSC1                            ;   +19
 
                ldab Port2_Data      ;+3  39    get noise from Signalling Decode Input
                andb #1              ;+2  41    this is cheaper than generating pseudo-noise
-;               aba                  ;+1  42    using an LFSR and it is REAL noise
+               aba                  ;+1  42    using an LFSR and it is REAL noise
 
                tab                  ;+1  37
                lslb                 ;+1  38
@@ -117,7 +117,7 @@ OCI_OSC1d                           ;   +19
                lslb                 ;+1  87    ; shift LFSR
                rola                 ;+1  88
                bcc  $+4             ;+3  91    ; do nothing if MSB was 0
-               eorb #%010010011     ;+2  93    ; calculate Feedback
+               eorb #%01010011      ;+2  93    ; calculate Feedback
                std  osc1_dither     ;+4  97/95 ; store LFSR
                                     ;------
                ldaa TCSR2           ;+3  99

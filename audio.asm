@@ -90,9 +90,7 @@ tone_start
                pshb                   ; Hi Word sichern
                psha                   ; => f*65536 auf Stack speichern
 
-               ldd  #12000            ; Divisor  = Samplefrequenz * 4
-;               ldd  #8000            ; Divisor  = Samplefrequenz * 4
-;               ldd  #32000            ; Divisor  = Samplefrequenz * 4
+               ldd  #32000            ; Divisor  = Samplefrequenz * 4
                jsr  divide32          ; equivalent (Frequenz*256) / 16
                pulx
                pulx                   ; 'kleiner' (16 Bit) Quotient reicht aus
@@ -134,31 +132,33 @@ tos_intloop
                                       ; before next interrupt occurs even on EVA9
                std  OCR1
 #endif
-               clra
-               staa o2_en1
-               staa o2_en2
-               ldx  #OCI_OSC1ns
-               stx  subaudiobuf+24
+               ldx  #OCI_OSC1
                stx  oci_vec           ; OCI Interrupt Vektor 'verbiegen'
                                       ; Ausgabe startet automatisch beim nächsten OCI
                                       ; 1/8000 s Zeitintervall wird automatisch gesetzt
-;               clr  tasksw_en         ; re-enable preemptive task switching
+               stx  subaudiobuf+24
+
                ldd  #$1
                std  osc1_dither
+               clra
+
+               staa o2_en1
+               staa o2_en2
                ldaa Port6_DDR_buf
                ldab Port6_Data
-               std  subaudiobuf+ 0*2 ; initialize data buffers to current state
-               std  subaudiobuf+ 1*2
-               std  subaudiobuf+ 2*2
-               std  subaudiobuf+ 3*2
-               std  subaudiobuf+ 4*2
-               std  subaudiobuf+ 5*2
-               std  subaudiobuf+ 6*2
-               std  subaudiobuf+ 7*2
-               std  subaudiobuf+ 8*2
-               std  subaudiobuf+ 9*2
-               std  subaudiobuf+10*2
-               std  subaudiobuf+11*2
+               std  subaudiobuf+( 0*2); initialize data buffers to current state
+               std  subaudiobuf+( 1*2)
+               std  subaudiobuf+( 2*2)
+               std  subaudiobuf+( 3*2)
+               std  subaudiobuf+( 4*2)
+               std  subaudiobuf+( 5*2)
+               std  subaudiobuf+( 6*2)
+               std  subaudiobuf+( 7*2)
+               std  subaudiobuf+( 8*2)
+               std  subaudiobuf+( 9*2)
+               std  subaudiobuf+(10*2)
+               std  subaudiobuf+(11*2)
+               clr  tasksw_en         ; re-enable preemptive task switching
                cli
                pulx
                pula
@@ -235,17 +235,24 @@ tone_stop
                psha
                pshx
 
+               ldx  oci_vec
+               cpx  #OCI_OSC1
+               beq  tstop_toocims
+               cpx  #OCI_OSC2
+               beq  tstop_toocims
+               cpx  #OCI_OSC1d
+               beq  tstop_toocims
+
                ldx  #OCI_OSC1_CLEANUP
                stx  subaudiobuf+24
-               ldx  oci_vec
-               cpx  #OCI_OSC2
-               bne  tstop_loop
-               ldx  #OCI1_MS
-               stx  oci_vec
 tstop_loop
                ldx  oci_vec
                cpx  #OCI1_MS
                bne  tstop_loop
+
+tstop_toocims
+               ldx  #OCI1_MS
+               stx  oci_vec
 
                ldab Port6_DDR_buf
                andb #%10011111
@@ -261,7 +268,7 @@ tstop_loop
                pulb
                rts
 ;**********************
-; T O N E   S T A R T
+; A T O N E   S T A R T
 ;**********************
 ;
 ; Startet Ton Oszillator
