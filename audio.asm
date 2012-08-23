@@ -66,7 +66,7 @@ dfi_end
 ;
 ; Startet Ton Oszillator
 ;
-; Parameter : D - Tonfrequenz in 1/10 Hz
+; Parameter : D - Tonfrequenz in Hz
 ;
 ;
 ; delta phase = f / 8000 * 64 * 256

@@ -223,5 +223,52 @@ oos2_end
 ;     -> 1994400 Hz E2 clock
 ;     -> 249 * 8000 Hz (NCO clock)       CPU load EVA5 = (7* 49,8 % + 1* 60,2 %) / 8 = 51,1 % average
 ;                                        (reduces effective CPU speed for program to ~975 kHz)
+;*****************
+;digital dual tone Oscillator using modulation
+;(DTMF + CTCSS)
+;
+OCI_OSC2m                           ;   +19    Ausgabe Stream1 (Bit 0-2)
+               ldd  osc2_phase      ;+4  23    ; 16 Bit Phase 2 holen
+               addd osc2_pd         ;+4  27    ; 16 Bit delta Phase 2 addieren
+               std  osc2_phase      ;+4  31    ; neuen Phasenwert 2 speichern
+	       anda #%00100000	    ;+2  33    ; isolate MSB (0/180° phase indicator)
+               clrb                 ;+1  34
+               addd osc1_phase      ;+4  38    ; 16 Bit Phase 1 holen
+               addd osc1_pd         ;+4  42    ; 16 Bit delta phase 1 addieren
+               std  osc1_phase      ;+4  46    ; und neuen Phasenwert 1 speichern
+               ldx  #dac_sin_tab    ;+3  49    ; Sinustabelle indizieren
+               tab                  ;+1  50
+               andb #%00111111      ;+2  52
+               abx                  ;+1  53
+
+               ldaa Port6_DDR_buf   ;+3  56
+               ldab Port6_Data      ;+3  59
+               andb #%10011111      ;+2  61
+               addd 0,x             ;+5  66    ; add DAC value from sine table
+               std  Port6_DDR       ;+4  70    ; store to DDR & Data
+
+               ldab TCSR1           ;+3  73     ; Timer Control / Status Register 2 lesen
+               ldd  OCR1            ;+4  77
+               addd #249            ;+3  80     ; ca 8000 mal pro sek Int auslösen
+               std  OCR1            ;+4  84
+
+               ldaa TCSR2           ;+3  87
+               anda #%00100000      ;+3  90
+               beq  $+18            ;+3  93
+               ldd  OCR2            ;+4  97
+               addd #SYSCLK/1000    ;+3 100
+               std  OCR2            ;+4 104
+               dec  gp_timer        ;+6 110    ; Universaltimer-- / HW Task
+               ldx  tick_ms         ;+4 114
+               inx                  ;+1 115    ; 1ms Tick-Counter erhöhen
+               stx  tick_ms         ;+4 119
+oos2m_end
+               rti                  ;+10 103 / 129
+; CPU load with active NCO
+;
+; EVA5 / 7977600 Hz Xtal
+;     -> 1994400 Hz E2 clock
+;     -> 249 * 8000 Hz (NCO clock)       CPU load EVA5 = (7* 40,6 % + 1* 50,8 %) / 8 = 41,8 % average
+;                                        (reduces effective CPU speed for program to ~1160 kHz)
 
 
