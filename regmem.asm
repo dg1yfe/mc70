@@ -26,6 +26,7 @@
 ;
 ; Port Function Macros
 ;
+#IFDEF EVA5
 #DEFINE PTTPORT       Port6_Data
 #DEFINE PTTBIT        (1<< 7)
 
@@ -49,7 +50,12 @@
 #define SQM_OFF       0
 #define SQM_CARRIER   SQBIT_C
 #define SQM_RSSI      SQBIT_R
-
+;
+#define BIT_UI_PTT_REQ (1 << 0)
+#define BIT_DEFCH_SAVE (1 << 1)
+#define TX_CTCSS       (1 << 2)
+#define CDIFF_FLAG     (1 << 4)
+;
 ; Interface to shift register
 #define SRCLKPORT     Port2_Data
 #define SRCLKDDR      Port2_DDR
@@ -67,6 +73,62 @@
 #define SR_MIC        (1<< 5)
 #define SR_nTXPWR     (1<< 6)
 #define SR_RXAUDIO    (1<< 7)
+#endif
+;*************************************
+;
+; EVA9 CONSTANTS
+;
+#IFDEF EVA9
+#DEFINE PTTPORT       Port5_Data
+#DEFINE PTTBIT        (1<< 1)
+; TODO: Set correct values for remaining port macros & use them
+;VCO Select Output
+#DEFINE VCOPORT       Port2_Data
+#DEFINE VCOBIT        (1<< 5)
+
+;PLL Lock Input
+#define LOCKPORT      Port5_Data
+#define LOCKBIT       (1<< 6)
+;Squelch Input
+#define SQPORT        Port5_Data
+#define SQBIT         (1<< 5)
+;
+#define SQM_OFF       0
+#define SQM_CARRIER   SQBIT
+;
+#define BIT_DEFCH_SAVE (1 << 1)
+#define TX_CTCSS       (1 << 2)
+#define CDIFF_FLAG     (1 << 4)
+#define BIT_UI_PTT_REQ (1 << 0)
+; Interface to shift register
+; #define SRCLKPORT     Port2_Data
+; #define SRCLKDDR      Port2_DDR
+; #define SRCLKBIT      (1<< 2)
+; #define SRDATAPORT    Port2_Data
+; #define SRDATADDR     Port2_DDR
+; #define SRDATABIT     (1<< 1)
+
+; Shift register output
+ ; 0 - Audio PA enable (1=enable)      (PIN 4 ) *
+ ; 1 - STBY&9,6V                       (PIN 5 )
+ ; 2 - T/R Shift                       (PIN 6 ) *
+ ; 3 - Hi/Lo Power (1=Lo), Clk-Shift   (PIN 7 ) *
+ ; 4 - Ext. Alarm (0=Lo)               (PIN 14) *
+ ; 5 - Sel.5 ATT   (1=Attenuated Tones)(PIN 13) *
+ ; 6 - Mic enable  (1=enable)          (PIN 12) *
+ ; 7 - Rx Audio enable (1=enable)      (PIN 11)
+#define SR_AUDIOPA    (1<< 0)
+#define SR_9V6        (1<< 1)
+#define SR_TXRX       (1<< 2)
+#define SR_CLKSHIFT   (1<< 3)
+#define SR_RFPWRHI    (1<< 3)
+#define SR_EXTALARM   (1<< 4)
+#define SR_SEL5ATT    (1<< 5)
+#define SR_MIC        (1<< 6)
+#define SR_RXAUDIO    (1<< 7)
+
+
+#ENDIF
 
 ;*******************
 ; R E G I S T E R S
@@ -213,6 +275,7 @@ last_tasksw     .db
 tasksw_en       .db
 start_task      .dw
 
+tx_ctcss_flag
 pcc_cdiff_flag  .db                                    ; Flag
 
 led_buf         .db                        ; Bit 0 (1)  - gelb
@@ -300,7 +363,7 @@ pll_locked_flag .db                                   ; Bit 0 - PLL not locked
 pll_timer       .db
 
 tone_timer      .db
-tone_index      .db
+ctcss_index     .db
 oci_ctr         .db
 
 ts_count        .dw

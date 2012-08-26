@@ -1009,17 +1009,17 @@ pc_cache
                beq  pcc_same          ; Wenn es gleich ist, Zeichen nicht ausgeben
 
                ldaa pcc_cdiff_flag    ; Unterscheidet sich Cursorposition in CPOS von tatsächlicher Cursorposition?
+               anda #CDIFF_FLAG
                beq  pcc_diff          ; Nein, dann weitermachen - Returnvalue = 'Zeichen ausgeben'
 
                ldaa #'p'
                addb #$60              ; $60 zu Cursorposition addieren -> Positionierungsbefehl erzeugen
                jsr  putchar           ; Cursor korrekt positionieren
-               clr  pcc_cdiff_flag    ; Flag löschen, Positionen stimmen wieder überein
+               aim  #~CDIFF_FLAG, pcc_cdiff_flag ; clear flag, cursor positions match
                bra  pcc_diff
 pcc_same
                inc  cpos              ; Cursor weitersetzen
-               ldab #1
-               stab pcc_cdiff_flag    ; Cursorposition in CPOS unterscheidet sich von tatsächlicher
+               oim  #CDIFF_FLAG, pcc_cdiff_flag    ; Cursorposition in CPOS unterscheidet sich von tatsächlicher
                clra                   ; Returnvalue: 'Zeichen überspringen'
                bra  pcc_end
 pcc_diff
@@ -1788,6 +1788,55 @@ atoi_next
 atoi_end
                 pulx                       ; sonst: Zieladresse vom Stack l�schen und
                 rts                        ; R�cksprung
+;*********
+; U T O A
+;*********
+;
+; 16 Bit Unsigned to String
+;
+; Parameter    : D  - unsigned int
+;                X  - Address for result (7 bytes (5 digits + 1 sign + terminating zero))
+;
+; Ergebnis     : X - *Output (zero-terminated string)
+;
+; changed Regs : A, B
+;
+utoa
+               pshx                    ; save target pointer to stack
+               xgdx                    ; move input to X
+
+               ldab #42
+               pshb                    ; push end marker to stack
+utoa_divloop
+               xgdx                    ; get integer
+               ldx  #10
+               jsr  divide             ; divide uint by 10
+               xgdx                    ; move remainder (0-9) to D
+                                       ; and quotient to X
+               pshb                    ; push remainder onto Stack
+
+               cpx  #0
+               bne  utoa_divloop       ; if quotient >0, divide again
+               tsx
+utoa_lenloop                           ; loop until end of string to
+               ldab 0,x
+               inx
+               cmpb #42
+               bne  utoa_lenloop
+               ldx  0,x                ; get the target pointer back
+               clra
+utoa_prntloop
+               pulb                    ; Rest vom Stack holen
+               cmpb #42                ; test for end marker
+               beq  utoa_end           ; Escape here, if marker found
+               addb #'0'               ; add $30 (num to char conversion)
+               stab 0,x                ; store to target
+               inx
+               staa 0,x                ; insert zero termination
+               bra  utoa_prntloop      ;
+utoa_end
+               pulx                    ; restore pointer to buffer
+               rts                     ; return
 
 
 

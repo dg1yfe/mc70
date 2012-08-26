@@ -19,7 +19,7 @@
 ; 
 ;     You should have received a copy of the GNU General Public License
 ;     along with MC70.  If not, see <http://www.gnu.org/licenses/>.
-; 
+;
 ;
 ;
 ;****************************************************************************
@@ -85,18 +85,34 @@ tone_start
                pshx
 
                ldx  #0
-;               stx  osc1_phase        ; Phase startet bei 0
                pshx                   ; Lo Word = 0
                pshb                   ; Hi Word sichern
                psha                   ; => f*65536 auf Stack speichern
 
+#ifdef EVA5
                ldd  #32000            ; Divisor  = Samplefrequenz * 4
+#endif
+#ifdef EVA9
+               ldd  #8000             ; Divisor  = Samplefrequenz
+#endif
                jsr  divide32          ; equivalent (Frequenz*256) / 16
                pulx
                pulx                   ; 'kleiner' (16 Bit) Quotient reicht aus
 
                std  osc1_pd           ; Quotient = delta für phase
 
+               ldx  oci_vec           ; check if CTCSS/PL tone generator is active
+               cpx  #OCI_OSC1_pl
+               beq  tos_oscvec2sp     ; signalling & CTCSS
+               cpx  #OCI_OSC2_sp
+               beq  tos_oscvec2sp     ; signalling & CTCSS
+               cpx  #OCI_OSC2
+               beq  tos_oscvec3      ; dual tone signalling & CTCSS
+               cpx  #OCI_OSC3
+               beq  tos_oscvec3      ; dual tone signalling & CTCSS
+               cpx  #OCI_OSC1_sig
+               beq  tos_end           ; correct vector is already set, goto exit
+#ifdef EVA5
                ldab Port6_DDR_buf
                andb #%10011111
                orab #%00010000
@@ -106,7 +122,7 @@ tone_start
                ldab Port6_Data
                andb #%10001111
                stab Port6_Data
-
+#endif
                ldab #0
                stab tasksw_en         ; disable preemptive task switching
                sei
@@ -126,13 +142,13 @@ tos_intloop
 #ifdef EVA5
                ldab TCSR2
                ldd  OCR1
-;               std  OCR2
+               std  OCR2
                subd #SYSCLK/1000
-               addd #249*5            ; add 5 sample periods to ensure there is enough time
+               addd #SYSCLK/1600      ; add 5 sample periods to ensure there is enough time
                                       ; before next interrupt occurs even on EVA9
                std  OCR1
-#endif
-               ldx  #OCI_OSC1
+
+               ldx  #OCI_OSC1_sig
                stx  oci_vec           ; OCI Interrupt Vektor 'verbiegen'
                                       ; Ausgabe startet automatisch beim nächsten OCI
                                       ; 1/8000 s Zeitintervall wird automatisch gesetzt
@@ -158,8 +174,24 @@ tos_intloop
                std  subaudiobuf+( 9*2)
                std  subaudiobuf+(10*2)
                std  subaudiobuf+(11*2)
+#endif
+#ifdef EVA9
+               ldx  #OCI_OSC1_sig     ; signalling NCO
+               bra  tos_setvec
+#endif
+tos_oscvec2sp
+               ldx  #OCI_OSC2_sp      ; signalling NCO & CTCSS NCO
+               bra  tos_setvec
+tos_oscvec3
+               ldx  #OCI_OSC3         ; dual tone signalling NCO & CTCSS NCO
+tos_setvec
+               stx  oci_vec           ; set new OCI interrupt vector
+                                      ; output starts autonmatically with next 1 ms interrupt
+                                      ; 1/8000 s interval is then set automatically
+
                clr  tasksw_en         ; re-enable preemptive task switching
                cli
+tos_end
                pulx
                pula
                pulb
@@ -265,6 +297,31 @@ tosp_end
                pulb
                rts
 
+;***********************
+; C T C S S   S T A R T
+;***********************
+;
+; Starts CTCSS tone oscillator
+;
+; calculates frequency from 'ctcss_index' and calls tone_start_pl
+; preserve registers and save some stack memory by saving
+; the regs ourselves and using jmp instead of jsr
+;
+ctcss_start
+               pshb
+               ldab ctcss_index        ; get CTCSS index
+               beq  ctst_end           ; if frequency = 0, end here
+               psha
+               pshx
+               lslb                    ; double index because to address 2 Byte table entries
+               ldx  #ctcss_tab         ; get pointer to CTCSS frequency table
+               abx                     ; add index
+               ldd  0,x                ; get tone entry
+               jmp  tosp_entry         ; else start output with selected frequency
+ctst_end
+               pulb
+               rts
+
 
 ;**********************
 ; D T O N E   S T A R T
@@ -285,7 +342,12 @@ dtone_start
                pshx                   ; Lo Word = 0
                pshb                   ; Hi Word Freq f_m auf Stack
                psha                   ; => f*65536 auf Stack speichern
+#ifdef EVA5
                ldd  #32000            ; Divisor  = Samplefrequenz * 4
+#endif
+#ifdef EVA9
+               ldd  #8000             ; Divisor  = Samplefrequenz
+#endif
                jsr  divide32          ; equivalent (Frequenz*256) / 16
                pulx
                pulx                   ; 'kleiner' (16 Bit) Quotient reicht aus
@@ -296,43 +358,91 @@ dtone_start
                tsx
                ldx  2,x               ; Tonfrequenz 2/X holen
                pshx                   ; und auf Stack legen
+#ifdef EVA5
                ldd  #32000            ; Divisor  = Samplefrequenz * 4
+#endif
+#ifdef EVA9
+               ldd  #8000             ; Divisor  = Samplefrequenz
+#endif
                jsr  divide32          ; equivalent (Frequenz*256) / 16
                pulx
                pulx                   ; 'kleiner' (16 Bit) Quotient reicht aus
                std  osc2_pd           ; Quotient = delta für phase
+               ldx  oci_vec           ; check if CTCSS/PL tone generator is active
+               cpx  #OCI_OSC2
+               beq  dts_end           ; correct vector is already set, goto exit
+               cpx  #OCI_OSC1_sig
+               beq  dts_oscvec2       ; dual tone signalling
+               cpx  #OCI_OSC1_pl
+               beq  dts_oscvec3       ; dual tone signalling & CTCSS
+               cpx  #OCI_OSC2_sp
+               beq  dts_oscvec3       ; dual tone signalling & CTCSS
+               cpx  #OCI_OSC3
+               beq  dts_oscvec3       ; dual tone signalling & CTCSS
 
+#ifdef EVA5
                ldab Port6_DDR_buf
                andb #%10011111
-               orab #%00010000
                stab Port6_DDR_buf
                stab Port6_DDR
-
-               ldab Port6_Data
-               andb #%10001111
-               stab Port6_Data
-
+#endif
+               ldab #0
+               stab tasksw_en         ; disable preemptive task switching
                sei
+               ldab tick_ms+1
+dts_intloop
+               cli
+               nop                    ; don't remove these NOPs
+               nop                    ; HD6303 needs at least 2 clock cycles between cli & sei
+               sei                    ; otherwise interrupts aren't processed
+               cmpb tick_ms+1
+               beq  dts_intloop
+
+#ifdef EVA9
+               ldab #1
+               stab oci_int_ctr       ; Interrupt counter auf 1
+                                      ; (Bit is left shifted during Audio OCI, on zero 1ms OCI will be executed)
+#endif
+#ifdef EVA5
                ldab TCSR2
                ldd  OCR1
                std  OCR2
                subd #SYSCLK/1000
-               addd #249*5            ; add 5 sample periods to ensure there is enough time
+               addd #SYSCLK/1600      ; add 5 sample periods to ensure there is enough time
                                       ; before next interrupt occurs even on EVA9
                std  OCR1
-
-               ldx  #OCI_OSC2
-               stx  oci_vec           ; OCI Interrupt Vektor 'verbiegen'
-                                      ; Ausgabe startet automatisch beim nächsten OCI
-                                      ; 1/8000 s Zeitintervall wird automatisch gesetzt
+#endif
+               ldx  #OCI_OSC2         ; dual tone signalling NCO
+               bra  dts_setvec
+dts_oscvec2
+               ldx  #OCI_OSC2         ; CTCSS/PL tone are to be generated, use triple tone nco
+               bra  dts_setvec
+dts_oscvec3
+               ldx  #OCI_OSC3
+dts_setvec
+               stx  oci_vec           ; set new OCI interrupt vector
+                                      ; output starts autonmatically with next 1 ms interrupt
+                                      ; 1/8000 s interval is then set automatically
                cli
-;               ldab #1
-;               stab Port7_Data
-
+#ifdef EVA5
+               ldab #1
+               stab Port7_Data
+#endif
+dts_end
                pulx
                pula
                pulb
                rts
+;***************************
+; D T O N E   S T A R T   M
+;***************************
+;
+; Starts dual-tone oscillator which uses modulation
+;
+; Parameter : D - Tonfrequenz 1 in Hz
+;             X - Tonfrequenz 2 in Hz
+;
+;
 dtone_startm
                pshb
                psha
@@ -412,33 +522,48 @@ dtone_startm
 ; T O N E   S T O P
 ;**********************
 ;
-; Stoppt Ton Oszillator
+; Disable signalling NCO (single and dual tone signalling)
+; CTCSS NCO is not affected
 ;
-tone_stop
+tone_stop_sig
                pshb
                psha
                pshx
 
                ldx  oci_vec
-               cpx  #OCI_OSC1
-               beq  tstop_toocims
-               cpx  #OCI_OSC2
-               beq  tstop_toocims
+               cpx  #OCI_OSC1_sig
+               beq  tsts_disable
                cpx  #OCI_OSC1d
-               beq  tstop_toocims
+               beq  tsts_disable
+               cpx  #OCI_OSC2
+               beq  tsts_disable
                cpx  #OCI_OSC2m
-               beq  tstop_toocims
+               beq  tsts_disable
+               cpx  #OCI_OSC2_sp
+               beq  tsts_osc1pl
+               cpx  #OCI_OSC3
+               beq  tsts_osc1pl
 
+tsts_oci_cleanup
                ldx  #OCI_OSC1_CLEANUP
                stx  subaudiobuf+24
-tstop_loop
+tsts_loop
                ldx  oci_vec
                cpx  #OCI1_MS
-               bne  tstop_loop
-
-tstop_toocims
+               bne  tsts_loop
+               bra  tsts_disable
+tsts_osc1pl
+               ldx  #OCI_OSC1_pl       ; otherwise CTCSS must be active, keep this one running
+               bra  tsts_setvec
+tsts_disable
                ldx  #OCI1_MS
+tsts_setvec
                stx  oci_vec
+#ifdef EVA5
+               ldab Port5_DDR_buf
+               andb #%11110111
+               stab Port5_DDR
+               stab Port5_DDR_buf
 
                ldab Port6_DDR_buf
                andb #%10011111
@@ -448,11 +573,77 @@ tstop_toocims
                ldaa Port6_Data
                anda #%10011111
                staa Port6_Data
-
+#endif
+#ifdef EVA9
+               ldaa Port6_Data
+               anda #%11110000
+               oraa #%00001000
+               staa Port6_Data
+#endif
+tsts_end
                pulx
                pula
                pulb
                rts
+;*************************
+; T O N E   S T O P   P L
+;*************************
+;
+; Disables CTCSS NCO
+; Signalling NCO(s) is/are not affected
+;
+tone_stop_pl
+               pshb
+               psha
+               pshx
+
+               ldx  oci_vec
+               cpx  #OCI_OSC1_pl       ; check if only the signalling NCO was active
+               beq  tstp_disable       ; and deactivate sound output completely
+               cpx  #OCI_OSC2_sp       ; single tone signalling & CTCSS is active
+               beq  tstp_osc1sig       ; keep single tone running
+               cpx  #OCI_OSC3          ; dual-tone signalling & CTCSS is active
+               beq  tstp_osc2          ; keep dual tone output running
+               bra  tstp_end           ; CTCSS NCO is not active, exit
+tstp_osc1sig
+               ldx  #OCI_OSC1_sig
+               bra  tstp_setvec        ; single tone signalling NCO
+tstp_osc2
+               ldx  #OCI_OSC2          ; dual-tone signalling NCO
+               bra  tstp_setvec
+tstp_disable
+               ldx  #OCI1_MS
+tstp_setvec
+               stx  oci_vec            ; OCI wieder auf Timer Interrupt zurücksetzen
+                                       ; Zeitbasis für Timerinterrupt (1/1000 s) wird im Int zurückgestellt
+                                       ; DAC wieder auf Mittelwert zurücksetzen
+#ifdef EVA5
+               ldab Port5_DDR_buf
+               andb #%11110111
+               stab Port5_DDR
+               stab Port5_DDR_buf
+
+               ldab Port6_DDR_buf
+               andb #%10011111
+               stab Port6_DDR
+               stab Port6_DDR_buf
+
+               ldaa Port6_Data
+               anda #%10011111
+               staa Port6_Data
+#endif
+#ifdef EVA9
+               ldaa Port6_Data
+               anda #%11110000
+               oraa #%00001000
+               staa Port6_Data
+#endif
+tstp_end
+               pulx
+               pula
+               pulb
+               rts
+
 ;**********************
 ; A T O N E   S T A R T
 ;**********************
@@ -600,7 +791,14 @@ dtmf_tab_x
                .dw 1209,1336,1477,1633
 dtmf_tab_y
                .dw  697, 770, 852, 941
-
+ctcss_tab
+               .dw     0,  670,  694,  719,  744,  770,  797,  825,
+               .dw 	 854,  885,  915,  948,  974, 1000, 1035, 1072,
+               .dw 	1109, 1148, 1188, 1230, 1273, 1318, 1365, 1413,
+               .dw 	1462, 1514, 1567, 1598, 1622, 1655, 1679, 1713,
+               .dw 	1738, 1773, 1799, 1835, 1862, 1899, 1928, 1966,
+               .dw 	1995, 2035, 2065, 2107, 2138, 2181, 2213, 2257,
+               .dw 	2291, 2336, 2371, 2418, 2455, 2503, 2541
 #ifdef EVA9
 #include "audio_e9.asm"
 #else

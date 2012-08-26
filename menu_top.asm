@@ -38,7 +38,14 @@
 #DEFINE M_MENU_ENTRIES 5
 #endif
 
-m_menu_str	.db "MENU    ",0
+#ifdef EVA5
+#DEFINE M_MENU_ENTRIES 6
+#else
+#DEFINE M_MENU_ENTRIES 7
+#endif
+
+m_menu_str	
+        .db "MENU    ",0
 		.dw m_recall_submenu
 
 		.db "RECALL  ",0
@@ -47,6 +54,16 @@ m_menu_str	.db "MENU    ",0
 		.db "STORE   ",0
 		.dw m_store_submenu
 
+		.db "TX CTCSS",0
+		.dw m_ctcss_tx_submenu
+
+		.db "DTMF    ",0
+		.dw m_dtmf_submenu
+
+#ifdef EVA9
+		.db "POWER   ",0
+		.dw m_power_submenu
+#endif
 		.db "VERSION ",0
 		.dw m_version_submenu
 
@@ -54,10 +71,6 @@ m_menu_str	.db "MENU    ",0
         .dw m_defch_submenu
 ;		.dw m_frq_store
 
-#ifdef EVA9
-		.db "POWER   ",0
-		.dw m_power_submenu
-#endif
                 .db 0
 ;*****************************
 ; M E N U   I D L E
@@ -243,6 +256,7 @@ mfd_end
 ;
 m_sql_switch
                 ldab sql_mode
+#ifdef EVA5
                 cmpb #SQM_RSSI
                 beq  mss_none          ; RSSI -> none
                 cmpb #SQM_CARRIER
@@ -267,7 +281,24 @@ mss_none                               ; Raussperre deaktivieren
                 ldaa #0
                 ldab #2
                 jsr  arrow_set
+#endif
+#ifdef EVA9
+                andb #SQBIT
+                bne  mss_none          ; RSSI -> none
+mss_carrier                            ; Carrier Squelch Pin auswerten
+                ldaa #1
+                ldab #2
+                jsr  arrow_set
+                bra  mss_end
+mss_none                               ; Raussperre deaktivieren
+                ldaa #0
+                ldab #2
+                jsr  arrow_set
+#endif
 mss_end
+#ifdef EVA9
+                eim  #SQBIT, sql_mode
+#endif
                 jmp  m_end
 
 ;**************************************
@@ -278,14 +309,16 @@ mss_end
 m_tone
 
                 oim  #1,ui_ptt_req     ; PTT drücken
+#IFDEF EVA5
                 clrb
                 jsr  dac_filter        ; deactivate additional DAC filter
+#ENDIF
                 ldab tone_timer
                 bne  mtn_reset_timer
                 ldd  #1750
                 jsr  tone_start
 mtn_reset_timer
-                ldab #8
+                ldab #6
                 stab tone_timer        ; 0,6 sek Ton ausgeben
 
                 jmp  m_end
@@ -535,7 +568,7 @@ m_test3
                 jmp  m_end
 
 m_tone_stop
-                jsr  tone_stop
+                jsr  tone_stop_sig
                 jmp  m_end
 
 m_test2
@@ -757,7 +790,7 @@ m_dtmf_direct
 m_dtmf_go
                 ldaa tone_timer
                 beq  mdg_start          ; check if tone is still on
-                jsr  tone_stop          ; if it is, stop it
+                jsr  tone_stop_sig      ; if it is, stop it
                 WAIT(40)                ; wait 40 ms (DTMF minimum pause)
 mdg_start
                 jsr  dtmf_key2freq      ; calculate DTMF frequencies

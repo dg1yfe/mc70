@@ -116,6 +116,13 @@
 
 #DEFINE PLLREF FREF/FSTEP
 ;
+;
+;**************************************************************
+#define CTCSS_INDEX_MAX 55
+
+
+#DEFINE WAIT(ms)    pshx \ ldx  #ms \ jsr wait_ms \ pulx
+#DEFINE LCDDELAY  42     ; 41ms
 ;************************
 ; Squelch
 ;
@@ -146,9 +153,6 @@
 #DEFINE komma      $2C
 #DEFINE backslash  $5C
 
-
-#DEFINE WAIT(ms)    pshx \ ldx  #ms \ jsr wait_ms \ pulx
-#DEFINE LCDDELAY  42     ; 41ms
 
 #DEFINE PCHAR(cmd)  ldaa #'c' \ ldab #cmd \ jsr putchar
 #DEFINE PUTCHAR     ldaa #'c' \ jsr putchar

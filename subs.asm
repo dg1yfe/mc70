@@ -121,6 +121,11 @@ pgs_end
 ; aktiviert Empfänger
 ;
 receive
+                ldab tx_ctcss_flag
+                andb #TX_CTCSS              ; check if CTCSS tone should be enabled
+                beq  rcv_ledoff
+                jsr  tone_stop_pl           ; disable CTCSS tone generator
+rcv_ledoff
                 ldab #YEL_LED+LED_OFF
                 jsr  led_set                ; gelbe LED aus
 
@@ -211,6 +216,11 @@ tnt_wait
                 ldab #1
                 stab rxtx_state             ; Status setzen
 
+                ldab tx_ctcss_flag
+                andb #TX_CTCSS              ; check if CTCSS tone should be enabled
+                beq  tnt_end                ;
+                jsr  ctcss_start
+tnt_end
                 rts
 ;****************
 ; S Q U E L C H

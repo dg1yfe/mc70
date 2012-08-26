@@ -38,6 +38,7 @@
 ;
 ; Single tone oscillator without noise shaping (less CPU usage)
 ;
+OCI_OSC1_sig
 OCI_OSC1                            ;   +19
                ldd  osc1_phase      ;+4  23    Phase holen (16 Bit)
                addd osc1_pd         ;+4  27    phasen delta addieren
@@ -327,6 +328,68 @@ oos2m_end
 ;     -> 249 * 8000 Hz (NCO clock)       CPU load EVA5 = (7* 40,6 % + 1* 50,8 %) / 8 = 41,8 % average
 ;                                        (reduces effective CPU speed for program to ~1160 kHz)
 ;*****************
+;digital double tone Oscillator, Signalling & CTCSS
+;
+;
+OCI_OSC2_sp                         ;   +19
+               ldd  osc1_phase      ;+4  23    ; 16 Bit Phase 1 holen
+               addd osc1_pd         ;+4  27    ; 16 Bit delta phase 1 addieren
+               std  osc1_phase      ;+4  31    ; und neuen Phasenwert 1 speichern
+               ldx  #sin_64_3_1dB   ;+3  34    ; Sinustabelle indizieren
+               tab                  ;+1  35
+               andb #%00111111      ;+2  37
+               abx                  ;+1  38
+
+               ldd  osc3_phase      ;+4  42    ; 16 Bit Phase 2 holen
+               addd osc3_pd         ;+4  46    ; 16 Bit delta Phase 2 addieren
+               std  osc3_phase      ;+4  50    ; neuen Phasenwert 2 speichern
+
+               ldab 0,x             ;+4  54    ; Tabelleneintrag 1 holen
+
+               anda #%11000000      ;+2  56    ; filter topmost bits, 01 = add 1 to B, 11 = sub 1 from B
+               rola                 ;+1  57
+               rola                 ;+1  58    ; keep sign as Bit 0 and value in carry flag
+               beq  oo2sp_add       ;+3  61    ; decide if to perform addition or subtraction
+               sbcb #0              ;+2  63    ; subtract 0 and carry
+               bra  oo2sp_da        ;+3  66    ; continue with indexing DAC table
+oo2sp_add
+               adcb #0              ;+2  63    ; add 0 and carry
+               bra  oo2sp_da        ;+3  66    ; continue with indexing DAC table
+oo2sp_da
+               lslb                 ;+1  67    ; table has 16 bit values, adjust index
+               ldx  #dac_out_tab2   ;+3  70    ; get DAC table base
+               abx                  ;+1  71    ; add index
+
+               ldaa Port6_DDR_buf   ;+3  74
+               ldab Port6_Data      ;+3  77
+               andb #%10001111      ;+2  79
+               addd 0,x             ;+5  84    ; use ADD as OR
+               std  Port6_DDR       ;+4  88    ; Store to DDR & Data
+
+               ldab TCSR1           ;+3  91     ; Timer Control / Status Register 2 lesen
+               ldd  OCR1            ;+4  95
+               addd #249            ;+3  98     ; ca 8000 mal pro sek Int auslösen
+               std  OCR1            ;+4 102
+
+               ldaa TCSR2           ;+3 105
+               anda #%00100000      ;+3 108
+               beq  oo2sp_end       ;+3 111
+               ldd  OCR2            ;+4 115
+               addd #SYSCLK/1000    ;+3 118
+               std  OCR2            ;+4 122
+               dec  gp_timer        ;+6 128    ; Universaltimer-- / HW Task
+               ldx  tick_ms         ;+4 132
+               inx                  ;+1 133    ; 1ms Tick-Counter erhöhen
+               stx  tick_ms         ;+4 137
+oo2sp_end
+               rti                  ;+10 121 / 147
+; CPU load with active NCO
+;
+; EVA5 / 7977600 Hz Xtal
+;     -> 1994400 Hz E2 clock
+;     -> 249 * 8000 Hz (NCO clock)       CPU load EVA5 = (7* 40,6 % + 1* 50,8 %) / 8 = 41,8 % average
+;                                        (reduces effective CPU speed for program to ~1160 kHz)
+;*****************
 ;digital double tone Oscillator
 ;
 ; TODO: Sinn von Dither untersuchen, 16 Bit LFSR (z.B. x^16 + x^12 + x^5 + 1) addieren
@@ -357,10 +420,11 @@ OCI_OSC3                            ;   +19    Ausgabe Stream1 (Bit 0-2)
 
                ldd  osc3_phase      ;+4  76
                addd osc3_pd         ;+4  80
-               std  osd3_phase      ;+4  84
+               std  osc3_phase      ;+4  84
                andb #%10000000      ;+2  86
                rolb                 ;+1  87
                rolb                 ;+1  88
+               rolb                 ;+1  89
                abx                  ;+1  89
 
                ldaa Port6_DDR_buf   ;+3  92
