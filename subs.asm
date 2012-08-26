@@ -47,17 +47,20 @@ watchdog_toggle
                 eorb #%10                        ; Bit 1 invertieren
                 stab Port2_DDR_buf
                 stab Port2_DDR                   ; neuen Status setzen
-                aim  #%11111101,Port2_Data       ;Data auf 0
+                aim  #~SRDATABIT,SRDATAPORT       ;Data auf 0
                 rts
 watchdog_toggle_ms
                ldab tick_ms+1                  ; toggle wd line every ms
                andb #2                         ; even if called more often
+               beq  wdtm_zero
+               ldab #SRDATABIT
+wdtm_zero
                ldaa Port2_DDR_buf               ; Port2 DDR lesen
-               anda #%11111101
+               anda #~SRDATABIT
                aba
                staa Port2_DDR_buf
                staa Port2_DDR                   ; neuen Status setzen
-               aim  #%11111101,Port2_Data       ;Data auf 0
+               aim  #~SRDATABIT,SRDATAPORT       ;Data auf 0
                rts
 ;******************
 ; W D   R E S E T
@@ -127,13 +130,18 @@ receive
 rcv_ledoff
                 ldab #YEL_LED+LED_OFF
                 jsr  led_set                ; gelbe LED aus
-
+#ifdef EVA5
+                ldaa #~SR_MIC                ; disable Mic
+                ldab #SR_nTXPWR              ; disable tx power control
+                jsr  send2shift_reg
+#endif
+#ifdef EVA9
                 oim  #%00100000, Port2_Data ; Driver disable
 
                 ldab #%00000000             ;
                 ldaa #%10111111             ; Mic disable
                 jsr  send2shift_reg
-
+#endif
                 ldab #TX_TO_RX_TIME
                 stab gp_timer               ; 5ms warten
 rcv_wait
@@ -143,6 +151,11 @@ rcv_wait
 
                 inc  pll_timer              ; ensure pll timer does not reach zero during
                                             ; frequency update
+#ifdef EVA5
+                ldaa #~SR_RFPA               ; Disable RF PA
+                clrb
+                jsr  send2shift_reg
+#endif
                 clrb
                 jsr  vco_switch             ; RX VCO aktivieren
 
@@ -150,11 +163,16 @@ rcv_wait
                 jsr  set_rx_freq            ; RX Frequenz setzen
 
                 clr  rxtx_state             ; Status auf RX setzen
-
+#ifdef EVA5
+                ldaa #-1
+                ldab #SR_RXAUDIO            ; RX Audio enable
+                jsr  send2shift_reg
+#endif
+#ifdef EVA9
                 ldab #%10000000             ; RX Audio enable
                 ldaa #%11111111             ;
                 jsr  send2shift_reg
-
+#endif
                 clr  sql_timer              ; und zwar sofort
 
                 rts
@@ -272,7 +290,7 @@ sq_check
                 lslb
                 lslb
 #endif
-                andb SQPORT                ; Squelch Input auslesen
+                andb PORT_SQ               ; Squelch Input auslesen
                 beq  sq_cnt_down           ; Kein Signal vorhanden? Dann springen
 
                 cmpa #SQL_HYST             ; Hysteresis level reached?
@@ -337,20 +355,41 @@ sq_end
 ; changed Regs: A
 ;
 ; further effects : If radio is switched off, Audio PA is turned off,
-;                   9.6V regulator is turned off and CPU goes into STBY, the reset
+;                   9.6V regulator is turned off and CPU goes into STBY, then reset
 ;
 ; prüft den Ein-/Ausschalter und schaltet das Gerät ggf. aus (CPU in Standby Mode)
 ;
 pwr_sw_chk
-               ldaa Port5_Data
-               anda #%10000000            ; SWB+ ?
+               ldaa PORT_SWB
+               anda #%BIT_SWB            ; SWB+ ?
                bne  psc_turn_it_off
                rts
 psc_turn_it_off
-                tstb                     ; check if we should store the current channel
-                beq  psc_no_store        ; if not, just turn power down the radio
-                jsr  store_current       ; else store current channel & shift
+               tstb                     ; check if we should store the current channel
+               beq  psc_no_store        ; if not, just turn power down the radio
+#ifdef EVA5
+               ldaa PORT_PWRFAIL
+               anda BIT_PWRFAIL         ; check if power is failing
+               beq  psc_no_store        ; if it is, do not access EEPROM
+                                        ; to prevent data corruption
+#endif
+               jsr  store_current       ; else store current channel & shift
 psc_no_store
+#ifdef EVA5
+                ldaa #%01111111
+                ldab #%00000000
+                jsr  send2shift_reg        ; RX Audio aus
+
+                ldaa #%01101101
+                ldab #%00000000
+                jsr  send2shift_reg        ;Gerät ist aus,
+                                           ; Audio PA aus,
+                                           ; RX Audio aus,
+                                           ; Audio PA aus,
+                                           ; Ext Alarm auf 1 - kein Carrier detect anzeigen
+                                           ; STBY Signal an & 9,6V Regler aus
+#endif
+#ifdef EVA9
                                         ; Rx Audio enable = 0
                                         ; Mic enable = 0
                                         ; Sel5 Att = 0
@@ -387,7 +426,8 @@ psc_no_store
                 ; do not execute any meaningful code after this point
                 ldd #$BEEF
                 aim #%10011111, RP5CR    ; Disable internal RAM and enter Standby mode immediately
-psc_loop        
+#endif
+psc_loop
                 bra psc_loop             ; Should not be executed, CPU is in STDBY
 
 ;************************
@@ -407,14 +447,24 @@ vco_switch
 
                 tstb                             ; TX oder RX?
                 bne  vcs_tx                      ; TX, dann jump
+#ifdef EVA5
+                aim  #%11011111,Port2_Data       ; für RX, Portbit löschen
+#endif
+#ifdef EVA9
                 ldab #%00000000
-                ldaa #%11111011                  ; für RX, T/R Shift Bit löschen
+                ldaa #~SR_TXRX                  ; für RX, T/R Shift Bit löschen
                 jsr  send2shift_reg
+#endif
                 bra  vcs_end
 vcs_tx
-                ldab #%00000100
+#ifdef EVA5
+                oim  #%00100000,Port2_Data       ; Für TX, Portbit setzen
+#endif
+#ifdef EVA9
+                ldab #SR_TXRX
                 ldaa #%11111111                  ;
                 jsr  send2shift_reg              ; Für TX, T/R bit setzen
+#endif
 vcs_end
                 pulx
                 pula
@@ -470,8 +520,52 @@ crc_loop
                 std  4,x             ; CRC auf Stack speichern, Initialisierungswert überschreiben
                 pulx                 ; Endadresse vom Stack löschen
                 rts
-
-
+#ifdef EVA5
+;****************
+; C H K   I S U
+;****************
+;
+; Prüft gebrückten "TEST" Eingang und gibt die Kontrolle ggf. an das Update Modul weiter
+;
+; Parameter : none
+;
+; Ergebnis : none
+;
+;
+;chk_isu
+;                pshb
+;                ldab Port6_Data      ; TEST Pins gebrückt?
+;                ldab Port5_Data      ; HUB/PGM auf Masse?
+;                andb #%00010000      ; (P64 gegen Masse)
+;                bne  cki_end         ; Nein, dann zurück
+;
+;                jmp  isu_copy
+;cki_end
+;                pulb
+;                rts
+#endif
+;*******************
+; C H K   D E B U G
+;*******************
+;
+; Prüft gebrückten "TEST" Eingang und gibt die Kontrolle ggf. an das Update Modul weiter
+;
+; Parameter : none
+;
+; Ergebnis : none
+;
+;
+;chk_debug
+;                pshb
+;                ldab Port6_Data      ; TEST Pins gebrückt?
+;                andb #%00010000      ; (P64 gegen Masse)
+;                bne  ckd_end         ; Nein, dann zurück
+; 
+;                 jmp  debug_loader
+; ckd_end
+;                 pulb
+;                 rts
+; 
 ;***********************
 ; B A N K   S W I T C H
 ;***********************

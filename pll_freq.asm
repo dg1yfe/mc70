@@ -266,7 +266,7 @@ pll_init
                 pshx
                 pshb
                 psha
-                aim  #%01111111, Port6_Data ; PTT Syn Latch = 0
+                aim  #~BIT_PLLLATCH, PORT_PLLLATCH ; PTT Syn Latch = 0
 
                 ldx  #FREF%65536            ; Referenzfrequenz LoWord
                 pshx                        ; Auf Stack
@@ -356,13 +356,13 @@ plc_end
 ;
 ; Returns : B - Status
 ;                 0 = NOT locked
-;               $40 = PLL locked
+;             "LOCKBIT" = PLL locked
 ;
 ; changed Regs: B
 ;
 pll_lock_chk
-                ldab Port5_Data
-                andb #%01000000                  ; nur PTT Lock detect Bit lesen
+                ldab LOCKPORT
+                andb #LOCKBIT                  ; nur PTT Lock detect Bit lesen
                 rts
 
 

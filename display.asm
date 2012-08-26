@@ -46,8 +46,25 @@
 ; (Initialisierung / Software Reset zusätzlich nötig)
 ;
 lcd_h_reset
+#ifdef EVA5
+                pshb
+                psha
+
+                ldaa  #-1
+                ldab  #SR_LCDRESET
+                jsr   send2shift_reg ; LCD Reset Leitung auf High (=Reset)
+                WAIT(1)
+                ldaa  #~SR_LCDRESET
+                clrb
+                jsr   send2shift_reg ; und wieder low
+
+                pula
+                pulb
+#endif
+#ifdef EVA9
                ldab #$7E
                jsr  sci_tx           ; LCD per Kommando zurücksetzen
+#endif
                rts
 
 ;***********************

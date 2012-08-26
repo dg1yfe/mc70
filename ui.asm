@@ -52,9 +52,12 @@ ui_init
                 ldx  #-1
                 stx  ui_txshift
                 stx  ui_txshift+2
-
-                oim  #$20,sql_mode         ; Squelch aktiviert
-
+#ifdef EVA5
+                oim  #SQM_CARRIER,sql_mode ; Squelch aktiviert
+#endif
+#ifdef EVA9
+                oim  #SQBIT,sql_mode ; Squelch aktiviert
+#endif
                 rts
 ;***************************
 ; U I   S T A R T
@@ -114,7 +117,8 @@ ui_long_msg
                 WAIT(50)
 ui_short_msg
 no_intro
-                jsr  menu_init
+                ldab #1
+                jsr  pll_led                ; PLL Lock Status auf rote LED ausgeben                jsr  menu_init
                 WAIT(100)
 ui_frq_prnt
                 ldx  #frequency
@@ -125,7 +129,7 @@ ui_frq_prnt
 ui_loop                                     ; komplette Display Kommunikation
                 jsr  menu                   ; Menü für Frequenzeingabe etc.
 #define UI_UPD_LOOP jsr  sci_trans_cmd          ; Eingabe prüfen und ggf. in Menü Puffer legen
-#defcont \ clra   
+#defcont \ clra
                                             ; PLL Lock Status auf rote LED ausgeben
 #defcont \ jsr  pll_led
 #defcont \ jsr  led_update                  ; LED Puffer lesen und ggf LEDs neu setzen
@@ -146,7 +150,7 @@ ui_loop                                     ; komplette Display Kommunikation
 dg1yfe_str
                 .db "DG1YFE",0
 soft_str
-                .db "MC70 E9",0
+                .db "MC70",0
 ver_str
                 .db "12 002",0
 rom_init_str

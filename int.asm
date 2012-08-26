@@ -55,7 +55,6 @@ init_SIO
                 clr  io_inbuf_w
                 clr  io_inbuf_r                   ; Input Ringbuffer initialisieren
 
-;                oim  #%10100,TRCSR1               ; SIO Interrupt aktivieren
                 oim  #%00010000,TRCSR1           ; SIO Interrupt aktivieren nur für RX
 
                 rts
@@ -109,15 +108,15 @@ OCI_LCD
 ; OCI1 ISR (1 ms Interrupt)
 ;
 OCI1_WD_RESET
-                tst  bus_busy              ; währen I2C Zugriff,
-                bne  OCI1_SR               ; keinen Watchdog Reset durchführen
+                tst  bus_busy                  ; währen I2C Zugriff,
+                bne  OCI1_SR                   ; keinen Watchdog Reset durchführen
 ;***********
 ; Watchdog Toggle
-                ldab Port2_DDR_buf               ; Port2 DDR lesen
-                eorb #%10                        ; Bit 1 invertieren
-                stab Port2_DDR_buf
-                stab Port2_DDR                   ; neuen Status setzen
-                aim  #%11111101,Port2_Data       ;Data auf 0
+                ldab SRDATADDRbuf              ; Port2 DDR lesen
+                eorb #SRDATABIT                ; Bit 1 invertieren
+                stab SRDATADDRbuf
+                stab SRDATADDR                 ; neuen Status setzen
+                aim  #~SRDATABIT,SRDATAPORT    ;Data auf 0
 ;***********
 OCI1_SR
 OCI1_MS

@@ -33,7 +33,12 @@
 ;**************************
 ; S T A R T   O F   R O M
 ;**************************
+#ifdef EVA5
+                .ORG $2000
+#endif
+#ifdef EVA9
                 .ORG $C000
+#endif
 rom
 ;********************************
 ; S T A R T   O F   S Y S T E M
@@ -43,6 +48,8 @@ rom
 reset
                lds  #STACK1               ; initialize stackpointer 1
                jsr  io_init               ; initialize I/O (Ports, I2C, etc...)
+;                jsr  chk_debug             ; Debugmodus ?
+;                jsr  chk_isu               ; In System Update? ?
                clrb                       ; do not try to store frequency to EEPROM before power-off
                jsr  pwr_sw_chk            ; check power switch - put CPU to standby if radio is switched off
 
@@ -52,20 +59,22 @@ Start
                jsr  sci_init              ; serielle Schnittstelle aktivieren
                jsr  init_SIO              ; SIO Interrupt konfigurieren
                jsr  init_OCI              ; Timer Interrupt starten
+               jsr  ui_init               ; 2. Task initialisieren (2. Stack)
+                                          ; ab hier können I/O Funktionen verwendet werden
+#ifdef EVA9
                jsr  io_init_second        ; Initialize shift register, activate external EEPROM
+#endif
                ldd  #FSTEP                ; Kanalraster holen
                jsr  pll_init              ; init PLL
 
-               jsr  lcd_h_reset           ; LCD Hardware Reset - gibts bei EVA9 nicht
-               clr  bus_busy              ; Watchodog Reset durch Timer Interrupt zulassen
-
                ldab #1
                stab tasksw_en             ; Taskswitch verbieten
-               jsr  freq_init             ; Frequenzeinstellungen initialisieren
+
                cli
-               jsr  ui_init               ; 2. Task initialisieren (2. Stack)
+#ifdef EVA5
+               oim  #SQBIT_C, sql_mode
+#endif
 #ifdef EVA9
-;TODO port to EVA5
                oim  #SQBIT, sql_mode      ; Squelch Input auf jeden Fall prüfen und neu setzen
 #endif
 
@@ -77,7 +86,8 @@ Start
 sim_loop
 	bra  sim_loop
 #endif
-               jsr  lcd_h_reset           ; LCD Hardware Reset
+               jsr  lcd_h_reset           ; LCD Hardware Reset - gibts bei EVA9 nicht
+               clr  bus_busy              ; Watchodog Reset durch Timer Interrupt zulassen
 
                jsr  freq_init             ; Frequenzeinstellungen initialisieren
                psha
@@ -98,6 +108,9 @@ sim_loop
 
                ldab #GRN_LED+LED_ON
                jsr  led_set                ; Grüne LED aktivieren
+
+               WAIT(500)
+               jsr  s_timer_init
 ;
 ;
 ;***************
@@ -105,9 +118,6 @@ start_over
                 jsr  receive                ; Empfänger aktivieren
                 ldab #1                     ; in 300 ms
                 stab pll_timer              ; den PLL Status prüfen
-
-                WAIT(500)
-                jsr  s_timer_init
 
                 ldaa #~SR_RXAUDIO           ; disable RX Audio
                 ldab #SR_AUDIOPA

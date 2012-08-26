@@ -39,8 +39,8 @@
 ;                     - Port5 Data ( EXT Alarm off (1) )
 ;                     - RP5CR (HALT disabled)
 ;                     - I2C (Clock output, Clock=0)
+;                     - Shift Reg (S/R Latch output, S/R Latch = 0, S/R init)
 ;                     - SCI TX = 1 (Pullup)
-;                     - S/R Buffer (nur den Speicherbereich, nicht das Register selbst!)
 ;
 ; Parameter: keine
 ;
@@ -54,6 +54,10 @@ io_init
                 aim  #%11100111,RP5CR          ; do not wait for "Memory Ready", internal SRAM is fast enough
                                                ; also deactivate "HALT" input, Port53 is used as GPIO
 
+                ldab #%10110100
+                stab Port2_DDR_buf             ; Clock (I2C),
+                stab Port2_DDR                 ; SCI TX, T/R Shift (PLL), Shift Reg Latch auf Ausgang
+
 ; I2C Init
                 aim  #%11111011,Port2_Data     ; I2C Clock = 0
 ;ShiftReg Init
@@ -61,35 +65,11 @@ io_init
 ;SCI TX
                 oim  #%10000, Port2_Data       ; SCI TX=1
 
-                ldab #%10110100
-                stab Port2_DDR_buf             ; Clock (I2C),
-                stab Port2_DDR                 ; SCI TX, DPTT/TX Power en, Shift Reg Latch are outputs
+                clr  SR_data_buf               ; clear shift reg buffer
 
-; Port 5
-                oim  #%00000100, Port5_Data    ; EEPROM off (/EEP Pwr Stb = 1)
-                ldab #%00000100
-                stab Port5_DDR                 ; /EEPROM Power Strobe is output
-                stab Port5_DDR_buf             ; everything else is input
-
-; Port 6
-                aim  #%01001000, Port6_Data    ; set DACs around midpoint (MSB = 1)
-                oim  #%01001000, Port6_Data
-
-                ldab #%11111111
-                stab Port6_DDR_buf
-                stab Port6_DDR                 ; PTT Syn Latch and DACs are outputs
-
-                clr  SR_data_buf               ; initialize Shift Reg Buffer
-                                               ; Rx Audio enable = 0
-                                               ; Mic enable = 0
-                                               ; Sel5 Att = 0
-                                               ; Ext Alarm = 1 (open)
-                                               ; Hi/Lo Power = 0 (Hi Power)
-                                               ; TX / #RX     = 0
-                                               ; STBY&9,6V    = 1
-                                               ; Audio PA enable = 0
-                ldab #%00010010
-                ldaa #%00010010
+                ldaa #~(SR_RFPA)               ; disable PA
+                ldab #(SR_nTXPWR + SR_nCLKSHIFT + SR_9V6)
+                                               ; disable Power control, disable clock shift, enable 9,6 V
                 jsr  send2shift_reg            ; Shift register requires initialization within
                                                ; 0.5s after the radio is connected to power.
                                                ; An R-C combination (tau = 0.47 s) tristates
@@ -101,13 +81,28 @@ io_init
                                                ; Since 5 V are directly generated from (unswitched) B+
                                                ; this state would persist until power connection is
                                                ; disabled.
+; Port 5
+                ldab #%00001000
+                stab SQEXTDDR                  ; EXT Alarm auf Ausgang, Alles andere auf Input
+                stab SQEXTDDRbuf
+                oim  #%00001000, SQEXTPORT     ; EXT Alarm off (Hi)
+
+; Port 6
+                ldab #%00001100
+                stab Port6_DDR_buf
+                stab Port6_DDR                 ; A16 (Bank Switch), PTT Syn Latch auf Ausgang
+
+                aim  #%10011011, Port6_Data    ; Bank 0 wählen
+
                 clr  led_buf
                 clr  arrow_buf
-                clr  arrow_buf+1               ; clear buffers
+                clr  arrow_buf+1
 
-                clr  sql_mode
                 clr  sql_ctr
+                clr  ui_ptt_req             ;
                 rts
+
+#ifdef EVA9
 ;*****************************
 ; I O   I N I T   S E C O N D
 ;*****************************
@@ -126,13 +121,13 @@ io_init_second
                 aim  #%00000000, Port5_Data    ; EEPROM on (/EEP Pwr Stb = 0)
                 oim  #%10000000, RP5CR         ; Set Standby Power Bit
                 rts
-
+#endif
 
 ;****************************
 ; S E N D 2 S h i f t _ R e g
 ;****************************
 ;
-; AND before OR !
+; AND is performed before OR !
 ;
 ; Parameter : A - AND-Value
 ;             B - OR-Value
@@ -147,8 +142,6 @@ send2shift_reg
                 staa SR_data_buf
                 orab SR_data_buf
                 stab SR_data_buf
-
-;                jsr  i2c_tx
 
                 ldaa #8                 ; 8 Bit senden
 s2sr_loop
@@ -170,8 +163,8 @@ s2sr_dec
                 I2C_DI                  ; set Data line Input & Hi (via ext. Pull-Up)
 
 
-                oim  #$80, Port2_Data
-                aim  #$7F, Port2_Data   ; toggle Shift Reg Latch - present data on shift reg outputs
+                oim  #BIT_SRLATCH, PORT_SRLATCH
+                aim  #~BIT_SRLATCH,PORT_SRLATCH   ; toggle Shift Reg Latch - present data on shift reg outputs
 
                 dec  bus_busy           ; disable IRQ Watchdog Reset
                 dec  tasksw_en
@@ -238,10 +231,10 @@ pll_nextbit
                 deca                             ; Counter--
                 bne  pll_loop
                 I2C_DI                           ; I2C Data wieder auf Input
-                oim  #%10000000, Port6_Data      ; PLL Syn Latch auf Hi
+                oim  #BIT_PLLLATCH, PORT_PLLLATCH; PLL Syn Latch auf Hi
                 nop
                 nop
-                aim  #%01111111, Port6_Data      ; PLL Syn Latch auf Lo
+                aim  #~BIT_PLLLATCH, PORT_PLLLATCH   ; PLL Syn Latch auf Lo
                 dec  bus_busy                ; re-enable Watchdog Reset
                 dec  tasksw_en
                 rts

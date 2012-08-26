@@ -28,19 +28,31 @@
 ;
 #IFDEF EVA5
 #DEFINE PTTPORT       Port6_Data
-#DEFINE PTTBIT        (1<< 7)
+#DEFINE PTTBIT        (1 << 7)
+
+#DEFINE PORT_PLLLATCH Port6_Data
+#DEFINE BIT_PLLLATCH  (1 << 3)
 
 ;VCO Select Output
 #DEFINE VCOPORT       Port2_Data
-#DEFINE VCOBIT        (1<< 5)
+#DEFINE VCOBIT        (1 << 5)
 
 ;PLL Lock Input
 #define LOCKPORT      Port5_Data
-#define LOCKBIT       (1<< 5)
+#define LOCKBIT       (1 << 5)
+
+;Power switch input
+#define PORT_SWB      Port5_Data
+#define BIT_SWB       (1 << 2)
+
+;Power switch input
+#define PORT_PWRFAIL  Port5_Data
+#define BIT_PWRFAIL   (1 << 1)
+
 ;Squelch Input
-#define SQPORT        Port5_Data
-#define SQBIT_C       (1<< 6)
-#define SQBIT_R       (1<< 7)
+#define PORT_SQ       Port5_Data
+#define BIT_SQC       (1<< 6)
+#define BIT_SQR       (1<< 7)
 #define SQEXTPORT     Port5_Data
 #define SQEXTDDR      Port5_DDR
 #define SQEXTDDRbuf   Port5_DDR_buf
@@ -56,6 +68,8 @@
 #define BIT_DEFCH_SAVE (1 << 1)
 #define TX_CTCSS       (1 << 2)
 #define CDIFF_FLAG     (1 << 3)
+#define SQBIT_C        (1 << 4)
+#define SQBIT_R        (1 << 5)
 ;
 ; Interface to shift register
 #define SRCLKPORT     Port2_Data
@@ -63,7 +77,11 @@
 #define SRCLKBIT      (1<< 2)
 #define SRDATAPORT    Port2_Data
 #define SRDATADDR     Port2_DDR
+#define SRDATADDRbuf  Port2_DDR_buf
 #define SRDATABIT     (1<< 1)
+#define PORT_SRLATCH  Port2_Data
+#define DDR_SRLATCH   Port2_DDR
+#define BIT_SRLATCH   (1<< 7)
 
 ; Shift register output
 #define SR_RFPA       (1<< 0)
@@ -87,9 +105,17 @@
 #DEFINE VCOPORT       Port2_Data
 #DEFINE VCOBIT        (1<< 5)
 
+#DEFINE PORT_PLLLATCH Port6_Data
+#DEFINE BIT_PLLLATCH  (1<< 7)
+
 ;PLL Lock Input
 #define LOCKPORT      Port5_Data
 #define LOCKBIT       (1<< 6)
+
+;Power switch input
+#define PORT_SWB      Port5_Data
+#define BIT_SWB       (1 << 7)
+
 ;Squelch Input
 #define SQPORT        Port5_Data
 #define SQBIT         (1<< 5)
@@ -139,6 +165,17 @@ base
                 .MSFIRST                ; Motorola CPU -> MSB First
                 .ORG $0000
 Port1_DDR 	.db
+#ifdef EVA5
+Port2_DDR 	.db                         ; 20 - Pin 9 - Signalling Decode
+                                        ; 21 - Pin10 - Data (PLL, EEPROM)
+                                        ; 22 - Pin11 - Clock (PLL, EEPROM)
+                                        ; 23 - Pin12 - SCI RX
+                                        ; 24 - Pin13 - SCI TX
+                                        ; 25 - Pin14 - T/R Shift (VCO Select, 0=TX, 1=RX)
+                                        ; 26 - Pin15 - Alert Tone
+                                        ; 27 - Pin16 - Shift Reg Latch
+#endif
+#ifdef EVA9
 Port2_DDR 	.db                         ; 20 - Pin 9 - Signalling Decode
                                         ; 21 - Pin10 - Data (PLL, EEPROM)
                                         ; 22 - Pin11 - Clock (PLL, EEPROM)
@@ -147,7 +184,19 @@ Port2_DDR 	.db                         ; 20 - Pin 9 - Signalling Decode
                                      ;* ; 25 - Pin14 - DPTT (TX Power Enable)
                                         ; 26 - Pin15 - Alert Tone
                                         ; 27 - Pin16 - Shift Reg Latch
+#endif
 Port1_Data  	.db
+#ifdef EVA5
+Port2_Data	.db                         ; 20 - Pin 9 - Signalling Decode
+                                        ; 21 - Pin10 - Data (PLL, EEPROM)
+                                        ; 22 - Pin11 - Clock (PLL, EEPROM)
+                                        ; 23 - Pin12 - SCI RX
+                                        ; 24 - Pin13 - SCI TX
+                                        ; 25 - Pin14 - T/R Shift (VCO Select, 0=TX, 1=RX)
+                                        ; 26 - Pin15 - Alert Tone
+                                        ; 27 - Pin16 - Shift Reg Latch
+#endif
+#ifdef EVA9
 Port2_Data 	.db                         ; 20 - Pin 9 - Signalling Decode
                                         ; 21 - Pin10 - Data (PLL, EEPROM)
                                         ; 22 - Pin11 - Clock (PLL, EEPROM)
@@ -156,6 +205,7 @@ Port2_Data 	.db                         ; 20 - Pin 9 - Signalling Decode
                                      ;* ; 25 - Pin14 - DPTT (TX Power Enable)
                                         ; 26 - Pin15 - Alert Tone
                                         ; 27 - Pin16 - Shift Reg Latch
+#endif
 Port3_DDR 	.db
 Port4_DDR 	.db
 Port3_Data  	.db
@@ -302,6 +352,18 @@ int_ram         .ORG   $0040               ; Start of CPU internal RAM
 Port2_DDR_buf   .db
 Port5_DDR_buf   .db
 Port6_DDR_buf   .db
+#ifdef EVA5
+SR_data_buf     .db
+                                                     ; 0 - R468/Q405 - TX/RX Switch (1=TX) (PIN 4 )
+                                                     ; 1 - STBY&9,6V                       (PIN 5 )
+                                                     ; 2 - LCD Reset,                      (PIN 6 )
+                                                     ; 3 - /Clock Shift,                   (PIN 7 )
+                                                     ; 4 - Audio PA enable (1=enable)      (PIN 14)
+                                                     ; 5 - Mic enable                      (PIN 13)
+                                                     ; 6 - /TX Power enable                (PIN 12)
+                                                     ; 7 - Rx Audio enable (1=enable)      (PIN 11)
+#endif
+#ifdef EVA9
 SR_data_buf     .db
                                                      ; 0 - Audio PA enable (1=enable)      (PIN 4 ) *
                                                      ; 1 - STBY&9,6V                       (PIN 5 )
@@ -311,6 +373,7 @@ SR_data_buf     .db
                                                      ; 5 - Sel.5 ATT   (1=Attenuated Tones)(PIN 13) *
                                                      ; 6 - Mic enable  (1=enable)          (PIN 12) *
                                                      ; 7 - Rx Audio enable (1=enable)      (PIN 11)
+#endif
 stackbuf        .dw
 oci_vec         .dw
 tasksw          .db
