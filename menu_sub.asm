@@ -3,7 +3,7 @@
 ;    MC70 - Firmware for the Motorola MC micro trunking radio
 ;           to use it as an Amateur-Radio transceiver
 ;
-;    Copyright (C) 2004 - 2011  Felix Erckenbrecht, DG1YFE
+;    Copyright (C) 2004 - 2012  Felix Erckenbrecht, DG1YFE
 ;
 ;     This file is part of MC70.
 ;
@@ -45,45 +45,40 @@
 ;
 m_power
 mpws_power_cycle
+                clra
                 ldab pwr_mode
-                andb #%00001000
-                beq  mpw_lo            ; Power Hi -> Power Lo
-mpw_hi
-                aim  #%11110111,pwr_mode
-                ldaa #1
-                ldab #3
-                jsr  arrow_set
-                bra  mpw_end
-mpw_lo                                 ; Power Lo setzen
-                oim  #%00001000,pwr_mode
-                ldaa #0
-                ldab #3
-                jsr  arrow_set
+                andb #BIT_PWRMODE        ; 0 = hi power
+                bne  mpw_tohi          ; Power Hi -> Power Lo
+                bra  mpw_tolo
+mpw_tohi
+                inca
+mpw_tolo
 mpw_end
+                ldab #3
+                jsr  arrow_set
+                eim  #BIT_PWRMODE,pwr_mode ; toggle tx power mode
+                ldab m_state
+                cmpb #POWER_SELECT
+                beq  mps_print
                 jmp  m_end
 ;***************
 m_power_submenu
-                clrb
-                jsr  lcd_cpos
                 ldaa #POWER_SELECT
                 staa m_state
-
-                ldab pwr_mode
-                andb #%00001000
+                jsr  m_reset_timer     ; Menü-Timer Reset (Timeout für Eingabe setzen)
+mps_print
+                clrb
+                jsr  lcd_cpos
+                PRINTF(m_power_str)
+                ldaa pwr_mode
+                anda #%BIT_PWRMODE
                 beq  mps_hi            ; Power Hi -> Power Lo
                 PRINTF(m_power_lo_str)
-                bra  mps_end
+                jmp  m_end
 mps_hi
                 PRINTF(m_power_hi_str)
-                PRINTF(m_power_str)
 mps_end
                 jmp  m_end
-m_power_str_hi
-                .db "HI",0
-m_power_str_lo
-                .db "LO"
-m_power_str
-                .db " POWER",0
 ;****************
 m_power_select
                 jsr  m_reset_timer     ; Menü-Timer Reset (Timeout für Eingabe setzen)
@@ -105,14 +100,20 @@ mpws_hd3
                 beq  mpws_exit        ;
 mpws_common
                 cmpb #HD2_UP
-                beq  mpws_pwr_cycle   ;
+                beq  mpws_power_cycle   ;
                 cmpb #HD2_DN
-                beq  mpws_pwr_cycle   ;
+                beq  mpws_power_cycle   ;
                 cmpb #KC_D4
-                beq  mpws_pwr_cycle   ;
+                beq  mpws_power_cycle   ;
                 jmp  m_end
 mpws_exit
                 jmp  m_end_restore
+m_power_hi_str
+                .db "HI",0
+m_power_lo_str
+                .db "LO",0
+m_power_str
+                .db "POWER ",0
 #endif
 ;**************************************
 ;
@@ -272,7 +273,6 @@ m_version_submenu
                 PRINTF(ver_str)
                 jsr  lcd_fill
                 jmp  m_end
-
 ;**************************************
 ;
 ;

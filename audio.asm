@@ -3,7 +3,7 @@
 ;    MC70 - Firmware for the Motorola MC micro trunking radio
 ;           to use it as an Amateur-Radio transceiver
 ;
-;    Copyright (C) 2004 - 2011  Felix Erckenbrecht, DG1YFE
+;    Copyright (C) 2004 - 2012  Felix Erckenbrecht, DG1YFE
 ;
 ;     This file is part of MC70.
 ;
@@ -26,6 +26,7 @@
 ;
 ;
 ;****************************************************************************
+#IFDEF EVA5
 ;**********************
 ; D A C   F I L T E R
 ;**********************
@@ -60,15 +61,26 @@ dfi_end
                pulx
                pulb
                rts
+#ENDIF
 ;**********************
 ; T O N E   S T A R T
 ;**********************
 ;
 ; Startet Ton Oszillator
 ;
-; Parameter : D - Tonfrequenz in Hz
+; Parameter : D - tone frequency in Hz
 ;
+; calculation for EVA9 (256 Byte sine table) :
+; delta phase = f / 8000 * 256 * 256
+; wegen Integer rechnung:
+; dp = f*256*256 / 8000
+; einfacher (da *65536 einem Shift um 2 ganze Bytes entspricht)
+; dp = f*  65536  /  8000
 ;
+; Frequenzabweichung maximal 8000 / (256 (Schritte in Sinus Tabelle) * 256 (8 Bit 'hinterm Komma')
+; = 0,122 Hz
+;
+; calculation for EVA5 (64 Byte sine table) :
 ; delta phase = f / 8000 * 64 * 256
 ; wegen Integer rechnung:
 ; dp = f*256*64 / 8000
@@ -198,7 +210,7 @@ tos_end
                rts
 
 ;**************************
-; T O N E S T A R T P L
+; T O N E   S T A R T  P L
 ;**************************
 ;
 ; Starts CTCSS tone oscillator
@@ -213,10 +225,10 @@ tos_end
 ; due to integer arithmetic:
 ; dp = f*256*256 /(10* 8000)
 ; simple because *65536 corresponds to a 2 byte (16 bit) left-shift
-; dp = f* 65536 / 80000
+; dp = f*  65536  /  80000
 ; Because divide32 uses only 16 Bit divisor, divide by 40000 and then do
 ; a right shift by 1 bit (/2)
-; dp = (f* 65536 / 40000) / 2
+; dp = (f*  65536  /  40000) / 2
 ;
 ; frequency resolution is :
 ; 80000 / (256 (Schritte in Sinus Tabelle) * 256 (8 Bit fractional)
@@ -229,67 +241,68 @@ tone_start_pl
                psha
                pshx
 tosp_entry
-               ldx #0
-               pshx                      ; Lo Word = 0
-               pshb                      ; Hi Word sichern
-               psha                      ; => f*65536 auf Stack speichern
+               ldx  #0
+               pshx                   ; Lo Word = 0
+               pshb                   ; Hi Word sichern
+               psha                   ; => f*65536 auf Stack speichern
 
-               ldd #40000                ; Divisor = sample frequency * 5
-               jsr divide32              ;
+               ldd  #40000            ; Divisor  = sample frequency * 5
+               jsr  divide32          ;
                pula
-               pulb                      ; Divide Quotient by 2
-               lsrd                      ; resulting in division by 80000 (fs * 10)
+               pulb                   ; Divide Quotient by 2
+               lsrd                   ; resulting in division by 80000 (fs * 10)
                pula
                rora
                pulb
                rorb
 
-               std osc3_pd               ; Quotient = delta für phase
+               std  osc3_pd           ; Quotient = delta für phase
 
-               ldx oci_vec               ; check if CTCSS/PL tone generator is active
-               cpx #OCI_OSC1_pl
-               beq tosp_end              ; correct vector is already set, goto exit
-               cpx #OCI_OSC1_sig
-               beq tosp_oscvec2sp        ; signalling & CTCSS
-               cpx #OCI_OSC2_sp
-               beq tosp_oscvec2sp        ; signalling & CTCSS
-               cpx #OCI_OSC2
-               beq tosp_oscvec3          ; dual tone signalling & CTCSS
-               cpx #OCI_OSC3
-               beq tosp_oscvec3          ; dual tone signalling & CTCSS
+               ldx  oci_vec           ; check if CTCSS/PL tone generator is active
+               cpx  #OCI_OSC1_pl
+               beq  tosp_end          ; correct vector is already set, goto exit
+               cpx  #OCI_OSC1_sig
+               beq  tosp_oscvec2sp    ; signalling & CTCSS
+               cpx  #OCI_OSC2_sp
+               beq  tosp_oscvec2sp    ; signalling & CTCSS
+               cpx  #OCI_OSC2
+               beq  tosp_oscvec3      ; dual tone signalling & CTCSS
+               cpx  #OCI_OSC3
+               beq  tosp_oscvec3      ; dual tone signalling & CTCSS
 
                sei
                ldab #0
-               stab tasksw_en            ; disable preemptive task switching
+               stab tasksw_en         ; disable preemptive task switching
                ldab tick_ms+1
 tosp_intloop
                cli
-               nop                       ; don't remove these NOPs
-               nop                       ; HD6303 needs at least 2 clock cycles between cli & sei
-               sei                       ; otherwise interrupts aren't processed
+               nop                    ; don't remove these NOPs
+               nop                    ; HD6303 needs at least 2 clock cycles between cli & sei
+               sei                    ; otherwise interrupts aren't processed
                cmpb tick_ms+1
-               beq tosp_intloop
+               beq  tosp_intloop
+#ifdef EVA9
                ldab #1
-               stab oci_int_ctr          ; Interrupt counter auf 1
-                                         ; (Bit is left shifted during Audio OCI, on zero 1ms OCI will be executed)
+               stab oci_int_ctr       ; Interrupt counter auf 1
+                                      ; (Bit is left shifted during Audio OCI, on zero 1ms OCI will be executed)
+#endif
+               ldx  #OCI_OSC1_pl
+               stx  oci_vec           ; OCI Interrupt Vektor 'verbiegen'
+                                      ; Ausgabe startet automatisch beim nächsten OCI
+                                      ; 1/8000 s Zeitintervall wird automatisch gesetzt
+;               clr  tasksw_en         ; re-enable preemptive task switching
 
-               ldx #OCI_OSC1_pl
-               stx oci_vec               ; OCI Interrupt Vektor 'verbiegen'
-                                         ; Ausgabe startet automatisch beim nächsten OCI
-                                         ; 1/8000 s Zeitintervall wird automatisch gesetzt
-; clr tasksw_en ; re-enable preemptive task switching
-
-               ldx #OCI_OSC1_pl          ; CTCSS NCO
-               bra tosp_setvec
+               ldx  #OCI_OSC1_pl      ; CTCSS NCO
+               bra  tosp_setvec
 tosp_oscvec2sp
-               ldx #OCI_OSC2_sp          ; signalling NCO & CTCSS NCO
-               bra tosp_setvec
+               ldx  #OCI_OSC2_sp      ; signalling NCO & CTCSS NCO
+               bra  tosp_setvec
 tosp_oscvec3
-               ldx #OCI_OSC3             ; dual tone signalling NCO & CTCSS NCO
+               ldx  #OCI_OSC3         ; dual tone signalling NCO & CTCSS NCO
 tosp_setvec
-               stx oci_vec               ; set new OCI interrupt vector
-                                         ; output starts autonmatically with next 1 ms interrupt
-                                         ; 1/8000 s interval is then set automatically
+               stx  oci_vec           ; set new OCI interrupt vector
+                                      ; output starts autonmatically with next 1 ms interrupt
+                                      ; 1/8000 s interval is then set automatically
                cli
 tosp_end
                pulx
@@ -321,7 +334,6 @@ ctcss_start
 ctst_end
                pulb
                rts
-
 
 ;**********************
 ; D T O N E   S T A R T
@@ -465,7 +477,12 @@ dtone_startm
                pshx                   ; Lo Word = 0
                pshb                   ; Hi Word Freq f_m auf Stack
                psha                   ; => f*65536 auf Stack speichern
+#ifdef EVA5
                ldd  #32000            ; Divisor  = Samplefrequenz * 4
+#endif
+#ifdef EVA9
+               ldd  #8000             ; Divisor  = Samplefrequenz
+#endif
                jsr  divide32          ; equivalent (Frequenz*256) / 16
                pulx
                pulx                   ; 'kleiner' (16 Bit) Quotient reicht aus
@@ -478,7 +495,7 @@ dtone_startm
                tsx
                ldx  2,x               ; Tonfrequenz 2/X holen
                pshx                   ; und auf Stack legen
-               ldd  #32000            ; Divisor  = Samplefrequenz * 4
+               ldd  #8000             ; Divisor  = Samplefrequenz * 4
                jsr  divide32          ; equivalent (Frequenz*256) / 16
                pulx
                pulx                   ; 'kleiner' (16 Bit) Quotient reicht aus
@@ -487,6 +504,18 @@ dtone_startm
 
                pulx
 
+               ldx  oci_vec           ; check if CTCSS/PL tone generator is active
+               cpx  #OCI_OSC2
+               beq  dtsm_end          ; correct vector is already set, goto exit
+               cpx  #OCI_OSC1_sig
+               beq  dtsm_oscvec2      ; dual tone signalling
+               cpx  #OCI_OSC1_pl
+               beq  dtsm_oscvec3      ; dual tone signalling & CTCSS
+               cpx  #OCI_OSC2_sp
+               beq  dtsm_oscvec3      ; dual tone signalling & CTCSS
+               cpx  #OCI_OSC3
+               beq  dtsm_oscvec3      ; dual tone signalling & CTCSS
+#ifdef EVA5
                ldab Port6_DDR_buf
                andb #%10011111
                orab #%00010000
@@ -496,31 +525,57 @@ dtone_startm
                ldab Port6_Data
                andb #%10001111
                stab Port6_Data
-
+#endif
+               ldab #0
+               stab tasksw_en         ; disable preemptive task switching
                sei
+               ldab tick_ms+1
+dtsm_intloop
+               cli
+               nop                    ; don't remove these NOPs
+               nop                    ; HD6303 needs at least 2 clock cycles between cli & sei
+               sei                    ; otherwise interrupts aren't processed
+               cmpb tick_ms+1
+               beq  dtsm_intloop
+
+#ifdef EVA9
+               ldab #1
+               stab oci_int_ctr       ; Interrupt counter auf 1
+                                      ; (Bit is left shifted during Audio OCI, on zero 1ms OCI will be executed)
+#endif
+#ifdef EVA5
                ldab TCSR2
                ldd  OCR1
                std  OCR2
                subd #SYSCLK/1000
-               addd #249*5            ; add 5 sample periods to ensure there is enough time
+               addd #SYSCLK/1600      ; add 5 sample periods to ensure there is enough time
                                       ; before next interrupt occurs even on EVA9
                std  OCR1
-
+#endif
                ldx  #OCI_OSC2m
-               stx  oci_vec           ; OCI Interrupt Vektor 'verbiegen'
-                                      ; Ausgabe startet automatisch beim nächsten OCI
-                                      ; 1/8000 s Zeitintervall wird automatisch gesetzt
+               bra  dtsm_setvec
+dtsm_oscvec2
+               ldx  #OCI_OSC2         ; CTCSS/PL tone are to be generated, use triple tone nco
+               bra  dtsm_setvec
+dtsm_oscvec3
+               ldx  #OCI_OSC3
+dtsm_setvec
+               stx  oci_vec           ; set new OCI interrupt vector
+                                      ; output starts autonmatically with next 1 ms interrupt
+                                      ; 1/8000 s interval is then set automatically
                cli
-;               ldab #1
-;               stab Port7_Data
-
+#ifdef EVA5
+               ldab #1
+               stab Port7_Data
+#endif
+dtsm_end
                pulx
                pula
                pulb
                rts
-;**********************
-; T O N E   S T O P
-;**********************
+;***************************
+; T O N E   S T O P   S I G
+;***************************
 ;
 ; Disable signalling NCO (single and dual tone signalling)
 ; CTCSS NCO is not affected
@@ -710,12 +765,9 @@ ats_intloop
                                       ; 1/8000 s Zeitintervall wird automatisch gesetzt
 ;               clr  tasksw_en         ; re-enable preemptive task switching
                cli
-               pulx
-               pula
-               pulb
-               rts
+
 ;**********************
-; T O N E   S T O P
+; A   T O N E   S T O P
 ;**********************
 ;
 ; Stoppt Ton Oszillator
@@ -735,6 +787,7 @@ atone_stop
                pula
                pulb
                rts
+
 
 ;
 ;**************************
@@ -783,10 +836,10 @@ dkf_end
 ;
 dtmf_ind_tab   ;      0     1    2      3     4     5    6     7     8     9
                .dw $0301,$0000,$0001,$0002,$0100,$0101,$0102,$0200,$0201,$0202
-               ;      A     B    C      D     *    #     *
-               .dw $0003,$0103,$0203,$0303,$0300,$0302,$0300
-               ;    D1    D2    D3/D  D4/C  D5    D6    D7/A  D8/B   #
-               .dw $0000,$0000,$0303,$0203,$0000,$0000,$0003,$0103,$0302
+               ;      A     B    C      D     *    #
+               .dw $0003,$0103,$0203,$0303,$0300,$0302
+               ;      * ,  D1    D2    D3/D  D4/C  D5    D6    D7/A  D8/B   #
+               .dw $0300, $0000,$0000,$0303,$0203,$0000,$0000,$0003,$0103,$0302
 dtmf_tab_x
                .dw 1209,1336,1477,1633
 dtmf_tab_y

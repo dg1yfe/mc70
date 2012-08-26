@@ -3,7 +3,7 @@
 ;    MC70 - Firmware for the Motorola MC micro trunking radio
 ;           to use it as an Amateur-Radio transceiver
 ;
-;    Copyright (C) 2004 - 2011  Felix Erckenbrecht, DG1YFE
+;    Copyright (C) 2004 - 2012  Felix Erckenbrecht, DG1YFE
 ;
 ;     This file is part of MC70.
 ;
@@ -39,9 +39,8 @@
 ;                     - Port5 Data ( EXT Alarm off (1) )
 ;                     - RP5CR (HALT disabled)
 ;                     - I2C (Clock output, Clock=0)
-;                     - Shift Reg (S/R Latch output, S/R Latch = 0, S/R init)
 ;                     - SCI TX = 1 (Pullup)
-;
+;                     - S/R Buffer (nur den Speicherbereich, nicht das Register selbst!)
 ;
 ; Parameter: keine
 ;
@@ -52,12 +51,8 @@
 ;
 ;
 io_init
-                aim  #%11100111,RP5CR     ; nicht auf "Memory Ready" warten, das statische RAM ist schnell genug
-                                          ; HALT Input auch deaktivieren, Port53 wird später als Ausgang benötigt
-
-                ldab #%10110100
-                stab Port2_DDR_buf             ; Clock (I2C),
-                stab Port2_DDR                 ; SCI TX, T/R Shift (PLL), Shift Reg Latch auf Ausgang
+                aim  #%11100111,RP5CR          ; do not wait for "Memory Ready", internal SRAM is fast enough
+                                               ; also deactivate "HALT" input, Port53 is used as GPIO
 
 ; I2C Init
                 aim  #%11111011,Port2_Data     ; I2C Clock = 0
@@ -66,32 +61,70 @@ io_init
 ;SCI TX
                 oim  #%10000, Port2_Data       ; SCI TX=1
 
-                clr  SR_data_buf               ; Shuft Reg Puffer auf 0 setzen
-
-                ldaa #~(SR_RFPA)               ; disable PA
-                ldab #(SR_nTXPWR + SR_nCLKSHIFT + SR_9V6)
-                                               ; disable Power control, disable clock shift, enable 9,6 V
-                jsr  send2shift_reg
+                ldab #%10110100
+                stab Port2_DDR_buf             ; Clock (I2C),
+                stab Port2_DDR                 ; SCI TX, DPTT/TX Power en, Shift Reg Latch are outputs
 
 ; Port 5
-                ldab #%00001000
-                stab SQEXTDDR                  ; EXT Alarm auf Ausgang, Alles andere auf Input
-                stab SQEXTDDRbuf
-                oim  #%00001000, SQEXTPORT     ; EXT Alarm off (Hi)
+                oim  #%00000100, Port5_Data    ; EEPROM off (/EEP Pwr Stb = 1)
+                ldab #%00000100
+                stab Port5_DDR                 ; /EEPROM Power Strobe is output
+                stab Port5_DDR_buf             ; everything else is input
 
 ; Port 6
-                ldab #%00001100
+                aim  #%01001000, Port6_Data    ; set DACs around midpoint (MSB = 1)
+                oim  #%01001000, Port6_Data
+
+                ldab #%11111111
                 stab Port6_DDR_buf
-                stab Port6_DDR                 ; A16 (Bank Switch), PTT Syn Latch auf Ausgang
+                stab Port6_DDR                 ; PTT Syn Latch and DACs are outputs
 
-                aim  #%10011011, Port6_Data    ; Bank 0 wählen
-
+                clr  SR_data_buf               ; initialize Shift Reg Buffer
+                                               ; Rx Audio enable = 0
+                                               ; Mic enable = 0
+                                               ; Sel5 Att = 0
+                                               ; Ext Alarm = 1 (open)
+                                               ; Hi/Lo Power = 0 (Hi Power)
+                                               ; TX / #RX     = 0
+                                               ; STBY&9,6V    = 1
+                                               ; Audio PA enable = 0
+                ldab #%00010010
+                ldaa #%00010010
+                jsr  send2shift_reg            ; Shift register requires initialization within
+                                               ; 0.5s after the radio is connected to power.
+                                               ; An R-C combination (tau = 0.47 s) tristates
+                                               ; the SR output for a maximum of 0.5 s after
+                                               ; 5 V are present. (Up to 1.5 Volts are recognized as low)
+                                               ; If SR is not initialized, the random state
+                                               ; might shut-off the radio by pulling STBY&9,6V low
+                                               ; This state would persist as long as 5 V are on.
+                                               ; Since 5 V are directly generated from (unswitched) B+
+                                               ; this state would persist until power connection is
+                                               ; disabled.
                 clr  led_buf
                 clr  arrow_buf
-                clr  arrow_buf+1
+                clr  arrow_buf+1               ; clear buffers
 
+                clr  sql_mode
                 clr  sql_ctr
-                clr  ui_ptt_req             ;
+                rts
+;*****************************
+; I O   I N I T   S E C O N D
+;*****************************
+;
+; Secondary I/O Initialization (if device is switched on):
+;
+; - enable external EEPROM
+;
+; Parameter: none
+;
+; Returns  : nothing
+;
+; changed Regs: A,B
+
+io_init_second
+                aim  #%00000000, Port5_Data    ; EEPROM on (/EEP Pwr Stb = 0)
+                oim  #%10000000, RP5CR         ; Set Standby Power Bit
                 rts
 
 
@@ -101,8 +134,8 @@ io_init
 ;
 ; AND before OR !
 ;
-; Parameter : B - OR-Value
-;             A - AND-Value
+; Parameter : A - AND-Value
+;             B - OR-Value
 ;
 ; changed Regs: A,B,X
 ;
@@ -119,10 +152,10 @@ send2shift_reg
 
                 ldaa #8                 ; 8 Bit senden
 s2sr_loop
-                psha                    ; Bitcounter sichern
-                lslb                    ; MSB in Carryflag schieben
-                bcs  s2sr_bitset        ; Sprung, wenn Bit gesetzt
-                I2C_DL                  ; Bit gelöscht, also Datenleitung 0
+                psha                    ; save bit counter
+                lslb                    ; shift MSB to carryflag
+                bcs  s2sr_bitset        ; branch if Bit set
+                I2C_DL                  ; Bit clear, set data line to zero
                 I2C_CH
                 I2C_CL                  ; Clock Hi/Lo toggle
                 bra  s2sr_dec
@@ -131,16 +164,16 @@ s2sr_bitset
                 I2C_CH
                 I2C_CL                  ; Clock Hi/Lo toggle
 s2sr_dec
-                pula
-                deca                    ; A--
+                pula                    ; restore bit counter
+                deca                    ; bit counter--
                 bne  s2sr_loop
-                I2C_DI                  ; Data auf Input & Hi
+                I2C_DI                  ; set Data line Input & Hi (via ext. Pull-Up)
 
 
                 oim  #$80, Port2_Data
-                aim  #$7F, Port2_Data            ;Shift Reg Latch toggeln - Daten übernehmen
+                aim  #$7F, Port2_Data   ; toggle Shift Reg Latch - present data on shift reg outputs
 
-                dec  bus_busy                ; disable IRQ Watchdog Reset
+                dec  bus_busy           ; disable IRQ Watchdog Reset
                 dec  tasksw_en
                 rts
 ;****************
@@ -205,10 +238,10 @@ pll_nextbit
                 deca                             ; Counter--
                 bne  pll_loop
                 I2C_DI                           ; I2C Data wieder auf Input
-                oim  #%00001000, Port6_Data      ; PLL Syn Latch auf Hi
+                oim  #%10000000, Port6_Data      ; PLL Syn Latch auf Hi
                 nop
                 nop
-                aim  #%11110111, Port6_Data      ; PLL Syn Latch auf Lo
+                aim  #%01111111, Port6_Data      ; PLL Syn Latch auf Lo
                 dec  bus_busy                ; re-enable Watchdog Reset
                 dec  tasksw_en
                 rts
@@ -373,7 +406,7 @@ irx_shift
 ; I N I T _ S C I
 ;***********************
 sci_init
-                ldab #(SYSCLK/(32* 1200 ))-1    ; 
+                ldab #(SYSCLK/(32* 1200 ))-1    ;
                 stab TCONR                      ; Counter f�r 1200 bps
 
                 ldab #%10000
@@ -437,7 +470,7 @@ sci_read
                 abx                       ; Zeiger addieren, Leseadresse berechnen
                 ldaa 0,x                  ; Datenbyte aus Puffer lesen
                 incb                      ; Zeiger++
-                andb #$io_inbuf_mask      ; Im gültigen Bereich bleiben
+                andb #$io_inbuf_mask      ; Im g�ltigen Bereich bleiben
                 stab io_inbuf_r           ; neue Zeigerposition speichern
                 tab                       ; Datenbyte nach B
                 clra                      ; A = 0
@@ -506,41 +539,6 @@ srdm_cont
                 pulx
                 rts
 
-;************************
-; S C I   T X   B U F
-;************************
-;
-; Put char to TX buffer (for irq driven tx)
-;
-; Parameter:  none
-;
-; Ergebnis : A - Status (0=ok, 1=buffer full)
-;            B - TX Byte
-;
-; changed Regs : A, B
-;
-; required Stack Space : 2
-;
-sci_tx_buf
-                tab
-                ldab io_outbuf_w          ; Zeiger auf Schreibposition holen
-                incb                      ; erhöhen
-                andb #io_outbuf_mask      ; Im Bereich 0-(size-1) bleiben
-                cmpb io_outbuf_r          ; mit Leseposition vergleichen
-                beq  stb_full             ; Wenn gleich, ist Puffer voll
-
-                ldab io_outbuf_w          ; Zeiger auf Schreibposition holen
-                ldx  #io_outbuf           ; Basisadresse holen
-                abx                       ; Zeiger addieren, Schreibadresse berechnen
-                staa 0,x                  ; Datenbyte aus Puffer lesen
-                incb                      ; Zeiger++
-                andb #io_outbuf_mask      ; Im Bereich 0-(size-1) bleiben
-                stab io_outbuf_w          ; neue Zeigerposition speichern
-                clra                      ; A = 0
-                rts
-stb_full
-                ldaa #1
-                rts
 ;************************
 ; S C I   T X
 ;************************
@@ -640,19 +638,6 @@ check_inbuf
                 ldaa io_inbuf_w
                 suba io_inbuf_r
                 anda #io_inbuf_mask
-                rts
-;
-;************************
-; C H E C K   O U T B U F
-;************************
-;
-; Parameter : none
-; Result    : A - Bytes in Buffer
-;
-check_outbuf
-                ldaa io_outbuf_r
-                suba io_outbuf_w
-                anda #io_outbuf_mask
                 rts
 ;
 ;****************
@@ -865,14 +850,14 @@ pc_testdecd
                 jmp  pc_end
 pc_testlong
                 cmpa #'l'
-                bne  pc_testhex
+                bne  pc_testlong_ind
                 jsr  ulongout
                 jmp  pc_end
 pc_testlong_ind
                 cmpa #'L'
                 bne  pc_testhex
-		clra
-		jsr  decout
+                clra
+                jsr  decout
                 jmp  pc_end
 pc_testhex
                 cmpa #'x'
@@ -890,7 +875,7 @@ pc_testplain
 pc_to_end
                 jmp  pc_end          ; unsupported mode, abort/ignore
 
-pc_char_out    ; ASCII Zeichen in B
+pc_char_out    ; ASCII character in B
                 ldaa cpos            ; Cursorposition holen
                 cmpa #8              ; Cursorpos >=8?
                 bcc  pc_end          ; Dann ist das Display voll, nix ausgeben (geht auch viel schneller)
@@ -904,7 +889,7 @@ pc_char_out    ; ASCII Zeichen in B
                 andb #~CHR_BLINK     ; exclude Blink Bit
 
                 subb #$20            ; ASCII chars <$20 not supported
-                pshb                 ; Index merken
+                pshb                 ; save index
 
                 psha                 ; save character to print
                 clra                 ; HiByte = 0
@@ -1173,11 +1158,13 @@ einer
 ; Parameter : B - Anzahl der vom Ende der Zahl abzuschneidenden Ziffern (Bit 0-3)
 ;                 Flags (Bit 4-7, only ulongout -> see below)
 ;             A - Anzahl der mindestens auszugebenden Stellen (Bit 0-3)
-;                 Flags (udecout)
+;                 
+;                 Flags (udecout/decout)
 ;                 force sign inversion on return (Bit 4)
 ;                 force negative sign (Bit 5)
 ;                 Force sign print (Bit 6)
 ;                 Prepend space instead of zero (Bit 7)
+;
 ;             Stack - 32 Bit Integer
 ;
 ; Ergebnis : none
@@ -1469,7 +1456,7 @@ print_escape
                beq  print_end          ; check for end of string
                inx                     ; set pointer to next char
                tba
-               oraa #$20               ; ignore case - make everything upper case
+               oraa #$20               ; ignore case - make everything lower case
                cmpa #'x'
                beq  pes_hex            ; check for Hex
                cmpa #'i'
@@ -1521,6 +1508,7 @@ pst_loop
                pshx
                jsr  putchar            ; print char
                pulx
+               inx
                bra  pst_loop           ; loop
 pst_return
                pulx
@@ -1728,7 +1716,7 @@ atoi_loop
 atoi_nonum
                 pshx
                 tsx
-                ldx  2,x                   ; get *output 
+                ldx  2,x                   ; get *output
                 ldab 0,x                   ; get output
                 orab 1,x
                 orab 2,x

@@ -3,7 +3,7 @@
 ;    MC70 - Firmware for the Motorola MC micro trunking radio
 ;           to use it as an Amateur-Radio transceiver
 ;
-;    Copyright (C) 2004 - 2011  Felix Erckenbrecht, DG1YFE
+;    Copyright (C) 2004 - 2012  Felix Erckenbrecht, DG1YFE
 ;
 ;     This file is part of MC70.
 ;
@@ -57,7 +57,7 @@ m_recall_submenu
                 clrb
                 jsr  lcd_cpos         ; Cursor Position 0
                 PRINTF(m_recall_str)  ;
-                WAIT(100)
+                WAIT(300)
                 ldab #MEM_SELECT
                 stab m_state
 mre_nosave
@@ -76,16 +76,20 @@ mre_show_slot
                 pshx
                 ldx  #f_in_buf
                 jsr  sub32s
-                clra
+                ldaa #4
                 ldab #3
                 jsr  decout
+mre_space_fill                           ; append spaces until cursor is at pos 6
+                ldab cpos
+                cmpb #6
+                bcc  mre_put_slot
                 ldab #' '
                 ldaa #'c'
                 jsr  putchar
-                ldab #6
-                jsr  lcd_cpos
+                bra  mre_space_fill
+mre_put_slot
                 ldab mem_bank
-                ldaa #'d'             ;
+                ldaa #'d'                ; print bank/slot number
                 jsr  putchar
                 pulx
                 pulx
@@ -105,7 +109,7 @@ m_store_submenu
                 clrb
                 jsr  lcd_cpos         ; Cursor Position 0
                 PRINTF(m_store_str)   ;
-                WAIT(100)
+                WAIT(300)
                 ldab #MEM_SELECT
                 stab m_state
 mst_nosave

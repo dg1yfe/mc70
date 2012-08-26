@@ -3,7 +3,7 @@
 ;    MC70 - Firmware for the Motorola MC micro trunking radio
 ;           to use it as an Amateur-Radio transceiver
 ;
-;    Copyright (C) 2004 - 2011  Felix Erckenbrecht, DG1YFE
+;    Copyright (C) 2004 - 2012  Felix Erckenbrecht, DG1YFE
 ;
 ;     This file is part of MC70.
 ;
@@ -11,15 +11,15 @@
 ;     it under the terms of the GNU General Public License as published by
 ;     the Free Software Foundation, either version 3 of the License, or
 ;     (at your option) any later version.
-; 
+;
 ;     MC70 is distributed in the hope that it will be useful,
 ;     but WITHOUT ANY WARRANTY; without even the implied warranty of
 ;     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ;     GNU General Public License for more details.
-; 
+;
 ;     You should have received a copy of the GNU General Public License
 ;     along with MC70.  If not, see <http://www.gnu.org/licenses/>.
-; 
+;
 ;
 ;
 ;****************************************************************************
@@ -89,21 +89,30 @@ menu_init
                 staa m_state         ; begin in IDLE state
                 clr  m_timer_en      ; disable menu timer
 
-		clr  m_svar1
-		clr  m_svar2
+                clr  m_svar1
+                clr  m_svar2
 	
                 clr  io_menubuf_r
                 clr  io_menubuf_w    ; Zeiger von Eingabepuffer auf 0
 
                 clr  mem_bank
-
-                ldab #SQM_CARRIER    ; Squelch aktiviert
+#ifdef EVA5
+                ldab #SQM_CARRIER              ; Squelch aktiviert
                 stab sql_mode
-
+#endif
+#ifdef EVA9
+                oim  #SQBIT,sql_mode           ; Squelch aktiviert
+#endif
                 ldab #2
                 ldaa #1
                 jsr  arrow_set
 
+#ifdef EVA9
+                aim  #~BIT_PWRMODE,pwr_mode    ; Power Hi
+                ldab #3
+                ldaa #1
+                jsr  arrow_set
+#endif
                 rts
 ;
 ;*****************************
@@ -208,17 +217,17 @@ m_reset_timer                         ; Eingabe Timeout zurücksetzen
 ;
 ;**************************************
 
-m_ok            .db "OK",0
-m_no_lock_str   .db "NO LOCK ",0
-m_out_str       .db "out of",0
-m_range_str     .db "Range ",0
-m_writing       .db "writing",0
-m_stored        .db "stored",0
-m_failed        .db "failed",0
-m_delete        .db "deleting",0
-m_offset        .db "TXSHIFT",0
-m_sq_on_str     .db "SQ ON",0
-m_sq_off_str    .db "SQ OFF",0
+m_ok           .db "OK",0
+m_no_lock_str  .db "NO LOCK ",0
+m_out_str      .db "out of",0
+m_range_str    .db "Range ",0
+m_writing      .db "writing",0
+m_stored       .db "stored",0
+m_failed       .db "failed",0
+m_delete       .db "deleting",0
+m_offset       .db "TXSHIFT",0
+m_sq_on_str    .db "SQ ON",0
+m_sq_off_str   .db "SQ OFF",0
 m_off_str      .db "OFF",0
 m_ctcss_hz_str .db "%s HZ",0
 
@@ -249,3 +258,4 @@ key_convert
 #INCLUDE        "menu_mem.asm"
 #INCLUDE        "menu_input.asm"
 #INCLUDE        "menu_sub.asm"
+;#INCLUDE        "menu_config.asm"

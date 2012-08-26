@@ -3,7 +3,7 @@
 ;    MC70 - Firmware for the Motorola MC micro trunking radio
 ;           to use it as an Amateur-Radio transceiver
 ;
-;    Copyright (C) 2004 - 2011  Felix Erckenbrecht, DG1YFE
+;    Copyright (C) 2004 - 2012  Felix Erckenbrecht, DG1YFE
 ;
 ;     This file is part of MC70.
 ;
@@ -33,14 +33,9 @@
 ;
 ;
 #ifdef EVA5
-#DEFINE M_MENU_ENTRIES 4
-#else
-#DEFINE M_MENU_ENTRIES 5
-#endif
-
-#ifdef EVA5
 #DEFINE M_MENU_ENTRIES 6
-#else
+#endif
+#ifdef EVA9
 #DEFINE M_MENU_ENTRIES 7
 #endif
 
@@ -167,8 +162,13 @@ m_top_tab
                 .dw m_frq_up          ; D1 - Kanal+
                 .dw m_frq_down        ; D2 - Kanal-
                 .dw m_sql_switch      ; D3 - Squelch ein/aus
-;                .dw m_none            ; D4 - none
-                .dw m_test            ; D4 - Test
+#ifdef EVA5
+                .dw m_none
+#endif
+#ifdef EVA9
+                .dw m_power           ; D4 - TX Power Toggle
+#endif
+;                .dw m_test            ; D4 - Test
 ;                .dw m_prnt_tc         ; D4 - Taskswitches/s anzeigen
                 .dw m_tone            ; D5 - 1750 Hz Ton
                 .dw m_none            ; D6 -
@@ -201,7 +201,13 @@ m_top_h2
                 .dw m_frq_up          ; D1 - Kanal+
                 .dw m_frq_down        ; D2 - Kanal-
                 .dw m_sql_switch      ; D3 - Squelch ein/aus
-                .dw m_test            ; D4 - Taskswitches/s anzeigen
+#ifdef EVA5
+                .dw m_none
+#endif
+#ifdef EVA9
+                .dw m_power           ; D4 - TX Power Toggle
+#endif
+;                .dw m_test            ; D4 - Taskswitches/s anzeigen
                 .dw m_test3           ; D5 - 1750 Hz Ton
                 .dw m_digit           ; D6 - Select Digit
                 .dw m_txshift         ; D7 - TX Shift ändern
@@ -572,41 +578,6 @@ m_tone_stop
                 jmp  m_end
 
 m_test2
-                ldab m_timer_en
-                bne  mtst2_nosave
-                ldx  #dbuf2
-                jsr  save_dbuf
-mtst2_nosave
-                jsr  m_reset_timer    ; Menü-Timer Reset (Timeout für Eingabe setzen)
-                clrb
-                jsr  lcd_cpos
-
-                ldab osc1_phase
-                incb
-                cmpb #16
-                bcs  mtst2_store
-                clrb
-mtst2_store
-                stab osc1_phase
-                ldx  #dac_out_tab2
-                lslb
-                abx
-                ldaa Port6_DDR_buf
-                ldab Port6_Data
-                andb #%10011111
-                anda #%10011111
-                addd 0,x
-                std  Port6_DDR
-
-                ldd  0,x
-                pshb
-                tab
-                ldaa #'x'
-                jsr  putchar
-                pulb
-                ldaa #'x'
-                jsr  putchar
-
                 jmp  m_end
 
 ;**************************************
@@ -795,9 +766,11 @@ m_dtmf_go
 mdg_start
                 jsr  dtmf_key2freq      ; calculate DTMF frequencies
                 jsr  dtone_start        ; start DTMF tone output
+#ifdef EVA5
                 clrb
                 jsr  dac_filter        ; deactivate additional DAC filter
-                ldab #10
+#endif
+                ldab #4
                 stab tone_timer        ; 0,4 sek Ton ausgeben
 
                 jmp  m_end

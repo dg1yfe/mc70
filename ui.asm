@@ -3,7 +3,7 @@
 ;    MC70 - Firmware for the Motorola MC micro trunking radio
 ;           to use it as an Amateur-Radio transceiver
 ;
-;    Copyright (C) 2004 - 2011  Felix Erckenbrecht, DG1YFE
+;    Copyright (C) 2004 - 2012  Felix Erckenbrecht, DG1YFE
 ;
 ;     This file is part of MC70.
 ;
@@ -11,15 +11,15 @@
 ;     it under the terms of the GNU General Public License as published by
 ;     the Free Software Foundation, either version 3 of the License, or
 ;     (at your option) any later version.
-; 
+;
 ;     MC70 is distributed in the hope that it will be useful,
 ;     but WITHOUT ANY WARRANTY; without even the implied warranty of
 ;     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ;     GNU General Public License for more details.
-; 
+;
 ;     You should have received a copy of the GNU General Public License
 ;     along with MC70.  If not, see <http://www.gnu.org/licenses/>.
-; 
+;
 ;
 ;
 ;****************************************************************************
@@ -27,9 +27,6 @@
 ; U I   I N I T
 ;***************************
 ui_init
-                pshb
-                psha
-                pshx
 
                 clr  tasksw               ; Taskswitchzähler auf 0
                 ldab #1
@@ -56,19 +53,16 @@ ui_init
                 stx  ui_txshift
                 stx  ui_txshift+2
 
-                pulx
-                pula
-                pulb
+                oim  #$20,sql_mode         ; Squelch aktiviert
+
                 rts
 ;***************************
 ; U I   S T A R T
 ;***************************
 ui_start
-                pshx
                 ldx  #ui                  ; Zeiger auf UI Task holen
                 stx  start_task           ; Zeiger setzen
 ;                swi                       ; Task starten
-                pulx
                 rts
 ;***************************
 ; U I
@@ -84,37 +78,50 @@ ui_start
 ;
 ui
                 jsr  lcd_s_reset           ; LCD Software Reset + Init
+
                 bra  no_intro
 
-                PRINTF(dg1yfe_str)
-                jsr  lcd_fill
-                clrb
-                jsr  lcd_cpos
-;                WAIT(250)
+                tsta
+                beq  ui_cont_w_lcd         ; Loopback detected -> no display (and no initialisation)
+                jmp  no_intro              ; -> start immediatly
+ui_cont_w_lcd
+                ldab msg_mode
+                tba
+                andb #%11000000
+                cmpb #%10000000
+                bne  ui_long_msg
+                jmp  ui_short_msg
+ui_long_msg
+                PRINTF(soft_str)
 
-                PRINTF(mc70_str)
                 jsr  lcd_fill
                 clrb
                 jsr  lcd_cpos
-                WAIT(150)
+                WAIT(80)
                 PRINTF(ver_str)
                 jsr  lcd_fill
                 clrb
                 jsr  lcd_cpos
-                WAIT(150)
+                WAIT(200)
+                PRINTF(dg1yfe_str)
+                jsr  lcd_fill
+                clrb
+                jsr  lcd_cpos
+                ldaa msg_mode
+                oraa #%10000000
+                anda #%10111111
+                staa msg_mode           ; kurze Meldung ausgeben
+                WAIT(50)
+ui_short_msg
 no_intro
+                jsr  menu_init
+                WAIT(100)
+ui_frq_prnt
                 ldx  #frequency
                 jsr  freq_print             ; Frequenz anzeigen
-                WAIT(150)
-                clra
-;                jsr  lcd_clr
 
                 jsr  freq_offset_print      ; Frequenz anzeigen
 
-                ldab #1
-                jsr  pll_led                ; PLL Lock Status auf rote LED ausgeben
-
-                jsr  menu_init
 ui_loop                                     ; komplette Display Kommunikation
                 jsr  menu                   ; Menü für Frequenzeingabe etc.
 #define UI_UPD_LOOP jsr  sci_trans_cmd          ; Eingabe prüfen und ggf. in Menü Puffer legen
@@ -124,26 +131,26 @@ ui_loop                                     ; komplette Display Kommunikation
 #defcont \ jsr  led_update                  ; LED Puffer lesen und ggf LEDs neu setzen
 
                 UI_UPD_LOOP
-
                 swi
-                jmp  ui_loop
 
+                ldx  tick_hms
+                cpx  #3000                  ; schon 2 MInuten eingeschaltet?
+                bcs  ui_loop                ; Noch nicht -> loop
+                ldab msg_mode               ; Wird lange Meldung ausgegeben?
+                bpl  ui_loop                ; Ja -> loop
+                andb #%01111111             ; Nach 2 Minuten Einschaltzeit lange Meldung ausgeben
+                stab msg_mode
+                bra  ui_loop
 
 ;*******************************************
-test_str
-;                .db "x30 Z",0
-                .db "X%+04iZ",0
 dg1yfe_str
                 .db "DG1YFE",0
-mc70_str
-                .db "MC 70",0
+soft_str
+                .db "MC70 E9",0
 ver_str
-                .db "12 001",0
+                .db "12 002",0
 rom_init_str
                 .db "ROM INIT",0
-ram_err_str
-                .db "RAM ERR",0            ; $11
 slot_str
                 .db " SLOTS",0
-
 

@@ -3,7 +3,7 @@
 ;    MC70 - Firmware for the Motorola MC micro trunking radio
 ;           to use it as an Amateur-Radio transceiver
 ;
-;    Copyright (C) 2004 - 2011  Felix Erckenbrecht, DG1YFE
+;    Copyright (C) 2004 - 2012  Felix Erckenbrecht, DG1YFE
 ;
 ;     This file is part of MC70.
 ;
@@ -11,15 +11,15 @@
 ;     it under the terms of the GNU General Public License as published by
 ;     the Free Software Foundation, either version 3 of the License, or
 ;     (at your option) any later version.
-; 
+;
 ;     MC70 is distributed in the hope that it will be useful,
 ;     but WITHOUT ANY WARRANTY; without even the implied warranty of
 ;     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ;     GNU General Public License for more details.
-; 
+;
 ;     You should have received a copy of the GNU General Public License
 ;     along with MC70.  If not, see <http://www.gnu.org/licenses/>.
-; 
+;
 ;
 ;
 ;****************************************************************************
@@ -33,37 +33,42 @@
 ;**************************
 ; S T A R T   O F   R O M
 ;**************************
-                .ORG $2000
+                .ORG $C000
 rom
 ;********************************
 ; S T A R T   O F   S Y S T E M
 ;********************************
-                .ORG $C000                 ;
+               .ORG $C000                 ; start at $C000, lowest address accessible in EVA9 without HW mod
+                                          ; (EPROM A14 & A15 are tied to VCC)
 reset
-                lds  #STACK1               ; Stackpointer 1 setzen
-                jsr  io_init               ; I/O initialisieren (Ports, I2C, etc...)
-;                jsr  chk_debug             ; Debugmodus ?
-;                jsr  chk_isu               ; In System Update? ?
-                ldab #1                    ; Frequenz etc noch NICHT speichern
-                jsr  pwr_sw_chk            ; Power switch checken - wenn Gerät ausgeschaltet ist,
-                                           ; nicht weitermachen
+               lds  #STACK1               ; initialize stackpointer 1
+               jsr  io_init               ; initialize I/O (Ports, I2C, etc...)
+               clrb                       ; do not try to store frequency to EEPROM before power-off
+               jsr  pwr_sw_chk            ; check power switch - put CPU to standby if radio is switched off
 
 ;************************************
 ;************************************
 Start
-                jsr  sci_init              ; serielle Schnittstelle aktivieren
-                jsr  init_SIO              ; SIO Interrupt konfigurieren
-                jsr  init_OCI              ; Timer Interrupt starten
-                jsr  ui_init               ; 2. Task initialisieren (2. Stack)
-                                           ; ab hier können I/O Funktionen verwendet werden
+               jsr  sci_init              ; serielle Schnittstelle aktivieren
+               jsr  init_SIO              ; SIO Interrupt konfigurieren
+               jsr  init_OCI              ; Timer Interrupt starten
+               jsr  io_init_second        ; Initialize shift register, activate external EEPROM
+               ldd  #FSTEP                ; Kanalraster holen
+               jsr  pll_init              ; init PLL
 
-                ldd  #FSTEP                ; Kanalraster holen
-                jsr  pll_init              ; PLL mit Kanalraster initialisieren
+               jsr  lcd_h_reset           ; LCD Hardware Reset - gibts bei EVA9 nicht
+               clr  bus_busy              ; Watchodog Reset durch Timer Interrupt zulassen
 
-                ldab #1
-                stab tasksw_en             ; Taskswitch verbieten
+               ldab #1
+               stab tasksw_en             ; Taskswitch verbieten
+               jsr  freq_init             ; Frequenzeinstellungen initialisieren
+               cli
+               jsr  ui_init               ; 2. Task initialisieren (2. Stack)
+#ifdef EVA9
+;TODO port to EVA5
+               oim  #SQBIT, sql_mode      ; Squelch Input auf jeden Fall prüfen und neu setzen
+#endif
 
-                cli
 #ifdef SIM
 	ldaa #2
 	staa cfg_head
@@ -72,39 +77,37 @@ Start
 sim_loop
 	bra  sim_loop
 #endif
-                jsr  lcd_h_reset           ; LCD Hardware Reset
+               jsr  lcd_h_reset           ; LCD Hardware Reset
 
-                jsr  freq_init             ; Frequenzeinstellungen initialisieren
-                psha
+               jsr  freq_init             ; Frequenzeinstellungen initialisieren
+               psha
 
-                ldab #3
-                stab cfg_head
-                ldd  #$01FD                 ; get config Byte
-                jsr  eep_rand_read
-                andb #2                     ; isolate Bit 1
-                ldaa cfg_defch_save         ; get config value
-                anda #%11111101             ; exclude Bit 1
-                aba                         ; add Bit 1 from Reg B
-                staa cfg_defch_save         ; store new config value
+               ldab #3
+               stab cfg_head
+               ldd  #$01FD                 ; get config Byte
+               jsr  eep_rand_read
+               andb #2                     ; isolate Bit 1
+               ldaa cfg_defch_save         ; get config value
+               anda #%11111101             ; exclude Bit 1
+               aba                         ; add Bit 1 from Reg B
+               staa cfg_defch_save         ; store new config value
 
-                jsr  ui_start               ; UI Task starten
+               jsr  ui_start               ; UI Task starten
 
-                clr  tasksw_en              ; Taskswitch spätestens jede Millisekunde
+               clr  tasksw_en              ; Taskswitch spätestens jede Millisekunde
 
-                ldab #GRN_LED+LED_ON
-                jsr  led_set                ; Grüne LED aktivieren
-
-
-                WAIT(500)
-                jsr  s_timer_init
+               ldab #GRN_LED+LED_ON
+               jsr  led_set                ; Grüne LED aktivieren
 ;
 ;
-
 ;***************
 start_over
                 jsr  receive                ; Empfänger aktivieren
                 ldab #1                     ; in 300 ms
                 stab pll_timer              ; den PLL Status prüfen
+
+                WAIT(500)
+                jsr  s_timer_init
 
                 ldaa #~SR_RXAUDIO           ; disable RX Audio
                 ldab #SR_AUDIOPA
@@ -112,9 +115,8 @@ start_over
 
 loop
                 ldab cfg_defch_save         ; Frequenz etc. speichern wenn Gerät ausgeschaltet wird
-                andb #2
+                andb #BIT_DEFCH_SAVE
                 jsr  pwr_sw_chk             ; Ein/Ausschalter abfragen & bedienen
-;                jsr  trx_check              ; PTT abfragen und Sende/Empfangsstatus ändern
 ;*** TRX check
                 jsr  ptt_get_status         ; PTT Status abfragen
                 asla                        ; Höchstes Bit ins Carryflag schieben
@@ -155,5 +157,5 @@ ml_sql_end
 #INCLUDE       "audio.asm"                 ; Audio related subroutines (NCO, DAC, etc)
 #INCLUDE       "int.asm"                   ; Interrupt Service Routines
 ;#INCLUDE       "debug.asm"                 ; Debugmodul
-#INCLUDE       "isu.asm"                   ; In System Update Modul
+;#INCLUDE       "isu.asm"                   ; In System Update Modul
                .end

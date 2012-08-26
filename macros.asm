@@ -3,7 +3,7 @@
 ;    MC70 - Firmware for the Motorola MC micro trunking radio
 ;           to use it as an Amateur-Radio transceiver
 ;
-;    Copyright (C) 2004 - 2011  Felix Erckenbrecht, DG1YFE
+;    Copyright (C) 2004 - 2012  Felix Erckenbrecht, DG1YFE
 ;
 ;     This file is part of MC70.
 ;
@@ -11,21 +11,18 @@
 ;     it under the terms of the GNU General Public License as published by
 ;     the Free Software Foundation, either version 3 of the License, or
 ;     (at your option) any later version.
-; 
+;
 ;     MC70 is distributed in the hope that it will be useful,
 ;     but WITHOUT ANY WARRANTY; without even the implied warranty of
 ;     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ;     GNU General Public License for more details.
-; 
+;
 ;     You should have received a copy of the GNU General Public License
 ;     along with MC70.  If not, see <http://www.gnu.org/licenses/>.
-; 
+;
 ;
 ;
 ;****************************************************************************
-#DEFINE EVA5
-;#DEFINE EVA9
-;#DEFINE 2M
 ;
 ; Additional instructions for HD6303
 ; HD6303 is a superset of MC6801/MC6803 which is a superset of MC6800
@@ -41,26 +38,41 @@
 .ADDINSTR TIM     #*,*    7B      3       COMB    8
 .ADDINSTR XGDX    ""      18      1       NOP     8
 
-;#DEFINE EVA5
+; Define hardware to compile for
+;
+;
+#DEFINE EVA5
 ;#DEFINE EVA9
 ;#DEFINE BAND2M
 #DEFINE BAND70CM
+#ifndef EVA5
+#ifndef EVA9
+.ECHO "\r\n ERROR: Select a model hardware to compile for: EVA5 or EVA9!\r\n"
+.END
+#endif
+#endif
 ;************************
 ; Stack
 ;
+#ifdef EVA5
+#DEFINE STACK1  $1fff
+#DEFINE STACK2  $1eff
+#endif
+#ifdef EVA9
+#DEFINE STACK1  $013f     ; Main Loop Stack - max 32 Bytes
+#DEFINE STACK2  $00ff     ; UI Task Stack   - ~100 Bytes
+#DEFINE DEBSTACK $00b3    ; Stack für Debug Ausgaben
+#endif
 ;
-;****************************************************************************
-#DEFINE STACK1  $1FFF
-#DEFINE STACK2  $1EFF
 ;************************
 ; Timing
 ; Frequency of crystal in EVA5
 #ifdef EVA5
-#DEFINE XTAL 7977600
+#define XTAL 7977600
 #endif
 #ifdef EVA9
 ; Frequency of crystal in EVA9
-#DEFINE XTAL 4924800
+#define XTAL 4924800
 #endif
 ;
 ; System clock ("E") is 1/4th of that
@@ -73,6 +85,9 @@
 #DEFINE RX_TO_TX_TIME 5  ; 5 ms RX -> TX Umschaltung
 ;
 ;************************
+#DEFINE TONE_DPHASE 352  ; Tone Phase Delta (Xtal/4/2 /Tone -1)
+;
+;
 ; remove this comment to run the binary in the simulator
 ;#define SIM
 ;************************
@@ -117,12 +132,13 @@
 #DEFINE PLLREF FREF/FSTEP
 ;
 ;
-;**************************************************************
 #define CTCSS_INDEX_MAX 55
+
+; **************************************************************
 
 
 #DEFINE WAIT(ms)    pshx \ ldx  #ms \ jsr wait_ms \ pulx
-#DEFINE LCDDELAY  42     ; 41ms
+#DEFINE LCDDELAY  41     ; 41ms
 ;************************
 ; Squelch
 ;
@@ -205,6 +221,101 @@
 ; Data & Clock Hi
 #DEFINE I2C_CDH aim #%11111001, Port2_DDR_buf \ ldaa Port2_DDR_buf \ staa Port2_DDR
 ;***********************
+;
+; Parameter:
+;           X:D   Summand (32Bit)
+;           Stack Summand (32Bit)
+; Ergebnis:
+;           Stack Summe   (32Bit)
+;
+; Kommentar siehe MATH.ASM
+;
+#DEFINE ADD32 pshx
+#DEFCONT    \ tsx
+#DEFCONT    \ addd 2+2,x
+#DEFCONT    \ std  2+2,x
+#DEFCONT    \ pula \ pulb
+#DEFCONT    \ adcb 1+2,x
+#DEFCONT    \ stab 1+2,x
+#DEFCONT    \ adca 0+2,x
+#DEFCONT    \ staa 0+2,x
+;***********************
+;
+; Parameter:
+;           Stack Minuend    (32Bit)
+;           X:D   Subtrahend (32Bit)
+; Ergebnis:
+;           Stack Differenz  (32Bit)
+;
+; Kommentar siehe MATH.ASM
+;
+#DEFINE SUB32 pshb \ psha \ pshx
+#DEFCONT    \ tsx
+#DEFCONT    \ ldd  6,x
+#DEFCONT    \ subd 2,x
+#DEFCONT    \ std  6,x
+#DEFCONT    \ ldd  4,x
+#DEFCONT    \ sbcb 1,x
+#DEFCONT    \ stab 5,x
+#DEFCONT    \ sbcb 0,x
+#DEFCONT    \ stab 4,x
+#DEFCONT    \ pulx \ pula \ pulb
+
+
+#DEFINE SUB32b pshb \ psha \ pshx
+#DEFCONT    \ tsx
+#DEFCONT    \ ldd  2,x
+#DEFCONT    \ subd 6,x
+#DEFCONT    \ std  6,x
+#DEFCONT    \ ldd  0,x
+#DEFCONT    \ sbcb 5,x
+#DEFCONT    \ stab 5,x
+#DEFCONT    \ sbcb 4,x
+#DEFCONT    \ stab 4,x
+#DEFCONT    \ pulx \ pula \ pulb
+
+; Vorzeichenumkehr
+;
+; Parameter:
+;           X:D   Zahl  (32Bit)
+; Ergebnis:
+;           Not(Zahl)+1 (Vorzeichenumkehr)
+;
+; Kommentar siehe MATH.ASM
+;
+#DEFINE SIGINV32 coma \ comb
+#DEFCONT       \ xgdx
+#DEFCONT       \ coma \ comb
+#DEFCONT       \ xgdx
+#DEFCONT       \ addd #1
+#DEFCONT       \ xgdx
+#DEFCONT       \ adcb #0
+#DEFCONT       \ adca #0
+#DEFCONT       \ xgdx
+
+
+;***********************
+;
+; LCD Macros
+;
+#DEFINE RED_LED       $33
+#DEFINE YEL_LED       $31
+#DEFINE GRN_LED       $32
+#DEFINE OFF           0
+#DEFINE ON            4
+#DEFINE BLINK         8
+#DEFINE INVERT        128
+
+#DEFINE ARROW         $6D
+#DEFINE A_OFF           0
+#DEFINE A_ON            1
+#DEFINE A_BLINK         2
+;
+; non printable chars
+;
+#DEFINE semikolon  $3B
+#DEFINE komma      $2C
+#DEFINE backslash  $5C
 ;
 ; Character Stuff
 ;

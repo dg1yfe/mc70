@@ -3,7 +3,7 @@
 ;    MC70 - Firmware for the Motorola MC micro trunking radio
 ;           to use it as an Amateur-Radio transceiver
 ;
-;    Copyright (C) 2004 - 2011  Felix Erckenbrecht, DG1YFE
+;    Copyright (C) 2004 - 2012  Felix Erckenbrecht, DG1YFE
 ;
 ;     This file is part of MC70.
 ;
@@ -32,7 +32,6 @@
 ;
 s_timer_init
                 pshb
-                psha
                 pshx
                 ldab tick_ms+1
                 stab s_tick_ms
@@ -41,7 +40,6 @@ s_timer_init
                 ldx  #OCI1_MS
                 stx  oci_vec           ; ab jetzt LCD Timer nicht mehr im Int bedienen
                 pulx
-                pula
                 pulb
                 rts
 ;*****************************************
