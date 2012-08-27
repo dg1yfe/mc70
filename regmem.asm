@@ -53,16 +53,12 @@
 #define PORT_SQ       Port5_Data
 #define BIT_SQC       (1<< 6)
 #define BIT_SQR       (1<< 7)
-#define SQEXTPORT     Port5_Data
-#define SQEXTDDR      Port5_DDR
-#define SQEXTDDRbuf   Port5_DDR_buf
-#define SQEXTBIT      (1<< 3)
 
+#define PORT_SQEXT    Port5_Data
+#define DDR_SQEXT     Port5_DDR
+#define DDRbuf_SQEXT  Port5_DDR_buf
+#define BIT_SQEXT     (1<< 3)
 ;
-#define SQM_OFF       0
-#define SQM_CARRIER   SQBIT_C
-#define SQM_RSSI      SQBIT_R
-#define SQBIT_BOTH    (SQBIT_R | SQBIT_C)
 ;
 #define BIT_UI_PTT_REQ (1 << 0)
 #define BIT_DEFCH_SAVE (1 << 1)
@@ -70,6 +66,12 @@
 #define CDIFF_FLAG     (1 << 3)
 #define SQBIT_C        (1 << 4)
 #define SQBIT_R        (1 << 5)
+#define SQBIT_BOTH     (SQBIT_R | SQBIT_C)
+
+#define SQM_OFF       0
+#define SQM_CARRIER   SQBIT_C
+#define SQM_RSSI      SQBIT_R
+#define SQM_BOTH      (SQBIT_R | SQBIT_C)
 ;
 ; Interface to shift register
 #define SRCLKPORT     Port2_Data

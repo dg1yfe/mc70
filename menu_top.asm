@@ -263,26 +263,29 @@ mfd_end
 m_sql_switch
                 ldab sql_mode
 #ifdef EVA5
-                cmpb #SQM_RSSI
-                beq  mss_none          ; RSSI -> none
-                cmpb #SQM_CARRIER
-                beq  mss_rssi          ; carrier -> RSSI
+                tba
+                anda #SQM_RSSI
+                bne  mss_none          ; RSSI -> none
+                andb #SQM_CARRIER
+                bne  mss_rssi          ; carrier -> RSSI
 mss_carrier                            ; Carrier Squelch Pin auswerten
-                ldab #SQM_CARRIER
+                andb #~SQM_BOTH
+                orab #SQM_CARRIER
                 stab sql_mode
                 ldaa #1
                 ldab #2
                 jsr  arrow_set
                 bra  mss_end
 mss_rssi                               ; RSSI Pin auswerten
-                ldab #SQM_RSSI
+                andb #~SQM_BOTH
+                orab #SQM_RSSI
                 stab sql_mode
                 ldaa #2
                 ldab #2
                 jsr  arrow_set
                 bra  mss_end
 mss_none                               ; Raussperre deaktivieren
-                ldab #SQM_OFF
+                andb #~SQM_BOTH
                 stab sql_mode
                 ldaa #0
                 ldab #2

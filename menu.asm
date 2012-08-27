@@ -97,8 +97,7 @@ menu_init
 
                 clr  mem_bank
 #ifdef EVA5
-                ldab #SQM_CARRIER              ; Squelch aktiviert
-                stab sql_mode
+                oim  #SQM_CARRIER,sql_mode    ; start with carrier squelch
 #endif
 #ifdef EVA9
                 oim  #SQBIT,sql_mode           ; Squelch aktiviert

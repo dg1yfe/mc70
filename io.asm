@@ -83,9 +83,9 @@ io_init
                                                ; disabled.
 ; Port 5
                 ldab #%00001000
-                stab SQEXTDDR                  ; EXT Alarm auf Ausgang, Alles andere auf Input
-                stab SQEXTDDRbuf
-                oim  #%00001000, SQEXTPORT     ; EXT Alarm off (Hi)
+                stab DDR_SQEXT                 ; EXT Alarm auf Ausgang, Alles andere auf Input
+                stab DDRbuf_SQEXT
+                oim  #%BIT_SQEXT, PORT_SQEXT   ; EXT Alarm off (Hi)
 
 ; Port 6
                 ldab #%00001100

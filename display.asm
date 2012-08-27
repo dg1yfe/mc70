@@ -96,7 +96,6 @@ lcs_chkres_loop
                tab
                cmpb #$7e
                beq  lcs_disp_resp        ; rest char received, respond
-               ldab #$7e
                jsr  sci_tx
 
                ldd  tick_hms
@@ -106,36 +105,29 @@ lcs_wait_res
                pshx
                jsr  sci_rx
                pulx
-		       deca
-		       beq  lcs_chk            ; if there was only one byte left, respond
-               bra  lcs_wait_count     ; loop until time is up
-lcs_chk
-               cmpb #$7E               ; Reset Poll Char received?
-               beq  lcs_disp_resp      ; Yes - then respond...
-               jsr  sci_tx_w           ; respond by sending char back
-               ldab #$7E               ; request reset
-               jsr  sci_tx_w           ; respond by sending char back
+               tsta
+               bne  lcs_wait_count
+               cmpb #$7E               ; Reset Poll Char?
+               beq  lcs_disp_resp      ;
 lcs_wait_count
-               cpx  tick_hms           ; check if time is up?
-               bne  lcs_wait_res       ; if not, loop another time
-               inx
-               cpx  tick_hms           ; check also for one tick behind
-               tpa                     ; in case sci_tx_w took more than 100 ms
-               dex
-               tap
-               bne  lcs_wait_res       ; if not, loop another time
-lcs_res_failed
-               ldaa #1                 ; Display antwortet nicht innerhalb des Timeouts
-               ldab #$7F
-               jsr  sci_tx
-               rts                     ; suppose no display is present
+               cpx  tick_hms
+               bne  lcs_wait_res       ; Nein, dann nochmal
+               ldab #1                 ; Display antwortet nicht innerhalb ca 1 s
+               bra  lcs_nodisp         ; Annehmen, dass kein Display vorhanden ist (nur loopback)
 lcs_disp_resp
-               jsr  sci_tx             ; ...by sending it back
+               jsr  sci_tx             ; by sending it back
+               clrb
+lcs_nodisp
+               pshb
+               sei
+               clr  io_inbuf_w
+               clr  io_inbuf_r
+               cli
 
                ldaa #LCDDELAY*4
                staa lcd_timer
                ldaa #1
-               jsr  lcd_clr            ; clear LEDs, LCD and Display Buffer
+               jsr  lcd_clr            ; LEDs, LCD und Display Buffer löschen
 
                pula
                rts

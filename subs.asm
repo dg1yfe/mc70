@@ -281,7 +281,7 @@ squelch
                 andb #SQBIT
 #endif
 #ifdef EVA5
-                andb #(SQBIT_BOTH>>2)
+                andb #SQBIT_BOTH
 #endif
                 beq  sq_audio_on           ; Squelch off -> activate Audio
 sq_check
@@ -304,7 +304,7 @@ sq_audio_on
                 bne  sq_end                ; do nothing if it is
 
 #ifdef EVA5
-                aim  #~SQEXTBIT, SQEXTPORT ; "Ext Alarm" auf 0
+                aim  #~BIT_SQEXT, PORT_SQEXT ; "Ext Alarm" auf 0
                 ldaa #-1
                 ldab #SR_RXAUDIO
                 jsr  send2shift_reg        ; RX Audio an
@@ -328,7 +328,7 @@ sq_audio_off
                 andb #SR_RXAUDIO           ; check if audio is already DEactivated
                 beq  sq_end                ; exit here if it is
 #ifdef EVA5
-                oim  #SQEXTBIT, SQEXTPORT  ; "Ext Alarm" auf 1
+                oim  #BIT_SQEXT, PORT_SQEXT ; "Ext Alarm" auf 1
 
                 ldaa #~SR_RXAUDIO
                 clrb
