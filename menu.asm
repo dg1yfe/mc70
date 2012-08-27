@@ -91,7 +91,7 @@ menu_init
 
                 clr  m_svar1
                 clr  m_svar2
-	
+
                 clr  io_menubuf_r
                 clr  io_menubuf_w    ; Zeiger von Eingabepuffer auf 0
 
@@ -164,6 +164,9 @@ m_state_tab
                .dw m_end_restore
 #ifdef EVA9
                .dw m_power_select
+#endif
+#ifdef EVA5
+               .dw m_none            ; dummy
 #endif
                .dw m_none            ; CTCSS SEL RX
                .dw m_ctcss_submenu   ; CTCSS SEL TX

@@ -37,6 +37,12 @@
 #DEFINE VCOPORT       Port2_Data
 #DEFINE VCOBIT        (1 << 5)
 
+;Local tone output (alert tone)
+#define PORT_ATONE    Port2_Data
+#define DDR_ATONE     Port2_DDR
+#define DDRbuf_ATONE  Port2_DDR_buf
+#define BIT_ATONE     (1 << 6)
+
 ;PLL Lock Input
 #define LOCKPORT      Port5_Data
 #define LOCKBIT       (1 << 5)

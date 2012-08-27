@@ -84,13 +84,6 @@ oos1_end
 ; N C O
 ;********
 ;
-; interrupt routines for numerically controlled oscillator
-;
-;Pin 30 & 31
-;    P65 P66
-;*****************
-;digital tone Oscillator
-;
 ; Single tone oscillator without noise shaping (less CPU usage)
 ;
 OCI_OSC1_pl                         ;   +19
@@ -98,15 +91,16 @@ OCI_OSC1_pl                         ;   +19
                addd osc3_pd         ;+4  27    phasen delta addieren
                std  osc3_phase      ;+4  31    phase speichern
 
-               ldx  #dac_8to3filt   ;+3  15    ; Sinustabelle indizieren
+;               ldx  #dac_8to3filt   ;+3  15    ; Sinustabelle indizieren
+               ldx  #dac_8to3       ;+3  15    ; Sinustabelle indizieren
                tab                  ;+1  16    ; Phasenwert (int)
                abx                  ;+1  17    ; addieren
                abx                  ;+1  17    ; addieren
 
-               ldab Port2_Data      ;+3  39    get noise from Signalling Decode Input
-               andb #1              ;+2  41    this is cheaper than generating pseudo-noise
-               abx                  ;+1  42    using an LFSR and it is REAL noise
-               abx                  ;+1  42
+;               ldab Port2_Data      ;+3  39    get noise from Signalling Decode Input
+;               andb #1              ;+2  41    this is cheaper than generating pseudo-noise
+;               abx                  ;+1  42    using an LFSR and it is REAL noise
+;               abx                  ;+1  42
 
                ldaa Port6_DDR_buf   ;+3  41
                ldab Port6_Data      ;+3  44
@@ -203,10 +197,10 @@ OCI_OSC_ALERT                       ;   +19
                anda #%00100000      ;+2  33    nur MSB berücksichtigen
                lsla                 ;+1  34
                tab
-               ldaa Port2_Data      ;+3  44
-               anda #%10111111      ;+2  46
+               ldaa PORT_ATONE      ;+3  44
+               anda #~BIT_ATONE     ;+2  46
                aba
-               staa Port2_Data      ;+4  55    ; store to Port2 Data
+               staa PORT_ATONE      ;+4  55    ; store to Port2 Data
                jmp  oos1_timer
 
 ; CPU load with active NCO

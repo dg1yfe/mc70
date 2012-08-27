@@ -269,7 +269,18 @@ tosp_entry
                beq  tosp_oscvec3      ; dual tone signalling & CTCSS
                cpx  #OCI_OSC3
                beq  tosp_oscvec3      ; dual tone signalling & CTCSS
+#ifdef EVA5
+               ldab Port6_DDR_buf
+               andb #%10011111
+               orab #%00010000
+               stab Port6_DDR_buf
+               stab Port6_DDR
 
+               ldab Port6_Data
+               andb #%10001111
+               orab #%00010000
+               stab Port6_Data
+#endif
                sei
                ldab #0
                stab tasksw_en         ; disable preemptive task switching
@@ -286,12 +297,6 @@ tosp_intloop
                stab oci_int_ctr       ; Interrupt counter auf 1
                                       ; (Bit is left shifted during Audio OCI, on zero 1ms OCI will be executed)
 #endif
-               ldx  #OCI_OSC1_pl
-               stx  oci_vec           ; OCI Interrupt Vektor 'verbiegen'
-                                      ; Ausgabe startet automatisch beim nächsten OCI
-                                      ; 1/8000 s Zeitintervall wird automatisch gesetzt
-;               clr  tasksw_en         ; re-enable preemptive task switching
-
                ldx  #OCI_OSC1_pl      ; CTCSS NCO
                bra  tosp_setvec
 tosp_oscvec2sp
@@ -303,6 +308,7 @@ tosp_setvec
                stx  oci_vec           ; set new OCI interrupt vector
                                       ; output starts autonmatically with next 1 ms interrupt
                                       ; 1/8000 s interval is then set automatically
+               clr  tasksw_en         ; re-enable preemptive task switching
                cli
 tosp_end
                pulx
