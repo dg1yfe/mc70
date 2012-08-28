@@ -39,7 +39,7 @@
 .ADDINSTR XGDX    ""      18      1       NOP     8
 
 ; Define hardware to compile for
-;
+; uncomment definition for model
 ;
 #DEFINE EVA5
 ;#DEFINE EVA9
@@ -47,8 +47,16 @@
 #DEFINE BAND70CM
 #ifndef EVA5
 #ifndef EVA9
-.ECHO "\r\n ERROR: Select a model hardware to compile for: EVA5 or EVA9!\r\n"
+.ECHO "\r\n Warning: No model hardware (EVA5 / EVA9) selected\r\nUsing EVA5 as default\r\n"
+.ECHO "Change settings in macros.asm to alter this...\r\n"
 .END
+#endif
+#endif
+#ifdef EVA9
+#ifdef EVA5
+.ECHO "\r\n Error: Cannot compile for more than one model (EVA5/EVA9) at once.\r\n"
+.ECHO "Switching to EVA5, ignoring EVA9\r\n"
+#undef EVA9
 #endif
 #endif
 ;************************
@@ -109,8 +117,9 @@
 #endif
 ;
 #IFDEF BAND2M
-;
+;*******************************************
 .ECHO   "\r\nCompiling for 144 MHz\r\n\r\n"
+;
 #DEFINE FBASE 140000000         ; lowest frequency (for eeprom storage) = 140MHz (430 MHz with 70 cm)
 #DEFINE FBASE_MEM_RECALL 140000000
 #DEFINE FDEF  145500000         ; Default Frequency
@@ -118,8 +127,9 @@
 #DEFINE PRESCALER    40         ; PLL Prescaler (40 für 2m, 127 für 70cm)
 ;
 #ELSE                           ; assume 70 cm
-;
+;*******************************************
 .ECHO   "\r\nCompiling for 430 MHz\r\n\r\n"
+;
 #DEFINE FBASE 430000000         ; lowest frequency (for eeprom storage) = 140MHz (430 MHz with 70 cm)
 #DEFINE FBASE_MEM_RECALL 400000000
 #DEFINE FDEF  433500000         ; Default Frequency
@@ -137,7 +147,7 @@
 
 
 #DEFINE WAIT(ms)    pshx \ ldx  #ms \ jsr wait_ms \ pulx
-#DEFINE LCDDELAY  41     ; 41ms
+#DEFINE LCDDELAY  42     ; 42ms
 ;************************
 ; Squelch
 ;

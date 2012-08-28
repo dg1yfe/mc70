@@ -57,7 +57,7 @@ OCI_OSC1                            ;   +19
 
                ldaa Port6_DDR_buf   ;+3  41
                ldab Port6_Data      ;+3  44
-               andb #%10011111      ;+2  46
+               andb #%10001111      ;+2  46
                addd 0,x             ;+5  51    ; add DAC value from sine table
                std  Port6_DDR       ;+4  55    ; store to DDR & Data
 
@@ -91,8 +91,7 @@ OCI_OSC1_pl                         ;   +19
                addd osc3_pd         ;+4  27    phasen delta addieren
                std  osc3_phase      ;+4  31    phase speichern
 
-;               ldx  #dac_8to3filt   ;+3  15    ; Sinustabelle indizieren
-               ldx  #dac_8to3       ;+3  15    ; Sinustabelle indizieren
+               ldx  #pl_dac_sin_tab ;+3  15    ; Sinustabelle indizieren
                tab                  ;+1  16    ; Phasenwert (int)
                abx                  ;+1  17    ; addieren
                abx                  ;+1  17    ; addieren
@@ -110,12 +109,12 @@ OCI_OSC1_pl                         ;   +19
 
                ldab TCSR2           ;+3  58    ; Timer Control / Status Register 2 lesen
                ldd  OCR1H           ;+4  62
-               addd #249            ;+3  65    ; ca 8000 mal pro sek Int auslösen
+               addd #SYSCLK/8000    ;+3  65    ; ca 8000 mal pro sek Int auslösen
                std  OCR1H           ;+4  69
 
                ldaa TCSR2
                anda #%00100000
-               beq  oos1_end
+               beq  oos1p_end
                ldd  OCR2
                addd #SYSCLK/1000
                std  OCR2
@@ -151,7 +150,7 @@ OCI_OSC1d                           ;   +19
 
                ldaa Port6_DDR_buf   ;+3  54
                ldab Port6_Data      ;+3  57
-               andb #%10011111      ;+2  59
+               andb #%10001111      ;+2  59
                addd 0,x             ;+5  64    ; add DAC value from sine table
                std  Port6_DDR       ;+4  68    ; store to DDR & Data
 
@@ -242,8 +241,7 @@ OCI_OSC2                            ;   +19    Ausgabe Stream1 (Bit 0-2)
 
                ldaa Port6_DDR_buf   ;+3  75
                ldab Port6_Data      ;+3  78
-               anda #%10011111      ;+2  80
-               andb #%10011111      ;+2  82
+               andb #%10001111      ;+2  82
                addd 0,x             ;+5  87    ; use ADD as OR
                std  Port6_DDR       ;+4  91    ; Store to DDR & Data
 
@@ -294,7 +292,7 @@ OCI_OSC2m                           ;   +19    Ausgabe Stream1 (Bit 0-2)
                abx
                ldaa Port6_DDR_buf   ;+3  56
                ldab Port6_Data      ;+3  59
-               andb #%10011111      ;+2  61
+               andb #%10001111      ;+2  61
                addd 0,x             ;+5  66    ; add DAC value from sine table
                std  Port6_DDR       ;+4  70    ; store to DDR & Data
 
@@ -384,11 +382,11 @@ oo2sp_end
 ;     -> 249 * 8000 Hz (NCO clock)       CPU load EVA5 = (7* 40,6 % + 1* 50,8 %) / 8 = 41,8 % average
 ;                                        (reduces effective CPU speed for program to ~1160 kHz)
 ;*****************
-;digital double tone Oscillator
 ;
-; TODO: Sinn von Dither untersuchen, 16 Bit LFSR (z.B. x^16 + x^12 + x^5 + 1) addieren
+; digital triple tone Oscillator
+; DTMF + CTCSS
 ;
-OCI_OSC3                            ;   +19    Ausgabe Stream1 (Bit 0-2)
+OCI_OSC3                            ;   +19
                ldd  osc1_phase      ;+4  23    ; 16 Bit Phase 1 holen
                addd osc1_pd         ;+4  27    ; 16 Bit delta phase 1 addieren
                std  osc1_phase      ;+4  31    ; und neuen Phasenwert 1 speichern
@@ -403,7 +401,7 @@ OCI_OSC3                            ;   +19    Ausgabe Stream1 (Bit 0-2)
                tab                  ;+1  51
                ldaa 0,x             ;+4  55    ; Tabelleneintrag 1 holen
 
-               ldx  #sin_64_3_0dB   ;+3  58    ; Sinustabelle indizieren
+               ldx  #sin_64_3_1dB   ;+3  58    ; Sinustabelle indizieren
                andb #%00111111      ;+2  60
                abx                  ;+1  61
                adda 0,x             ;+4  65    ; Tabelleneintrag 2 addieren
@@ -415,41 +413,40 @@ OCI_OSC3                            ;   +19    Ausgabe Stream1 (Bit 0-2)
                ldd  osc3_phase      ;+4  76
                addd osc3_pd         ;+4  80
                std  osc3_phase      ;+4  84
-               andb #%10000000      ;+2  86
+               clrb                 ;+1  85
+               lsla                 ;+1  86
                rolb                 ;+1  87
                rolb                 ;+1  88
-               rolb                 ;+1  89
                abx                  ;+1  89
 
                ldaa Port6_DDR_buf   ;+3  92
                ldab Port6_Data      ;+3  95
-               anda #%10011111      ;+2  97
-               andb #%10011111      ;+2  99
-               addd 0,x             ;+5 104    ; use ADD as OR
-               std  Port6_DDR       ;+4 108    ; Store to DDR & Data
+               andb #%10001111      ;+2  97
+               addd 0,x             ;+5 102    ; use ADD as OR
+               std  Port6_DDR       ;+4 106    ; Store to DDR & Data
 
-               ldab TCSR1           ;+3 111     ; Timer Control / Status Register 2 lesen
-               ldd  OCR1            ;+4 115
-               addd #249            ;+3 118     ; ca 8000 mal pro sek Int auslösen
-               std  OCR1            ;+4 122
+               ldab TCSR1           ;+3 109     ; Timer Control / Status Register 2 lesen
+               ldd  OCR1            ;+4 113
+               addd #249            ;+3 116     ; ca 8000 mal pro sek Int auslösen
+               std  OCR1            ;+4 120
 
-               ldaa TCSR2           ;+3 125
-               anda #%00100000      ;+3 128
-               beq  oos3_end        ;+3 131
-               ldd  OCR2            ;+4 135
-               addd #SYSCLK/1000    ;+3 138
-               std  OCR2            ;+4 142
-               dec  gp_timer        ;+6 148    ; Universaltimer-- / HW Task
-               ldx  tick_ms         ;+4 152
-               inx                  ;+1 153    ; 1ms Tick-Counter erhöhen
-               stx  tick_ms         ;+4 157
+               ldaa TCSR2           ;+3 123
+               anda #%00100000      ;+3 126
+               beq  oos3_end        ;+3 129
+               ldd  OCR2            ;+4 133
+               addd #SYSCLK/1000    ;+3 136
+               std  OCR2            ;+4 140
+               dec  gp_timer        ;+6 146    ; Universaltimer-- / HW Task
+               ldx  tick_ms         ;+4 150
+               inx                  ;+1 151    ; 1ms Tick-Counter erhöhen
+               stx  tick_ms         ;+4 155
 oos3_end
-               rti                  ;+10 141 / 167
+               rti                  ;+10 139 / 165
 ; CPU load with active NCO
 ;
 ; EVA5 / 7977600 Hz Xtal
 ;     -> 1994400 Hz E2 clock
-;     -> 249 * 8000 Hz (NCO clock)       CPU load EVA5 = (7* 49,8 % + 1* 60,2 %) / 8 = 51,1 % average
-;                                        (reduces effective CPU speed for program to ~975 kHz)
+;     -> 249 * 8000 Hz (NCO clock)       CPU load EVA5 = (7* 54,7 % + 1* 65,0 %) / 8 = 56,0 % average
+;                                        (reduces effective CPU speed for program to ~878 kHz)
 
 

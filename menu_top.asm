@@ -318,14 +318,10 @@ mss_end
 m_tone
 
                 oim  #1,ui_ptt_req     ; PTT drücken
-#IFDEF EVA5
-                clrb
-                jsr  dac_filter        ; deactivate additional DAC filter
-#ENDIF
                 ldab tone_timer
                 bne  mtn_reset_timer
                 ldd  #1750
-                jsr  tone_start
+                jsr  tone_start_sig
 mtn_reset_timer
                 ldab #6
                 stab tone_timer        ; 0,6 sek Ton ausgeben
@@ -552,14 +548,19 @@ mpr_nosave
 ;
 ;
 m_test
-;                ldx  #0
-;                ldd  #1200
-;                jsr  tone_start
-                ldab #$2
-                jsr  dtmf_key2freq
-                jsr  dtone_start
+               clrb
+               jsr  lcd_cpos
+               ldx  osc2_phase
+               xgdx
+               pshb
+               tab
+               ldaa #'x'
+               jsr  putchar
+               pulb
+               ldaa #'x'
+               jsr  putchar
 
-                jmp  m_end
+               jmp  m_end
 
 m_test3
 ;                ldx  #5500*4
@@ -769,10 +770,7 @@ m_dtmf_go
 mdg_start
                 jsr  dtmf_key2freq      ; calculate DTMF frequencies
                 jsr  dtone_start        ; start DTMF tone output
-#ifdef EVA5
-                clrb
-                jsr  dac_filter        ; deactivate additional DAC filter
-#endif
+
                 ldab #4
                 stab tone_timer        ; 0,4 sek Ton ausgeben
 

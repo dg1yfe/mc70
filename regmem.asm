@@ -457,10 +457,13 @@ sql_timer       .db
 tx_ctcss_flag
 pcc_cdiff_flag
 ui_ptt_req
+#ifdef EVA9
 pwr_mode                                              ; Mode Flag Bit   Function
+#endif
 sql_mode        .db                                   ;           7,6 = Power On Message
                                                       ;           5   = Carrier Squelch
-                                                      ;           4   = Power (1=Lo, 0=Hi)
+                                                      ;           4   = EVA9: Power (1=Lo, 0=Hi)
+                                                      ;                 EVA5: RSSI Squelch
                                                       ;           3   = PCC CDIFF FLAG
                                                       ;           2   = CTCSS during TX
                                                       ;           1   = BIT_DEFCH_SAVE
@@ -487,8 +490,8 @@ osc2_pd         .dw                        ; & oscialltor 1 & 2 (1750 Hz & DTMF)
 #ifdef EVA5
 osc1_dither     .dw
 #endif
-osc3_phase      .dw                        ; dual use: frequency input
 osc_buf         .db
+osc3_phase      .dw                        ; dual use: frequency input
 
 osc3_pd         .dw                        ; & oscialltor 1 & 2 (1750 Hz & DTMF)
 #ifdef EVA5

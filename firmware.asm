@@ -111,6 +111,7 @@ sim_loop
 
                WAIT(500)
                jsr  s_timer_init
+
 ;
 ;
 ;***************

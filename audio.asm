@@ -92,6 +92,7 @@ dfi_end
 ; = 0,488 Hz
 ;
 tone_start
+tone_start_sig
                pshb
                psha
                pshx
@@ -126,8 +127,7 @@ tone_start
                beq  tos_end           ; correct vector is already set, goto exit
 #ifdef EVA5
                ldab Port6_DDR_buf
-               andb #%10011111
-               orab #%00010000
+               andb #%10001111
                stab Port6_DDR_buf
                stab Port6_DDR
 
@@ -160,12 +160,6 @@ tos_intloop
                                       ; before next interrupt occurs even on EVA9
                std  OCR1
 
-               ldx  #OCI_OSC1_sig
-               stx  oci_vec           ; OCI Interrupt Vektor 'verbiegen'
-                                      ; Ausgabe startet automatisch beim nächsten OCI
-                                      ; 1/8000 s Zeitintervall wird automatisch gesetzt
-               stx  subaudiobuf+24
-
                ldd  #$1
                std  osc1_dither
                clra
@@ -186,6 +180,11 @@ tos_intloop
                std  subaudiobuf+( 9*2)
                std  subaudiobuf+(10*2)
                std  subaudiobuf+(11*2)
+
+               ldx  #OCI_OSC1_sig
+               stx  subaudiobuf+24
+
+               bra  tos_setvec
 #endif
 #ifdef EVA9
                ldx  #OCI_OSC1_sig     ; signalling NCO
@@ -231,7 +230,7 @@ tos_end
 ; dp = (f*  65536  /  40000) / 2
 ;
 ; frequency resolution is :
-; 80000 / (256 (Schritte in Sinus Tabelle) * 256 (8 Bit fractional)
+; 8000 / (256 (Schritte in Sinus Tabelle) * 256 (8 Bit fractional)
 ; = 0,122 Hz
 ; so maximum frequency error due to 8.8 integer arithmetic will be 0,061 Hz
 ;
@@ -264,25 +263,23 @@ tosp_entry
                cpx  #OCI_OSC1_sig
                beq  tosp_oscvec2sp    ; signalling & CTCSS
                cpx  #OCI_OSC2_sp
-               beq  tosp_oscvec2sp    ; signalling & CTCSS
+               beq  tosp_end          ; signalling & CTCSS
                cpx  #OCI_OSC2
                beq  tosp_oscvec3      ; dual tone signalling & CTCSS
                cpx  #OCI_OSC3
-               beq  tosp_oscvec3      ; dual tone signalling & CTCSS
+               beq  tosp_end          ; dual tone signalling & CTCSS
+               sei
 #ifdef EVA5
                ldab Port6_DDR_buf
-               andb #%10011111
-               orab #%00010000
+               andb #%10001111
                stab Port6_DDR_buf
                stab Port6_DDR
 
                ldab Port6_Data
                andb #%10001111
-               orab #%00010000
                stab Port6_Data
 #endif
-               sei
-               ldab #0
+               ldab #1
                stab tasksw_en         ; disable preemptive task switching
                ldab tick_ms+1
 tosp_intloop
@@ -293,9 +290,8 @@ tosp_intloop
                cmpb tick_ms+1
                beq  tosp_intloop
 #ifdef EVA9
-               ldab #1
-               stab oci_int_ctr       ; Interrupt counter auf 1
-                                      ; (Bit is left shifted during Audio OCI, on zero 1ms OCI will be executed)
+               ldab #1                ; Reset interrupt counter
+               stab oci_int_ctr       ; (Bit is left shifted during Audio OCI, on zero 1ms OCI will be executed)
 #endif
                ldx  #OCI_OSC1_pl      ; CTCSS NCO
                bra  tosp_setvec
@@ -398,15 +394,19 @@ dtone_start
                cpx  #OCI_OSC3
                beq  dts_oscvec3       ; dual tone signalling & CTCSS
 
+               sei
 #ifdef EVA5
                ldab Port6_DDR_buf
-               andb #%10011111
+               andb #%10001111
                stab Port6_DDR_buf
                stab Port6_DDR
+
+               ldab Port6_Data
+               andb #%10001111
+               stab Port6_Data
 #endif
                ldab #0
                stab tasksw_en         ; disable preemptive task switching
-               sei
                ldab tick_ms+1
 dts_intloop
                cli
@@ -523,8 +523,7 @@ dtone_startm
                beq  dtsm_oscvec3      ; dual tone signalling & CTCSS
 #ifdef EVA5
                ldab Port6_DDR_buf
-               andb #%10011111
-               orab #%00010000
+               andb #%10001111
                stab Port6_DDR_buf
                stab Port6_DDR
 
@@ -592,6 +591,8 @@ tone_stop_sig
                pshx
 
                ldx  oci_vec
+               cpx  #OCI_OSC1_pl
+               beq  tsts_end
                cpx  #OCI_OSC1_sig
                beq  tsts_disable
                cpx  #OCI_OSC1d
@@ -621,18 +622,13 @@ tsts_disable
 tsts_setvec
                stx  oci_vec
 #ifdef EVA5
-               ldab Port5_DDR_buf
-               andb #%11110111
-               stab Port5_DDR
-               stab Port5_DDR_buf
-
                ldab Port6_DDR_buf
-               andb #%10011111
-               stab Port6_DDR
+               andb #%10001111
                stab Port6_DDR_buf
+               stab Port6_DDR
 
                ldaa Port6_Data
-               anda #%10011111
+               anda #%10001111
                staa Port6_Data
 #endif
 #ifdef EVA9
@@ -679,18 +675,13 @@ tstp_setvec
                                        ; Zeitbasis für Timerinterrupt (1/1000 s) wird im Int zurückgestellt
                                        ; DAC wieder auf Mittelwert zurücksetzen
 #ifdef EVA5
-               ldab Port5_DDR_buf
-               andb #%11110111
-               stab Port5_DDR
-               stab Port5_DDR_buf
-
                ldab Port6_DDR_buf
-               andb #%10011111
+               andb #%10001111
                stab Port6_DDR
                stab Port6_DDR_buf
 
                ldaa Port6_Data
-               anda #%10011111
+               anda #%10001111
                staa Port6_Data
 #endif
 #ifdef EVA9

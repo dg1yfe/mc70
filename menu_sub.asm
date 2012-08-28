@@ -450,10 +450,6 @@ mdts_output
                jsr  dtmf_key2freq        ; calculate DTMF frequencies
                jsr  dtone_start          ; start DTMF tone output
                oim  #BIT_UI_PTT_REQ,ui_ptt_req     ; enable PTT
-#IFDEF EVA5
-               clrb
-               jsr  dac_filter        ; deactivate additional DAC filter
-#ENDIF
                ldab #' '
                ldaa #'c'
                jsr  putchar            ; mark char as sent by deleting it

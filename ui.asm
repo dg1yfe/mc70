@@ -119,12 +119,14 @@ ui_short_msg
 no_intro
                 ldab #1
                 jsr  pll_led                ; PLL Lock Status auf rote LED ausgeben                jsr  menu_init
+                jsr  menu_init
                 WAIT(100)
 ui_frq_prnt
                 ldx  #frequency
                 jsr  freq_print             ; Frequenz anzeigen
 
                 jsr  freq_offset_print      ; Frequenz anzeigen
+
 
 ui_loop                                     ; komplette Display Kommunikation
                 jsr  menu                   ; Menü für Frequenzeingabe etc.
