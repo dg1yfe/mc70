@@ -340,14 +340,14 @@ OCI_OSC2_sp                         ;   +19
 
                ldab 0,x             ;+4  54    ; Tabelleneintrag 1 holen
 
-               anda #%11000000      ;+2  56    ; filter topmost bits, 01 = add 1 to B, 11 = sub 1 from B
+               anda #%11000000      ;+2  56    ; filter topmost bits, 01 = sub 1 from B, 11 = add 1 to B
                rola                 ;+1  57
                rola                 ;+1  58    ; keep sign as Bit 0 and value in carry flag
                beq  oo2sp_add       ;+3  61    ; decide if to perform addition or subtraction
-               sbcb #0              ;+2  63    ; subtract 0 and carry
+               adcb #0              ;+2  63    ; add 0 and carry
                bra  oo2sp_da        ;+3  66    ; continue with indexing DAC table
 oo2sp_add
-               adcb #0              ;+2  63    ; add 0 and carry
+               sbcb #0              ;+2  63    ; subtract 0 and carry
                bra  oo2sp_da        ;+3  66    ; continue with indexing DAC table
 oo2sp_da
                lslb                 ;+1  67    ; table has 16 bit values, adjust index
