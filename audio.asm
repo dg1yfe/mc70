@@ -606,13 +606,13 @@ tone_stop_sig
                cpx  #OCI_OSC3
                beq  tsts_osc1pl
 
-tsts_oci_cleanup
-               ldx  #OCI_OSC1_CLEANUP
-               stx  subaudiobuf+24
-tsts_loop
-               ldx  oci_vec
-               cpx  #OCI1_MS
-               bne  tsts_loop
+;tsts_oci_cleanup
+;               ldx  #OCI_OSC1_CLEANUP
+;               stx  subaudiobuf+24
+;tsts_loop
+;               ldx  oci_vec
+;               cpx  #OCI1_MS
+;               bne  tsts_loop
                bra  tsts_disable
 tsts_osc1pl
                ldx  #OCI_OSC1_pl       ; otherwise CTCSS must be active, keep this one running
@@ -720,6 +720,10 @@ atone_start
                psha
                pshx
 
+               ldx  oci_vec
+               cpx  #OCI1_MS
+               bne  ats_end           ; dont use alert tone if tone generator is already in use
+
                ldx  #0
                pshx                   ; Lo Word = 0
                pshb                   ; Hi Word sichern
@@ -760,8 +764,14 @@ ats_intloop
                stx  oci_vec           ; OCI Interrupt Vektor 'verbiegen'
                                       ; Ausgabe startet automatisch beim nächsten OCI
                                       ; 1/8000 s Zeitintervall wird automatisch gesetzt
-;               clr  tasksw_en         ; re-enable preemptive task switching
+               clr  tasksw_en         ; re-enable preemptive task switching
                cli
+ats_end
+               pulx
+               pula
+               pulb
+               rts
+
 
 ;**********************
 ; A   T O N E   S T O P
@@ -772,15 +782,18 @@ ats_intloop
 atone_stop
                pshb
                psha
+               ldd  oci_vec
+               subd #OCI_OSC_ALERT
+               bne  atst_end
                ldd  #OCI1_MS
                std  oci_vec            ; OCI wieder auf Timer Interrupt zurücksetzen
                                        ; Zeitbasis für Timerinterrupt (1/1000 s) wird im Int zurückgestellt
                                        ; DAC wieder auf Mittelwert zurücksetzen
                ldab Port2_DDR_buf
                andb #%10111111
-               stab Port2_DDR
                stab Port2_DDR_buf
-
+               stab Port2_DDR
+atst_end
                pula
                pulb
                rts
@@ -853,5 +866,5 @@ ctcss_tab
 #include "audio_e9.asm"
 #else
 #include "audio_e5.asm"
-#include "audio_noise_shape.asm"
+;#include "audio_noise_shape.asm"
 #endif

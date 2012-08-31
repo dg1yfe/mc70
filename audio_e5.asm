@@ -193,14 +193,16 @@ OCI_OSC_ALERT                       ;   +19
                addd osc1_pd         ;+4  27    phasen delta addieren
                std  osc1_phase      ;+4  31    phase speichern
 
+               ldab PORT_ATONE      ;+3  44
                anda #%00100000      ;+2  33    nur MSB berücksichtigen
-               lsla                 ;+1  34
-               tab
-               ldaa PORT_ATONE      ;+3  44
-               anda #~BIT_ATONE     ;+2  46
-               aba
-               staa PORT_ATONE      ;+4  55    ; store to Port2 Data
-               jmp  oos1_timer
+               beq  ooa_zero        ;+3
+               orab #BIT_ATONE      ;+2  46
+               stab PORT_ATONE      ;+4
+               jmp  oos1_timer      ;+3
+ooa_zero
+               andb #~BIT_ATONE     ;+2
+               stab PORT_ATONE      ;+4  55    ; store to Port2 Data
+               jmp  oos1_timer      ;+3
 
 ; CPU load with active NCO
 ;
