@@ -416,10 +416,18 @@ m_dtmf_print
                jmp  m_print
 
 m_dtmf_enter
+               oim  #BIT_UI_PTT_REQ, ui_ptt_req     ; enable PTT
                ldaa tone_timer
-               beq  mdts_start           ; check if tone is still on
+               beq  mdts_chk_ctcss       ; check if tone is still on
                jsr  tone_stop_sig        ; if it is, stop it
                WAIT(40)                  ; wait 40 ms (DTMF minimum pause)
+               bra  mdts_start
+mdts_chk_ctcss
+               tst  ctcss_index                ; check if CTCSS is activated
+               beq  mdts_start                 ; if not, start output immediately
+               WAIT(200)                       ; with CTCSS enabled, wait 200 ms
+                                               ; to enable decoder to activate audio
+                                               ; (just in case DTMF is decoded AFTER CTCSS squelch)
 mdts_start
                ldaa cpos                 ; save length of input in A
                clrb
@@ -449,7 +457,6 @@ mdts_sub48
 mdts_output
                jsr  dtmf_key2freq        ; calculate DTMF frequencies
                jsr  dtone_start          ; start DTMF tone output
-               oim  #BIT_UI_PTT_REQ,ui_ptt_req     ; enable PTT
                ldab #' '
                ldaa #'c'
                jsr  putchar            ; mark char as sent by deleting it
