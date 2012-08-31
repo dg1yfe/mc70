@@ -370,7 +370,7 @@ psc_turn_it_off
 #ifdef EVA5
                ldaa PORT_PWRFAIL
                anda BIT_PWRFAIL         ; check if power is failing
-               beq  psc_no_store        ; if it is, do not access EEPROM
+               bne  psc_no_store        ; if it is, do not access EEPROM
                                         ; to prevent data corruption
 #endif
                jsr  store_current       ; else store current channel & shift

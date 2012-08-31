@@ -266,6 +266,11 @@ RP5CR 		.db
 #ifdef EVA5
 Port5_Data 	.db             ; 50 - Pin17 - Emergency Input
                 			; 51 - Pin18 - Power Fail Input (1=Power Fail, 0=Power Good)
+                			;              -> this one is denoted wrong in the service manual
+                			;              where it states: "U601 monitors the B+ voltage level.
+                			;              If B+ rise lower than 9,6V the power fail signal
+                			;              rise down to 0V." (sic)
+                			;              In fact PWR FAIL is 1 when B+ < 9.6 V and 0 when B+>=9.6V
                 			; 52 - Pin19 - SW B+
                 			; 53 - Pin20 - Ext Alarm
                 			; 54 - Pin21 - HUB/PGM (mit NMI&Alert Tone verbunden)
