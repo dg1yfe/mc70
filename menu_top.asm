@@ -361,16 +361,26 @@ mts_print
                 clrb
                 jsr  lcd_cpos
                 tsx
+                ldaa 0,x
+                oraa 1,x
+                oraa 2,x
+                oraa 3,x
+                beq  mts_disabled        ; zero shift means, shift is disabled
+
                 jsr  sig_inv32s         ; invert longint
                                         ; (for historical reasons, inverted shift is saved & used)
                 ldaa #$45               ; print sign, maximum 5 digits
                 ldab #3                 ; truncate 3 digits at the end
                 jsr  decout
+mts_print_end
                 pulx
                 pulx
                 jsr  lcd_fill
                 jsr  freq_offset_print
                 jmp  m_end
+mts_disabled
+                PRINTF(m_off_str)
+                bra  mts_print_end
 ;*********************
 ; M T S   S W I T C H
 ;
@@ -548,17 +558,10 @@ mpr_nosave
 ;
 ;
 m_test
-               clrb
-               jsr  lcd_cpos
-               ldx  osc2_phase
-               xgdx
-               pshb
-               tab
-               ldaa #'x'
-               jsr  putchar
-               pulb
-               ldaa #'x'
-               jsr  putchar
+               ldd  #800
+               jsr  atone_start
+               WAIT(40)
+               jsr  atone_stop
 
                jmp  m_end
 
