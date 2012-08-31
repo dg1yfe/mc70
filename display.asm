@@ -293,6 +293,7 @@ lcd_timer_reset
 ;******************
 ;
 ;  Parameter : B - Cursorposition (0-7)
+;                  Bit 7 = 1 - force update
 ;
 ;  Ergebnis : none
 ;
@@ -303,10 +304,12 @@ lcd_cpos
                 psha
                 pshx
 
+                tba
+                andb #$7f
                 cmpb #8
                 bcc  lcp_end           ; Cursorposition muﬂ sich innerhalb von 0-7 befinden
 
-                cmpb cpos
+                cmpa cpos
                 beq  lcp_end           ; Wenn Cursor schon auf Position steht, nicht neu setzen
 
                 stab cpos              ; neue Position speichern
@@ -645,6 +648,7 @@ aws_send
                 ldaa #'p'
                 jsr  putchar                ; Arrow setzen
                 pulb
+                orab #$80                   ; force CPOS update
                 jsr  lcd_cpos
 aws_end
                 ins
