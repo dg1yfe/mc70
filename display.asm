@@ -139,7 +139,8 @@ lcs_nodisp
 ; Löscht Inhalt des Displays und des Buffers
 ;
 ;
-; Parameter    : A - 1 = LEDs löschen, 0 = nur Display
+; Parameter    : A - Bit 0 = 1 -> clear LEDs,
+;                    Bit 1 = 1 -> clear markers
 ;
 ; Ergebnis     : none
 ;
@@ -155,7 +156,7 @@ lcd_clr
                ldaa #'p'
                jsr  putchar
 
-               clr  cpos              ; Reset CPOS (Cursor auf Pos. 0 setzen)
+               clr  cpos              ; Reset CPOS (set cursor to pos. 0)
 
                ldx  #dbuf
                ldd  #$2020
@@ -163,16 +164,25 @@ lcd_clr
                std  2,x
                std  4,x
                std  6,x               ; clear Display Buffer (fill with "Space")
-               ldx  #0
-               stx  arrow_buf         ; clear arrow buf
 
                tsx
-               tst  2,x               ; Wenn A<>0, LEDs auch löschen
-               beq  lcc_end
-               clr  led_dbuf          ; LED Display Puffer löschen
-               ldab #$7A              ; LED clear Kommando senden
+               ldab  #$01
+               andb  2,x		; check if LEDs shall be cleared
+               beq  lcc_achk
+               clr  led_dbuf          ; clear LED display buffer
+               ldab #$7A              ; send LED clear command
                ldaa #'p'
                jsr  putchar
+               tsx
+lcc_achk
+               ldab #$02
+               andb 2,x	                ; check if indicators / arrows shall be cleared
+               beq  lcc_end
+               ldab #$79                ; clear indicators
+               ldaa #'p'
+               jsr  putchar
+               ldx  #0
+               stx  arrow_buf           ; clear corresponding buffer
 lcc_end
                pulx
                pula
