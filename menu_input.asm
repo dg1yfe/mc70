@@ -116,51 +116,66 @@ m_clr_displ
 ;
 ; M   S E T   F R E Q
 ;
-; eingegebene Frequenz setzen
+; parse input in order to set a new frequency
 ;
 m_set_freq
                 clra
-                ldab cpos
-                addd #f_in_buf
-                xgdx
-                clr  0,x              ; Eingabe mit 0 terminieren
+                ldab cpos             ; get cursor position
+                addd #f_in_buf        ; add input buffer base address
+                xgdx                  ; transfer to X
+                clr  0,x              ; terminate input string with 0
 m_set_freq_x
-                pshx                  ; 32 Bit Platz schaffen auf Stack
-                pshx                  ; für Ergebnis der Frequenzberechnung
+                pshx                  ; make room on stack for 32 Bit value
+                pshx                  ; we're going to store the new frequecy here
 
-                tsx                   ; Zeiger auf Zwischenspeicher (Stack) nach X
-                ldd  #f_in_buf        ; Zeiger auf Eingabestring holen
-                jsr  atol    	      ; Frequenz berechnen
+                tsx                   ; get a pointer to this temporary space
+                ldd  #f_in_buf        ; get pointer to string
+                jsr  atol_new         ; perform string to long conversion
 
-                tsx                   ; Zeiger auf Frequenz DWord nach X
-                jsr  frq_update       ; Control Task mitteilen, dass neue Frequenz gesetzt wurde
+                ldx  #f_in_buf
+                jsr  strlen           ; calc strlen
+                lslb
+                lslb                  ; *4 to index 32 bit values
+                addd #exp10           ; add index from pointer to "10^0"
+                tsx                   ; get pointer to frequency word
+                jsr  multiply32p      ; Multiply to obtain value between below 999999000
+
+                ldd  #const_500M      ; compare frequency with 500 MHz
+                jsr  cmp32p
+                bcs  msf_below_500M   ; if it is below 500 MHz -> use it
+                                      ; if it is above 500 MHz, treat it as value between 50 and 99 MHz
+                                      ; this enables convenient 5-digit frequency input for 4 m radios
+                ldd  #10              ; divide frequency (which is still on top of the stack) by 10
+                jsr  divide32
+msf_below_500M
+                tsx                   ; put pointer to frequency in X
+                jsr  frq_update       ; signal presence of new frequency to control task
                 clra
-                jsr  lcd_clr          ; LCD löschen
+                jsr  lcd_clr          ; clear LCD
                 ldab #IDLE
-                stab m_state          ; nächster State ist wieder IDLE
+                stab m_state          ; continue in IDLE
 
-                PRINTF(m_ok)          ; "OK" ausgeben - PLL ist eingerastet
+                PRINTF(m_ok)          ; print "OK"
                 WAIT(200)             ; 200ms warten
 m_frq_prnt
                 clrb
                 jsr  lcd_cpos         ; cursor auf pos 0 setzen
 
-                ldx  #frequency       ; Adresse von Frequenz Word holen
-                jsr  freq_print       ; Frequenz ausgeben
-                jsr  lcd_fill         ; Display mit Leerzeichen füllen (schneller als löschen und dann schreiben)
-                jsr  freq_offset_print; Offset anzeigen
+                ldx  #frequency       ; get currently set frequency (might have been rounded)
+                jsr  freq_print       ; print it
+                jsr  lcd_fill         ; fill remaining chars with spaces
+                jsr  freq_offset_print; show indicator for TX shift
 
-                clr  m_timer_en       ; Menü Timer disabled - Aktuelles Display = neues Display
-                pshb
-                psha
+                clr  m_timer_en       ; clear menu timer, old display content is invalid, do not restore
                 clr  pll_timer        ; PLL Timer auf 0
-                pula
-                pulb
 msf_end
                 pulx
                 pulx                  ; eingegebene Frequenz vom Stack löschen
                 jmp  m_end
 
+const_500M
+                .dw  (500000000>>16)
+                .dw  (500000000%65536)
 ;*******************************
 ;
 ; M   D I G I T   E D I T O R

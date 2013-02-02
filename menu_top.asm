@@ -496,22 +496,25 @@ m_set_shift
                 inc
                 ldx  #f_in_buf
                 abx
-                clr  0,x              ; Eingabe mit 0 terminieren
+                clr  0,x              ; terminate input string
 msh_set_str
-                pshx                  ; 32 Bit Platz schaffen auf Stack
-                pshx                  ; für Ergebnis der Frequenzberechnung
-                tsx                   ; Zeiger auf Zwischenspeicher (Stack) nach X
-                ldd  #f_in_buf        ; Zeiger auf Eingabestring holen
-                jsr  atol             ; Frequenz berechnen
-                ldd  #100             ; durch 100 teilen, da erste Ziffer der Eingabe als *10^8 (100 Mio) betrachtet wird
-                jsr  divide32
-                ldab cpos
-                cmpb #3               ; Eingabe bestand aus 3 Zeichen?
-                bne  msh_set_mhz      ; Nein, dann als vierstellige Eingabe in kHz interpretieren
-                ldd  #10              ; Sonst als 3 stellige Eingabe in kHz interpretieren
-                jsr  divide32
-msh_set_mhz
-                tsx
+                pshx                  ; 32 Bit temporary storage
+                pshx                  ; for tx shift frequency calculation
+                tsx                   ; pointer to temp. storagt to X
+                ldd  #f_in_buf        ; get pointer to input string
+                jsr  atol_new         ; calculate numeric value from string
+                ldab cpos             ; get strlen from cursor position
+                cmpb #3               ; check if 3 digits were entered
+                beq  msh_khz          ; in this case take input as 3-digit kHz value (e.g. 600 as 600 kHz)
+                lslb
+                lslb                  ; *4 to index 32 bit table values
+                addd #exp10_7         ; add index from pointer to "10^7" -> 4 digits should be kHz value
+                bra  msh_mult         ; transform all other inputs without leading zeros to 4-digit values
+msh_khz
+                ldd  #exp10_3         ; multiply by 10^3 -> 3 digits should be 100-999 kHz
+msh_mult
+                tsx                   ; get pointer to frequency word
+                jsr  multiply32p      ; Multiply to obtain value in MHz
                 ldd  0,x
                 std  txshift
                 std  ui_txshift
@@ -522,7 +525,7 @@ msh_set_mhz
                 ldab #IDLE
                 stab m_state
                 ldd  #8
-                std  m_timer          ; noch 800ms warten bevor wieder Frequenz angezeigt wird
+                std  m_timer          ; wait 800 ms before reverting to RX frequency
                 jmp  mts_print
 
 ;**************************************
