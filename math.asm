@@ -631,18 +631,233 @@ multiply32_end
                ldx  10,x            ; load result / HiWord to X
                rts
 
+;************************
+; M U L T I P L Y 3 2 P
+;************************
+; Parameter:
+;           X    *Faktor 1 (32Bit)
+;           D    *Faktor 2 (32Bit)
+; Ergebnis:
+;         Mem    *Produkt  (32Bit)
+;
+; changed Regs: A,B
+;
+; required Stack Space : 10 Byte
+;
+multiply32p
+;        a4  a3  a2  a1 *b4  b3  b2  b1
+;   ------------------------------------
+;        8   7   6   5 | 4   3   2   1
+;                      |        b 1 a 1
+;                      |    b 1 a 2
+;                      |b 1 a 3
+;                   b 1|a 4
+;                      |    b 2 a 1
+;                      |b 2 a 2
+;                   b 2|a 3
+;                      |b 3 a 1
+;                   b 3|a 2
+;                   b 4|a 1
+;
+;
+               pshx
+               pshx                 ; allocate temp. memory for product
+
+               pshx                 ; save ptr to factor1
+               pshb
+               psha                 ; save ptr to factor2
+;********
+               clra
+               clrb
+               tsx
+               std  4,x             ; clear hi word of temp. memory
+                                    ; 0,1 = ptr to factor 2
+                                    ; 2,3 = ptr to factor 1 / product
+                                    ; 4,5,6,7 = temp. product
+
+               ldx  2,x             ; get pointer to factor 1
+               ldab 0,x
+               orab 1,x
+               orab 2,x
+               bne  mul32p_testf2   ; factor 1 is not zero & not 1 -> test factor 2
+               ldab 3,x
+               beq  mul32p_f1isres  ; factor 1 is zero -> product is zero and already in place
+               decb
+               bne  mul32p_testf2
+               tsx                  ; factor 1 is 1, result is copy of factor 2
+               ldx  0,x             ; get ptr to factor 2
+               ldd  2,x             ; get factor 2 / lobyte
+               tsx
+               ldx  2,x             ; get ptr to factor 1 / output
+               std  2,x             ; store lobyte directly to output
+               pulx                 ; get ptr to factor 2
+               ldd  0,x             ; get factor 2 / hibyte
+               pulx                 ; get ptr to factor 1 / output
+               std  0,x             ; store hibyte
+mul32p_cls
+               ins                  ; clear stack
+               ins
+               ins
+               ins
+               rts                  ; return
+               pulx                 ; clean up
+               pulx
+               bra  mul32p_cls
+mul32p_testf2
+               tsx
+               ldx  0,x             ; get pointer to factor 2
+               ldab 0,x
+               orab 1,x
+               orab 2,x
+               bne  mul32p_domult   ; factor 2 is > 255, perform multiplication
+               ldab 3,x
+               beq  mul32p_zero     ; factor 2 is 0, return with 0 as result
+               decb
+               bne  mul32p_domult   ; factor 2 is >1, perform multiplication
+mul32p_f1isres
+               pulx                 ; factor 2 is = 1, do nothing (factor 1 is result and already in-place)
+               pulx                 ; get pointer back
+               bra  mul32p_cls      ; clear stack and return
+mul32p_zero
+               pulx
+               jmp  mul32p_end
+mul32p_domult
+;--- b1
+               tsx
+               ldx  2,x             ; get ptr to factor 2
+               ldaa 3,x             ; LoWord/LoByte Faktor1 - a1
+               pulx
+               ldab 3,x             ; LoWord/LoByte Faktor2 - b1
+               pshx
+               mul                  ; (b1a1)
+               tsx
+               std  6,x             ; store b1a1
+
+               ldx  2,x
+               ldaa 2,x             ; LoWord/HiByte Faktor1 - a2
+               pulx
+               pshx
+               ldab 3,x             ; LoWord/LoByte Faktor2 - b1
+               mul                  ; (b1a2)
+               tsx
+               addd 5,x             ; add to temp. storage
+               std  5,x             ; save in temp. storage
+
+               ldx  2,x
+               ldaa 1,x             ; HiWord/LoByte Faktor1 - a3
+               pulx
+               pshx
+               ldab 3,x             ; LoWord/LoByte Faktor2 - b1
+               mul                  ; (b1a3)
+               tsx
+               addd 4,x
+               std  4,x             ; store b1a3
+
+               ldx  2,x
+               ldaa 0,x             ; HiWord/HiByte Faktor1 - a4
+               pulx
+               pshx
+               ldab 3,x             ; LoWord/LoByte Faktor2 - b1
+               mul                  ; (b1a4)
+               tsx
+               addb 4,x             ; only add & save low-byte of this result
+               stab 4,x             ; hi-byte gets truncated
+;--- b2
+               ldx  2,x             ;
+               ldaa 3,x             ; LoWord/LoByte Faktor1 - a1
+               pulx
+               pshx
+               ldab 2,x             ; LoWord/HiByte Faktor2 - b2
+               mul                  ; (b2a1)
+               tsx
+               addd 5,x             ; add to temporary storage
+               std  5,x             ; and store
+               ldaa #0
+               adca 4,x             ; add carry
+               staa 4,x             ; and store
+
+               ldx  2,x
+               ldaa 2,x             ; LoWord/HiByte Faktor1 - a2
+               pulx
+               pshx
+               ldab 2,x             ; LoWord/HiByte Faktor2 - b2
+               mul                  ; (b2a2)
+               tsx
+               addd 4,x             ; add to intermediate result
+               std  4,x             ; and store
+
+               ldx  2,x
+               ldaa 1,x             ; HiWord/LoByte Faktor1 - a3
+               pulx
+               pshx
+               ldab 2,x             ; LoWord/HiByte Faktor2 - b2
+               mul                  ; (b2a3)
+               tsx
+               addb 4,x             ; Nur noch Low Byte addieren
+               stab 4,x             ; und speichern
+
+;--- b3
+               ldx  2,x
+               ldaa 3,x             ; LoWord/LoByte Faktor1 - a1
+               pulx
+               pshx
+               ldab 1,x             ; HiWord/LoByte Faktor2 - b3
+               mul                  ; (b3a1)
+               tsx
+               addd 4,x             ; zum Zwischenergebnis addieren
+               std  4,x             ; und speichern
+
+               ldx  2,x
+               ldaa 2,x             ; LoWord/HiByte Faktor1 - a2
+               pulx
+               pshx
+               ldab 1,x             ; HiWord/LoByte Faktor2 - b3
+               mul                  ; (b3a2)
+               tsx
+               addb 4,x             ; Nur noch Low Byte addieren
+               stab 4,x             ; und speichern
+;--- b4
+               ldx  2,x
+               ldaa 3,x             ; LoWord/LoByte Faktor1 - a1
+               pulx
+               ldab 0,x             ; HiWord/HiByte Faktor2 - b4
+               mul                  ; (b4a1)
+               tsx
+               addb 2,x             ; Nur noch Low Byte addieren
+               stab 2,x             ; und speichern
+mul32p_end
+               pulx                 ; get pointer to factor1 / result
+               pula
+               pulb                 ; get result HiWord
+               std  0,x             ; write to memory
+               pula
+               pulb                 ; get result / LoWord
+               std  2,x             ; write to target memory
+               rts
+
+
+exp10a
+exp10a_0       .dw     0,1      ;10^0
+exp10a_1       .dw     0,10     ;10^1
+exp10a_2       .dw     0,100    ;10^2
+               .dw     0,1000   ;10^3
+               .dw     0,10000  ;10^4
+               .dw $0001,$86a0  ;10^5
+               .dw $000F,$4240  ;10^6
+               .dw $0098,$9680  ;10^7
+               .dw $05f5,$e100  ;10^8
 exp10_9
                .dw $3b9a,$ca00
 exp10          ; Tabelle um 10 zu potenzieren - 32Bit Einträge
                .dw $05f5,$e100  ;10^8
-               .dw $0098,$9680  ;10^7
-               .dw $000F,$4240  ;10^6
-               .dw $0001,$86a0  ;10^5
-               .dw     0,10000  ;10^4
-               .dw     0,1000   ;10^3
-               .dw     0,100    ;10^2
-               .dw     0,10     ;10^1
-               .dw     0,1      ;10^0
+exp10_7        .dw $0098,$9680  ;10^7
+exp10_6        .dw $000F,$4240  ;10^6
+exp10_5        .dw $0001,$86a0  ;10^5
+exp10_4        .dw     0,10000  ;10^4
+exp10_3        .dw     0,1000   ;10^3
+exp10_2        .dw     0,100    ;10^2
+exp10_1        .dw     0,10     ;10^1
+exp10_0        .dw     0,1      ;10^0
 
 ;***********
 ; A D D 3 2
@@ -776,6 +991,63 @@ sub32s
                ldx  0,x             ; Pointer auf Minuend/Differenz holen
                staa 0,x             ; HiWord/HiByte speichern
                pulx
+               rts
+;*************
+; C M P 3 2 P
+;*************
+;
+; 32 Bit comparison, sets the condition codes (Flags) like "cmp"
+; performs a subtraction internally, but does NOT store the result
+; Except for 7 Byte of stack space, this routine is transparent
+; (all registers are restored, no values from memory altered - except stack)
+;
+; Parameter:
+;           X     *Minuend    (32Bit)   (ptr to what is to be compared)
+;           D     *Subtrahend (32Bit)   (ptr to the value which *X is compared to)
+; Ergebnis:
+;           P     CPU Flags according to comparison
+;
+; required Stack Space : 7 Byte
+;
+; 2 - *minuend
+; 0 - *subtrahend
+cmp32p
+               pshx                 ; save pointer to minuend
+               pshb
+               psha                 ; save pointer to subtrahend
+               ldd  2,x             ; get LoWord/Minuend
+               tsx                  ; Stackpointer nach X
+               ldx  0,x
+               subd 2,x             ; LoWord / Minuend - LoWord / Subtrahend
+               tpa
+               psha
+               tsx
+               ldx  3,x
+               ldaa 1,x             ; get HiWord / LoByte / Minuend
+               ldab 0,x             ; get HiWord / HiByte / Minuend
+                                    ; we cannot use LDD here because LoByte needs to be in Reg A
+                                    ; Reason: TAB resets the Z flag, thus we cannot use TAB to move
+                                    ; the highbyte to B before saving the result of the subtraction (using TPA).
+                                    ; But the CC can only be transferred to A (TPA, there is no TPB)
+               tsx
+               ldx  1,x
+               sbca 1,x             ; - HiWord/LoByte Subtrahend
+               tpa                  ; save CC regs in A
+               tsx
+               anda 0,x             ; combine flags (Zero flag)
+               oraa #~4             ; set all bits to 1 except Bit of Z flag
+               staa 0,x             ; store intermediate result
+               ldx  1,x             ;
+               sbcb 0,x             ; HiWord/HiByte Minuend - HiWord/HiByte Subtrahend
+               tpa                  ; save flags
+               tsx
+               anda 0,x             ; Perform "AND" of Z-flags of all subtractions/comparisons
+               tap                  ; transfer result back to CC reg
+                                    ; for remaining flags: The flags of the last subtraction are used
+               ins
+               pula
+               pulb
+               pulx                 ; clear stack
                rts
 ;*******************
 ; S I G   I N V 3 2

@@ -984,6 +984,110 @@ rcu_end
                 pulb
                 rts
 
+;*********
+; A T O L
+;*********
+;
+; Umrechnung String -> Integer (long)
+;
+; conversion ignores non-numeric chars preceeding the number
+; conversion stops at NULL or
+; 		   at non-numeric char trailing the number
+;
+; Parameter    : D  - Adresse vom Input String (nullterminiert)
+;                X  - Adresse für Ergebnis (Integer, 32 Bit)
+;
+; Ergebnis     : X - *Output (32 Bit Integer)
+;
+; changed Regs : A, B
+;
+; local Stack variables:
+; 0 - *input
+; 2 - *frequenz
+atol_new
+                pshx                       ; Adresse für output auf Stack sichern
+                pshb
+                psha                       ; Adresse vom Eingabepuffer auf Stack
+
+                clra
+                clrb
+                std  0,x
+                std  2,x                   ; output = 0
+
+                pulx                       ; restore string address
+atol_loop
+                ldab 0,x
+                andb #~CHR_BLINK           ; mask Blink Bit
+                beq  atol_end              ; check for end of string (0)?
+                cmpb #'0'
+                bcs  atol_nonum
+                cmpb #'9'+1
+                bcs  atol_isnum
+atol_nonum
+                pshx
+                tsx
+                ldx  2,x                   ; get *output
+                ldab 0,x                   ; get output
+                orab 1,x
+                orab 2,x
+                orab 3,x
+                beq  atol_next             ; if output is still zero,
+                                           ; ignore non-numeric chars
+                pulx
+                bra  atol_end              ; else stop conversion here
+atol_isnum
+                pshx                       ; save bufferaddress (index)
+                subb #$30                  ; get number from ascii code
+
+                pshb                       ; store on stack
+                ldd  #exp10_1              ; get address of constant "10^1"
+                tsx
+                ldx  1+2,x                 ; get address of result buffer
+                jsr  multiply32p           ; multiply result by 10 (in-place)
+                pulb
+                clra
+                addd 2,x
+                std  2,x
+                ldd  #0
+                adcb 1,x
+                stab 1,x
+                adca 0,x                   ; add latest digit
+                staa 0,x                   ; store new output
+
+atol_next
+                pulx                       ; restore string address pointer
+        	inx                        ; string address++
+                bra  atol_loop             ; continue
+atol_end
+                pulx                       ; remove result pointer from stack
+                rts                        ; return...
+
+;**************
+; S T R L E N
+;**************
+;
+; Returns length of zero-terminated string
+;
+; Parameter    : X  - Address of Input String (nullterminiert)
+;
+; Ergebnis     : D  - length
+;
+; changed Regs : A, B
+;
+strlen
+               pshx
+               clra
+               clrb                       ; initialize result to 0
+strl_loop
+               tst  0,x                   ; check for zero
+               beq  strl_end              ; exit if found
+               addd #1                    ; else increase strlen
+               bra  strl_loop             ; loop
+strl_end
+               pulx                       ; remove result pointer from stack
+               rts                        ; return...
+
+
 ;*************************
 ; C R C   T A B E L L E N
 ;*************************
