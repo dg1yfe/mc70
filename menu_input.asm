@@ -147,8 +147,8 @@ m_frq_prnt
 
                 ldx  #frequency       ; Adresse von Frequenz Word holen
                 jsr  freq_print       ; Frequenz ausgeben
-                jsr  freq_offset_print; Offset anzeigen
                 jsr  lcd_fill         ; Display mit Leerzeichen füllen (schneller als löschen und dann schreiben)
+                jsr  freq_offset_print; Offset anzeigen
 
                 clr  m_timer_en       ; Menü Timer disabled - Aktuelles Display = neues Display
                 pshb

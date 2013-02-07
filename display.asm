@@ -317,20 +317,24 @@ lcd_cpos
                 tba
                 andb #$7f
                 cmpb #8
-                bcc  lcp_end           ; Cursorposition muﬂ sich innerhalb von 0-7 befinden
+                bcc  lcp_end           ; ensure cursor position is within 0 to 7
 
                 cmpa cpos
-                beq  lcp_end           ; Wenn Cursor schon auf Position steht, nicht neu setzen
-
-                stab cpos              ; neue Position speichern
-                addb #$60              ; Befehl zusammensetzen
+                bne  lcp_newpos		; If cpos differs, set cursor to new position
+                tim  #CDIFF_FLAG, pcc_cdiff_flag ; test if hw cursor differs from sw cursor (cache has been used for printing)
+                beq  lcp_end           ; if cursor is already on position, do not do anything
+lcp_newpos
+                stab cpos              ; store new position
+                addb #$60              ; assemble command to set cursor position
                 ldaa #'p'
-                jsr  putchar           ; und ans Display senden
+                jsr  putchar           ; send to Display
+                aim  #~CDIFF_FLAG, pcc_cdiff_flag ; clear flag, cursor positions match
 lcp_end
-                pulx                   ; das wars
+                pulx                   ; thats it...
                 pula
                 pulb
                 rts
+
 
 ;******************
 ; L C D   F I L L
