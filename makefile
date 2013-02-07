@@ -42,6 +42,10 @@ sim: $(AFILES)
 	$(AS) $(OPTIONS) -dSIM $< firmware.bin
 	srec_cat firmware.bin -binary -Output firmware.s -Motorola --Data_Only
 
+test: $(AFILES)
+	$(AS) $(OPTIONS) -dTESTUNIT $< firmware.bin
+	srec_cat firmware.bin -binary -Output firmware.s -Motorola --Data_Only
+
 clean:
 	rm -rf *.bin
 	rm -rf *.sym

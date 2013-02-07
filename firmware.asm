@@ -48,6 +48,10 @@ rom
 reset
                lds  #STACK1               ; initialize stackpointer 1
                jsr  io_init               ; initialize I/O (Ports, I2C, etc...)
+#ifdef TESTUNIT
+               jsr  tests                 ; call code test routines (if compiled for test)
+               bra  $                     ; loop here
+#endif
 ;                jsr  chk_debug             ; Debugmodus ?
 ;                jsr  chk_isu               ; In System Update? ?
                clrb                       ; do not try to store frequency to EEPROM before power-off
@@ -155,6 +159,9 @@ ml_sql_end
 
 ;*************************************************************************
 ; INCLUDES
+#ifdef TESTUNIT
+#INCLUDE       "tests.asm"
+#endif
 #INCLUDE       "ui.asm"                    ; User Interface (2. Task)
 #INCLUDE       "menu.asm"                  ; Menü Steuerung
 #INCLUDE       "subs.asm"                  ; general Subroutine File
