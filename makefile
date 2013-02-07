@@ -26,6 +26,9 @@ OFILES=$(AFILES:%.asm=%.bin)
 
 all: mc70
 
+4m: $(AFILES)
+	$(AS) $(OPTIONS) -dBAND4M $< firmware.bin
+
 2m: $(AFILES)
 	$(AS) $(OPTIONS) -dBAND2M $< firmware.bin
 

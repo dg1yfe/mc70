@@ -3,7 +3,7 @@
 ;    MC70 - Firmware for the Motorola MC micro trunking radio
 ;           to use it as an Amateur-Radio transceiver
 ;
-;    Copyright (C) 2004 - 2012  Felix Erckenbrecht, DG1YFE
+;    Copyright (C) 2004 - 2013  Felix Erckenbrecht, DG1YFE
 ;
 ;     This file is part of MC70.
 ;
@@ -101,7 +101,6 @@
 ; Frequency settings
 ;
 ;
-#DEFINE RXZF   21400000         ; 21.4 MHz IF (RX VCO has to be 21,4MHz below RX frequency)
 #DEFINE FREF   14400000         ; 14.4 MHz reference frequency
 #DEFINE FOFF0         0         ; Offset0
 #DEFINE FOFF06  0600000         ; Offset1
@@ -109,10 +108,12 @@
 #DEFINE FSTEP     12500         ; Schrittweite !> 3,5 kHz für f<458,3MHz ( muß größer sein als Frequenz/(Vorteiler*1023) )
 ;
 ;
+#ifndef BAND4M
 #ifndef BAND2M
 #ifndef BAND70CM
-.ECHO "\r\nNo frequency band selected, using 2m / 144 MHz as default\r\n"
-#define BAND2M
+.ECHO "\r\nNo frequency band selected, using 70cm / 430 MHz as default\r\n"
+#define BAND70CM
+#endif
 #endif
 #endif
 ;
@@ -125,9 +126,22 @@
 #DEFINE FDEF  145500000         ; Default Frequency
 #DEFINE FTXOFF  FOFF06          ; Offset1
 #DEFINE PRESCALER    40         ; PLL Prescaler (40 für 2m, 127 für 70cm)
+#DEFINE RXZF   21400000         ; 21.4 MHz IF (RX VCO has to be 21,4MHz below RX frequency)
 ;
 #ELSE                           ; assume 70 cm
+#IFDEF BAND4M
+;
 ;*******************************************
+.ECHO   "\r\nCompiling for 70 MHz\r\n\r\n"
+#DEFINE FBASE 68750000         ; lowest frequency (for eeprom storage) = 68.75 (430 MHz with 70 cm)
+#DEFINE FBASE_MEM_RECALL 70000000
+#DEFINE FDEF  70000000         ; Default Frequency
+#DEFINE FTXOFF  FOFF06          ; Offset1
+#DEFINE PRESCALER    40         ; PLL Prescaler (40 für 2m & 4m, 127 für 70cm)
+#DEFINE RXZF  -21400000         ; -21.4 MHz IF (RX VCO has to be 21,4MHz above RX frequency)
+;
+;*******************************************
+#ELSE
 .ECHO   "\r\nCompiling for 430 MHz\r\n\r\n"
 ;
 #DEFINE FBASE 430000000         ; lowest frequency (for eeprom storage) = 140MHz (430 MHz with 70 cm)
@@ -135,7 +149,9 @@
 #DEFINE FDEF  433500000         ; Default Frequency
 #DEFINE FTXOFF   FOFF76         ; Offset1
 #DEFINE PRESCALER   127         ; PLL Prescaler (40 für 2m, 127 für 70cm)
+#DEFINE RXZF   21400000         ; 21.4 MHz IF (RX VCO has to be 21,4MHz below RX frequency)
 ;
+#ENDIF
 #ENDIF
 
 #DEFINE PLLREF FREF/FSTEP
