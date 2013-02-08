@@ -29,7 +29,7 @@
 ;
 ; mathematische Funktionen, die nicht direkt von der CPU zur Verfügung gestellt werden
 ;
-; last change : 04/2011
+; last change : 01/2013
 ;
 ;***********************
 ; DIVIDE:
@@ -793,8 +793,8 @@ mul32p_domult
                ldab 2,x             ; LoWord/HiByte Faktor2 - b2
                mul                  ; (b2a3)
                tsx
-               addb 4,x             ; Nur noch Low Byte addieren
-               stab 4,x             ; und speichern
+               addb 4,x             ; Only add Low Byte
+               stab 4,x             ; store...
 
 ;--- b3
                ldx  2,x
@@ -804,8 +804,8 @@ mul32p_domult
                ldab 1,x             ; HiWord/LoByte Faktor2 - b3
                mul                  ; (b3a1)
                tsx
-               addd 4,x             ; zum Zwischenergebnis addieren
-               std  4,x             ; und speichern
+               addd 4,x             ; add to intermediate result
+               std  4,x             ; store it
 
                ldx  2,x
                ldaa 2,x             ; LoWord/HiByte Faktor1 - a2
@@ -814,8 +814,8 @@ mul32p_domult
                ldab 1,x             ; HiWord/LoByte Faktor2 - b3
                mul                  ; (b3a2)
                tsx
-               addb 4,x             ; Nur noch Low Byte addieren
-               stab 4,x             ; und speichern
+               addb 4,x             ; Only add Low Byte
+               stab 4,x             ; store...
 ;--- b4
                ldx  2,x
                ldaa 3,x             ; LoWord/LoByte Faktor1 - a1
@@ -823,8 +823,8 @@ mul32p_domult
                ldab 0,x             ; HiWord/HiByte Faktor2 - b4
                mul                  ; (b4a1)
                tsx
-               addb 2,x             ; Nur noch Low Byte addieren
-               stab 2,x             ; und speichern
+               addb 2,x             ; Only add Low Byte
+               stab 2,x             ; store...
 mul32p_end
                pulx                 ; get pointer to factor1 / result
                pula
@@ -836,25 +836,27 @@ mul32p_end
                rts
 
 
+; Table containing powers of 10 - 32Bit Entries
+; start with ascending entries
+; then descending
 exp10a
 exp10a_0       .dw     0,1      ;10^0
 exp10a_1       .dw     0,10     ;10^1
 exp10a_2       .dw     0,100    ;10^2
-               .dw     0,1000   ;10^3
-               .dw     0,10000  ;10^4
-               .dw $0001,$86a0  ;10^5
-               .dw $000F,$4240  ;10^6
-               .dw $0098,$9680  ;10^7
-               .dw $05f5,$e100  ;10^8
-exp10_9
-               .dw $3b9a,$ca00
-exp10          ; Tabelle um 10 zu potenzieren - 32Bit Einträge
-               .dw $05f5,$e100  ;10^8
+exp10a_3       .dw     0,1000   ;10^3 k
+exp10a_4       .dw     0,10000  ;10^4
+exp10a_5       .dw $0001,$86a0  ;10^5
+exp10a_6       .dw $000F,$4240  ;10^6 M
+exp10a_7       .dw $0098,$9680  ;10^7
+exp10a_8       .dw $05f5,$e100  ;10^8
+exp10_9        .dw $3b9a,$ca00  ;10^9 G
+exp10
+exp10_8        .dw $05f5,$e100  ;10^8
 exp10_7        .dw $0098,$9680  ;10^7
-exp10_6        .dw $000F,$4240  ;10^6
+exp10_6        .dw $000F,$4240  ;10^6 M
 exp10_5        .dw $0001,$86a0  ;10^5
 exp10_4        .dw     0,10000  ;10^4
-exp10_3        .dw     0,1000   ;10^3
+exp10_3        .dw     0,1000   ;10^3 k
 exp10_2        .dw     0,100    ;10^2
 exp10_1        .dw     0,10     ;10^1
 exp10_0        .dw     0,1      ;10^0
