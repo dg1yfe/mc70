@@ -1082,6 +1082,7 @@ strl_loop
                tst  0,x                   ; check for zero
                beq  strl_end              ; exit if found
                addd #1                    ; else increase strlen
+               inx
                bra  strl_loop             ; loop
 strl_end
                pulx                       ; remove result pointer from stack
