@@ -3,7 +3,7 @@
 ;    MC70 - Firmware for the Motorola MC micro trunking radio
 ;           to use it as an Amateur-Radio transceiver
 ;
-;    Copyright (C) 2004 - 2012  Felix Erckenbrecht, DG1YFE
+;    Copyright (C) 2004 - 2013  Felix Erckenbrecht, DG1YFE
 ;
 ;     This file is part of MC70.
 ;
@@ -53,12 +53,12 @@ m_print
 ; Frequenzeingabe, Eingabe entgegennehmen
 ;
 m_f_in
-                cmpb #KC_NON_NUMERIC       ; Zahl?
-                bcc  m_non_numeric         ; Wenn nicht, dann entsprechende Funktionen ausführen
-                ldaa cpos                  ; sonst nachsehen
-                cmpa #08 		           ; ob noch Platz im Display
-		        bne  m_print		       ; Wenn ja, Zeichen ausgeben und in Frequenzeingabepuffer speichern
-                jmp  m_end
+                cmpb #KC_NON_NUMERIC       ; input was non-numeric digit?
+                bcc  m_non_numeric         ; then do something about it
+                ldaa cpos                  ; otherwise check
+                cmpa #08 		   ; for space in the display
+                bne  m_print		   ; if there is space, print digit
+                jmp  m_end                 ; and that's all for now
 
 ;**********************************
 ; M   N O N   N U M E R I C
@@ -67,12 +67,12 @@ m_f_in
 ;
 m_non_numeric
 
-                ldx  #mnn_tab              ; Basisadresse der Tabelle holen
+                ldx  #mnn_tab              ; Table base address
                 subb #10
-                aslb                       ; Index berechnen
+                aslb                       ; calculate index for words
                 abx
-                ldx  0,x                   ; Funktionsadresse aus Tabelle lesen
-                jmp  0,x                   ; Funktion aufrufen
+                ldx  0,x                   ; get function pointer from table
+                jmp  0,x                   ; call function
 mnn_tab
                 .dw m_backspace            ; *  - Backspace
                 .dw m_none                 ; D1
@@ -81,7 +81,7 @@ mnn_tab
                 .dw m_end_restore          ; D4 - Clear
                 .dw m_none                 ; D5
                 .dw m_none                 ; D6
-                .dw m_set_shift            ; D7
+                .dw m_set_shift            ; D7 - set tx shift
                 .dw m_none                 ; D8
                 .dw m_set_freq             ; #  - Enter
 ;
@@ -97,8 +97,8 @@ m_backspace
                 ldx  #f_in_buf        ; und im Frequenzeingabepuffer löschen
                 abx
                 clr  0,x              ; String im Frequenzeingabe-Puffer terminieren
-		        ldaa #F_IN            ; Mindestens 1 freier Platz im Display vorhanden, State anpassen
-		        staa m_state
+                ldaa #F_IN            ; Mindestens 1 freier Platz im Display vorhanden, State anpassen
+                staa m_state
                 jmp  m_end            ; Zurück
 
 ;**********************************
@@ -134,12 +134,20 @@ m_set_freq_x
 
                 ldx  #f_in_buf
                 jsr  strlen           ; calc strlen
+                tstb                  ; check input length
+                bne  msf_mul          ; continue if > 0
+                pulx
+                pulx                  ; else abort
+                jmp  m_end_restore
+msf_mul
+                clr  m_timer
+                clra
                 lslb
                 lslb                  ; *4 to index 32 bit values
-                addd #exp10           ; add index from pointer to "10^0"
+                addd #exp10_9         ; add index from pointer to "10^9"
+                                      ; D points to constant: 10^(9-strlen())
                 tsx                   ; get pointer to frequency word
                 jsr  multiply32p      ; Multiply to obtain value between below 999999000
-
                 ldd  #const_500M      ; compare frequency with 500 MHz
                 jsr  cmp32p
                 bcs  msf_below_500M   ; if it is below 500 MHz -> use it

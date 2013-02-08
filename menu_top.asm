@@ -503,9 +503,15 @@ msh_set_str
                 tsx                   ; pointer to temp. storagt to X
                 ldd  #f_in_buf        ; get pointer to input string
                 jsr  atol_new         ; calculate numeric value from string
-                ldab cpos             ; get strlen from cursor position
+                ldx  #f_in_buf
+                jsr  strlen           ; calc strlen
                 cmpb #3               ; check if 3 digits were entered
                 beq  msh_khz          ; in this case take input as 3-digit kHz value (e.g. 600 as 600 kHz)
+                clra
+                cmpb #5
+                bne  msh_to_khz       ; inputs of 5 digits are also kHz
+                ldab #4               ; ensure 5 digit entry is interpreted as 10000 kHz and not 1000.0 kHz
+msh_to_khz
                 lslb
                 lslb                  ; *4 to index 32 bit table values
                 addd #exp10_7         ; add index from pointer to "10^7" -> 4 digits should be kHz value
