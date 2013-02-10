@@ -335,7 +335,7 @@ mtn_reset_timer
 ;
 m_txshift
                 ldaa m_timer_en       ; Falls TX Shift noch angezeigt wird, Displayinhalt NICHT speichern
-                bne  mts_nosave       ;
+                bmi  mts_nosave       ;
 
                 jsr  save_dbuf        ; Displayinhalt in dbuf2 sichern
 mts_nosave
@@ -541,7 +541,7 @@ msh_mult
 ;
 m_prnt_rc
                 ldab m_timer_en       ; Falls Roundcount noch angezeigt wird, Displayinhalt NICHT speichern
-                bne  mpr_nosave       ; Sondern Zahl erneut ausgeben
+                bmi  mpr_nosave       ; Sondern Zahl erneut ausgeben
 
                 ldx  #dbuf2
                 jsr  save_dbuf        ; Displayinhalt in dbuf2 sichern
@@ -603,7 +603,7 @@ m_test2
 ;
 m_prnt_tc
                 ldab m_timer_en       ; Falls Roundcount noch angezeigt wird, Displayinhalt NICHT speichern
-                bne  mtc_nosave       ; Sondern Zahl erneut ausgeben
+                bmi  mtc_nosave       ; Sondern Zahl erneut ausgeben
 
                 ldx  #dbuf2
                 jsr  save_dbuf        ; Displayinhalt in dbuf2 sichern
@@ -632,7 +632,7 @@ mtc_nosave
 ;
 m_menu
                 ldab m_timer_en       ; Falls Roundcount noch angezeigt wird, Displayinhalt NICHT speichern
-                bne  mmn_nosave       ; Sondern Zahl erneut ausgeben
+                bmi  mmn_nosave       ; Sondern Zahl erneut ausgeben
 
                 ldx  #dbuf2
                 jsr  save_dbuf        ; Displayinhalt in dbuf2 sichern
@@ -747,7 +747,7 @@ mms_exit
 ;
 m_digit
                 ldab m_timer_en       ; Falls Roundcount noch angezeigt wird, Displayinhalt NICHT speichern
-                bne  mds_nosave       ; Sondern Zahl erneut ausgeben
+                bmi  mds_nosave       ; Sondern Zahl erneut ausgeben
 
                 jsr  save_dbuf        ; Displayinhalt in dbuf2 sichern
 mds_nosave

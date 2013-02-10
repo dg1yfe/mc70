@@ -149,8 +149,6 @@ rcv_wait
                 ldab gp_timer
                 bne  rcv_wait               ; Timer schon bei 0 angekommen?
 
-                inc  pll_timer              ; ensure pll timer does not reach zero during
-                                            ; frequency update
 #ifdef EVA5
                 ldaa #~SR_RFPA               ; Disable RF PA
                 clrb
@@ -198,9 +196,6 @@ transmit
 
                 ldab #1
                 jsr  vco_switch             ; TX VCO aktivieren, TX/RX Switch freigeben
-
-                inc  pll_timer              ; ensure pll timer does not reach zero during
-                                            ; frequency update
 
                 ldx  #frequency
                 jsr  set_tx_freq            ; Frequenz setzen

@@ -26,6 +26,13 @@
 ;
 ; Port Function Macros
 ;
+; Common macros
+;
+; Internal State register
+#define BIT_PLL_STATE (1 << 0)
+#define BIT_MTIMER_EN (1 << 7)
+;
+;
 #IFDEF EVA5
 #DEFINE PTTPORT       Port6_Data
 #DEFINE PTTBIT        (1 << 7)
@@ -100,6 +107,7 @@
 #define SR_MIC        (1<< 5)
 #define SR_nTXPWR     (1<< 6)
 #define SR_RXAUDIO    (1<< 7)
+
 #endif
 ;*************************************
 ;
@@ -162,7 +170,6 @@
 #define SR_SEL5ATT    (1<< 5)
 #define SR_MIC        (1<< 6)
 #define SR_RXAUDIO    (1<< 7)
-
 
 #ENDIF
 
@@ -455,7 +462,6 @@ m_svar1         .db
 m_svar2         .db
 m_state	        .db
 m_timer         .dw                                   ; 100ms
-m_timer_en      .db    $00
 
 sql_timer       .db
 
@@ -479,7 +485,14 @@ sql_ctr         .db
 
 mem_bank        .db                                    ; aktuelle Bank / Frequenzspeicherplätze
 
-pll_locked_flag .db                                   ; Bit 0 - PLL not locked
+                                                      ; Bit   Function
+
+intern_state                                          ; Internal State Register
+m_timer_en                                            ; Bit     FUNCTION
+                                                      ;     7 - Menu timer enabled
+pll_locked_flag .db                                   ;     0 - PLL not locked
+
+
 pll_timer       .db
 
 tone_timer      .db

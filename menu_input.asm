@@ -174,7 +174,7 @@ m_frq_prnt
                 jsr  lcd_fill         ; fill remaining chars with spaces
                 jsr  freq_offset_print; show indicator for TX shift
 
-                clr  m_timer_en       ; clear menu timer, old display content is invalid, do not restore
+                aim  #~(BIT_MTIMER_EN),m_timer_en ; clear menu timer, old display content is invalid, do not restore
                 clr  pll_timer        ; PLL Timer auf 0
 msf_end
                 pulx

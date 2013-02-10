@@ -51,7 +51,7 @@
 ;
 m_recall
                 ldab m_timer_en       ;
-                bne  mre_nosave       ;
+                bmi  mre_nosave       ;
                 jsr  save_dbuf        ; Displayinhalt in dbuf2 sichern
 m_recall_submenu
                 clrb
@@ -103,7 +103,7 @@ m_recall_str
 ;
 m_store
                 ldab m_timer_en       ;
-                bne  mre_nosave       ;
+                bmi  mre_nosave       ;
                 jsr  save_dbuf        ; Displayinhalt in dbuf2 sichern
 m_store_submenu
                 clrb

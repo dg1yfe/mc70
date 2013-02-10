@@ -39,6 +39,10 @@ s_timer_init
                 stab next_hms
                 ldx  #OCI1_MS
                 stx  oci_vec           ; ab jetzt LCD Timer nicht mehr im Int bedienen
+
+                ldab #2                     ; update PLL LED in 200 ms
+                stab pll_timer              ;
+
                 pulx
                 pulb
                 rts

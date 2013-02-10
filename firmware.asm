@@ -117,7 +117,7 @@ sim_loop
                ldab #GRN_LED+LED_ON
                jsr  led_set                ; Grüne LED aktivieren
 
-               WAIT(500)
+               WAIT(200)
                jsr  s_timer_init
 
 ;
@@ -125,8 +125,9 @@ sim_loop
 ;***************
 start_over
                 jsr  receive                ; Empfänger aktivieren
-                ldab #1                     ; in 300 ms
-                stab pll_timer              ; den PLL Status prüfen
+
+                ldab #1
+                jsr  pll_led                ; check pll state and enforce LED update
 
                 ldaa #~SR_RXAUDIO           ; disable RX Audio
                 ldab #SR_AUDIOPA
@@ -136,6 +137,8 @@ loop
                 ldab cfg_defch_save         ; Frequenz etc. speichern wenn Gerät ausgeschaltet wird
                 andb #BIT_DEFCH_SAVE
                 jsr  pwr_sw_chk             ; Ein/Ausschalter abfragen & bedienen
+                clra
+                jsr  pll_led                ; show pll lock state on red LED
 ;*** TRX check
                 jsr  ptt_get_status         ; PTT Status abfragen
                 asla                        ; Höchstes Bit ins Carryflag schieben

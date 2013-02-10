@@ -87,7 +87,7 @@
 menu_init
                 ldaa #IDLE
                 staa m_state         ; begin in IDLE state
-                clr  m_timer_en      ; disable menu timer
+                aim  #~(BIT_MTIMER_EN),m_timer_en  ; disable menu timer
 
                 clr  m_svar1
                 clr  m_svar2
@@ -187,12 +187,12 @@ m_none
 ;***********
 m_end
                 ldab m_timer_en   ; timer disabled ?
-                beq  m_return     ; Dann nichts tun...
+                bpl  m_return     ; Dann nichts tun...
 
                 ldx  m_timer      ; menu timer holen
                 bne  m_return     ; timer nicht abgelaufen, dann return
 m_end_restore
-                clr  m_timer_en   ; timer disable
+                aim  #~(BIT_MTIMER_EN),m_timer_en ; timer disable
                 jsr  restore_dbuf ; Displayinhalt wiederherstellen
                 ldab #IDLE        ; Zurück zum Idle State
                 stab m_state      ; State speichern
@@ -212,8 +212,7 @@ m_reset_timer                         ; Eingabe Timeout zurücksetzen
                 ldab #MENUTIMEOUT%256
                 stab m_timer+1
                 cli
-                ldab #1
-                stab m_timer_en       ; timer aktivieren
+                oim  #(BIT_MTIMER_EN),m_timer_en       ; activate menu timer
                 pulb
                 rts
 ;

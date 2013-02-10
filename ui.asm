@@ -117,8 +117,6 @@ ui_long_msg
                 WAIT(50)
 ui_short_msg
 no_intro
-                ldab #1
-                jsr  pll_led                ; PLL Lock Status auf rote LED ausgeben
                 jsr  menu_init
                 WAIT(100)
 ui_frq_prnt
@@ -131,9 +129,6 @@ ui_frq_prnt
 ui_loop                                     ; komplette Display Kommunikation
                 jsr  menu                   ; Menü für Frequenzeingabe etc.
 #define UI_UPD_LOOP jsr  sci_trans_cmd          ; Eingabe prüfen und ggf. in Menü Puffer legen
-#defcont \ clra
-                                            ; PLL Lock Status auf rote LED ausgeben
-#defcont \ jsr  pll_led
 #defcont \ jsr  led_update                  ; LED Puffer lesen und ggf LEDs neu setzen
 
                 UI_UPD_LOOP

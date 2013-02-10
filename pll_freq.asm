@@ -313,6 +313,10 @@ pli_error
 ; Überprüft PLL Lock wenn PLL Timer abgelaufen ist
 ; aktiviert rote LED, wenn PLL nicht eingerastet ist
 ;
+; Check PLL lock state
+; if pll_timer is zero OR
+; update is enforced (A != 0)
+;
 ; Parameter    : A : Force (A=1 forces update)
 ;
 ; Ergebnis     : Nichts
@@ -326,23 +330,30 @@ pll_led
                 bne  plc_force_update
 
                 ldaa pll_timer
-                bne  plc_end                 ; PLL check timer abgelaufen? nein, dann Ende
-                ldaa #PLLCHKTIMEOUT
-                staa pll_timer
-
-                tba
-                eora pll_locked_flag         ; Wenn sich nichts geändert hat (Bit6=0)
-                beq  plc_end                 ; gleich zum Ende springen
+                bne  plc_end                 ; PLL check timer is zero? If not, exit
+                tba                          ; transfer state to A
+                beq  plc_state_is_0          ; check if bit is zero
+                ldaa #BIT_PLL_STATE          ; else set PLL state bit
+                                             ; (this is different from the port bit!)
+plc_state_is_0
+                eora pll_locked_flag         ; Check for state change
+                anda #BIT_PLL_STATE          ; if there was no change
+                beq  plc_end                 ; exit here
+                ldaa #PLLCHKTIMEOUT          ; in case something changed
+                staa pll_timer               ; delay display of next change by
+                                             ; a small time, to avoid congestion of the
+                                             ; display comm if lock is unstable
 plc_force_update
-                stab pll_locked_flag         ; sonst neuen Status speichern
                 tstb
                 bne  plc_locked
-                ldab #RED_LED+LED_ON         ; Rote LED an
-                jsr  led_set
-                bra  plc_end
+                aim  #~(BIT_PLL_STATE),pll_locked_flag  ; save new status (PLL unlocked)
+                ldab #RED_LED+LED_ON         ; activate red LED
+                bra  plc_set_led
 plc_locked
-                ldab #RED_LED+LED_OFF
-                jsr  led_set
+                oim  #(BIT_PLL_STATE),pll_locked_flag  ; save new status (PLL locked)
+                ldab #RED_LED+LED_OFF        ; deactivate red LED
+plc_set_led
+                jsr  led_set                 ; set LED state
 plc_end
                 rts
 ;

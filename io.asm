@@ -100,6 +100,7 @@ io_init
 
                 clr  sql_ctr
                 clr  ui_ptt_req             ;
+                clr  tone_timer
                 rts
 
 #ifdef EVA9
