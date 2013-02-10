@@ -26,6 +26,8 @@
 ;
                .MODULE FIRMWARE
 ;
+#define DEBUG
+;#define RELEASE
 #INCLUDE "macros.asm"           ; include macros & definitions
 #INCLUDE "regmem.asm"           ; Portadresses & Random Access Memory
 #include "audio_tabs.asm"
@@ -52,8 +54,10 @@ reset
                jsr  tests                 ; call code test routines (if compiled for test)
                bra  $                     ; loop here
 #endif
-;                jsr  chk_debug             ; Debugmodus ?
-;                jsr  chk_isu               ; In System Update? ?
+;               jsr  chk_debug             ; Debugmodus ?
+#ifdef EVA5
+               jsr  chk_isu               ; In System Update? ?
+#endif
                clrb                       ; do not try to store frequency to EEPROM before power-off
                jsr  pwr_sw_chk            ; check power switch - put CPU to standby if radio is switched off
 
@@ -162,18 +166,20 @@ ml_sql_end
 #ifdef TESTUNIT
 #INCLUDE       "tests.asm"
 #endif
-#INCLUDE       "ui.asm"                    ; User Interface (2. Task)
-#INCLUDE       "menu.asm"                  ; Menü Steuerung
-#INCLUDE       "subs.asm"                  ; general Subroutine File
+#INCLUDE       "ui.asm"                    ; User Interface (2nd Task)
+#INCLUDE       "menu.asm"                  ; User Interface / Menus
+#INCLUDE       "subs.asm"                  ; miscellaneous subroutines
 #INCLUDE       "timer.asm"                 ; Time/Timer related subroutines
 #INCLUDE       "pll_freq.asm"              ; PLL & Frequency related Subroutines
 #INCLUDE       "display.asm"               ; LC Display related Subroutines
 #INCLUDE       "mem.asm"                   ; Memory related Subroutines
-#INCLUDE       "math.asm"                  ; Divide, Multiply, Exp Table
-#INCLUDE       "eeprom.asm"                ; EEPROM Zugriffsroutinen
-#INCLUDE       "io.asm"                    ; all I/O
-#INCLUDE       "audio.asm"                 ; Audio related subroutines (NCO, DAC, etc)
+#INCLUDE       "math.asm"                  ; Math related subroutines (Division, Multiplication, Exponentiation)
+#INCLUDE       "eeprom.asm"                ; I2C EEPROM related routines
+#INCLUDE       "io.asm"                    ; everything related to I/O
+#INCLUDE       "audio.asm"                 ; audio related subroutines (NCO, DAC, etc)
 #INCLUDE       "int.asm"                   ; Interrupt Service Routines
 ;#INCLUDE       "debug.asm"                 ; Debugmodul
-;#INCLUDE       "isu.asm"                   ; In System Update Modul
+#ifdef EVA5
+#INCLUDE       "isu.asm"                   ; In System Update Modul
+#endif
                .end

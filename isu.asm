@@ -3,7 +3,7 @@
 ;    MC70 - Firmware for the Motorola MC micro trunking radio
 ;           to use it as an Amateur-Radio transceiver
 ;
-;    Copyright (C) 2004 - 2011  Felix Erckenbrecht, DG1YFE
+;    Copyright (C) 2004 - 2013  Felix Erckenbrecht, DG1YFE
 ;
 ;     This file is part of MC70.
 ;
@@ -11,15 +11,15 @@
 ;     it under the terms of the GNU General Public License as published by
 ;     the Free Software Foundation, either version 3 of the License, or
 ;     (at your option) any later version.
-; 
+;
 ;     MC70 is distributed in the hope that it will be useful,
 ;     but WITHOUT ANY WARRANTY; without even the implied warranty of
 ;     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ;     GNU General Public License for more details.
-; 
+;
 ;     You should have received a copy of the GNU General Public License
 ;     along with MC70.  If not, see <http://www.gnu.org/licenses/>.
-; 
+;
 ;
 ;    This program is free software; you can redistribute it and/or modify
 ;    it under the terms of the GNU General Public License as published by
@@ -41,17 +41,29 @@
 ; In System Update Modul
 ;**********************************************************
 ; erstellt: 06.02.2007
-; letzte Änderung: 07.02.2007
+; last change 10.02.2013
+;
 ;
 ; In System Programmierung des Flash (AMD - AM29F010B)
+; In-System update of main flash memory
+; (AM29F010B, if installed -> 'EVA5 Flash Mod')
 ;
 ; - Flash Programmierung direkt mittels HEX Files
-; - serielle Kommunikation mit Host (1200,n,8,1)
+; - serielle Kommunikation mit Host (4800,n,8,1)
 ; - Stackbereich im internen RAM $0040 - $0140 (4kB Bereich $1000-$1FFF frei verfügbar)
 ; - IRQs verboten
 ; - Löschen von Sektoren im Flash
 ; - Löschen des kompletten Flash
 ; - Empfang von Daten im Intel HEX Format (derzeit nur RAM)
+;
+; - Program flash memory from hex file
+; - use asynch. serial host communiaction (RS232 - 4800, 8n1)
+; - Put stack to internal RAM ($0040 - $0140) to make
+;   external RAM completely available (4kB / $1000-$1FFF)
+; - Disable IRQs
+; - Implement flash sector erase
+; - Implement flash chip erase
+; - Implement reception of data in Intel HEX Format
 ;
 #DEFINE ISUOFS $2000
 #DEFINE jsrr(adr) jsr adr-ISUOFS

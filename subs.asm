@@ -532,17 +532,25 @@ crc_loop
 ; Ergebnis : none
 ;
 ;
-;chk_isu
-;                pshb
-;                ldab Port6_Data      ; TEST Pins gebrückt?
-;                ldab Port5_Data      ; HUB/PGM auf Masse?
-;                andb #%00010000      ; (P64 gegen Masse)
-;                bne  cki_end         ; Nein, dann zurück
-;
-;                jmp  isu_copy
-;cki_end
-;                pulb
-;                rts
+chk_isu
+               pshb
+               ldab Port6_DDR_buf
+               pshb
+               andb #%11101111
+               stab Port6_DDR_buf
+               stab Port6_DDR
+
+               ldab Port6_Data      ; TEST Pins shorted?
+               andb #%00010000      ; (P64 gegen Masse)
+               bne  cki_end         ; no? then exit
+
+               jmp  isu_copy        ; else start In-System-Update
+cki_end
+               pulb
+               stab Port6_DDR_buf
+               stab Port6_DDR
+               pulb
+               rts
 #endif
 ;*******************
 ; C H K   D E B U G

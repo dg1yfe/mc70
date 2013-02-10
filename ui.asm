@@ -81,19 +81,19 @@ ui_start
 ;
 ui
                 jsr  lcd_s_reset           ; LCD Software Reset + Init
-
+#ifdef DEBUG
                 bra  no_intro
-
+#endif
                 tsta
                 beq  ui_cont_w_lcd         ; Loopback detected -> no display (and no initialisation)
                 jmp  no_intro              ; -> start immediatly
 ui_cont_w_lcd
-                ldab msg_mode
+                ldab msg_mode              ; check if we should print the version etc.
                 tba
                 andb #%11000000
                 cmpb #%10000000
-                bne  ui_long_msg
-                jmp  ui_short_msg
+                bne  ui_long_msg           ; no, we did this a short time ago
+                jmp  ui_short_msg          ; only print short message
 ui_long_msg
                 PRINTF(soft_str)
 
@@ -118,7 +118,7 @@ ui_long_msg
 ui_short_msg
 no_intro
                 ldab #1
-                jsr  pll_led                ; PLL Lock Status auf rote LED ausgeben                jsr  menu_init
+                jsr  pll_led                ; PLL Lock Status auf rote LED ausgeben
                 jsr  menu_init
                 WAIT(100)
 ui_frq_prnt
