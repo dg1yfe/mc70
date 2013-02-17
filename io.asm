@@ -54,6 +54,9 @@ io_init
                 aim  #%11100111,RP5CR          ; do not wait for "Memory Ready", internal SRAM is fast enough
                                                ; also deactivate "HALT" input, Port53 is used as GPIO
 
+                oim  #%0100, RMCR              ; set asynchronous mode for SCI, to use P22 as GPIO
+                                               ; (P22 is SCI clock I/O in synchronous mode)
+
                 ldab #%10110100
                 stab Port2_DDR_buf             ; Clock (I2C),
                 stab Port2_DDR                 ; SCI TX, T/R Shift (PLL), Shift Reg Latch auf Ausgang
