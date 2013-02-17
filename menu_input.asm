@@ -158,27 +158,50 @@ msf_mul
 msf_below_500M
                 tsx                   ; put pointer to frequency in X
                 jsr  frq_update       ; signal presence of new frequency to control task
+
+msf_check_lock
+                ldab #PLLLOCKTIMEOUT
+                stab ui_timer         ; wait max. 30 ms for unlock and lock combined
+                ldx  #LOCKPORT
+                ldaa #LOCKBIT
+                clrb
+                jsr  wait_flag_uit    ; wait for pll to change to unlocked state using timeout
+
+                tab
+                jsr  wait_flag_uit    ; wait for transition to locked state (using timeout)
+
+                clrb
+                jsr  lcd_cpos
+                oim  #BIT_PLL_UPDATE_NOW,pll_update_flag   ; request state update NOW
+                swi                   ; switch to control task for update
+
                 clra
                 jsr  lcd_clr          ; clear LCD
-                ldab #IDLE
-                stab m_state          ; continue in IDLE
-
+                ldab pll_locked_flag
+                andb #BIT_PLL_STATE   ; check PLL state
+                bne  msf_locked
+                PRINTF(m_no_lock_str) ; print "NO LOCK"
+                WAIT(200)             ; wait for (additional) 200ms
+                bra  msf_wait
+msf_locked
                 PRINTF(m_ok)          ; print "OK"
-                WAIT(200)             ; 200ms warten
+msf_wait
+                WAIT(200)             ; wait for 200ms
 m_frq_prnt
                 clrb
-                jsr  lcd_cpos         ; cursor auf pos 0 setzen
+                jsr  lcd_cpos         ; set cursor to pos 0
 
                 ldx  #frequency       ; get currently set frequency (might have been rounded)
                 jsr  freq_print       ; print it
                 jsr  lcd_fill         ; fill remaining chars with spaces
                 jsr  freq_offset_print; show indicator for TX shift
 
+                ldab #IDLE
+                stab m_state          ; continue in IDLE
                 aim  #~(BIT_MTIMER_EN),m_timer_en ; clear menu timer, old display content is invalid, do not restore
-                clr  pll_timer        ; PLL Timer auf 0
 msf_end
                 pulx
-                pulx                  ; eingegebene Frequenz vom Stack löschen
+                pulx                  ; remove frequency word from stack
                 jmp  m_end
 
 const_500M

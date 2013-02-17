@@ -137,8 +137,6 @@ loop
                 ldab cfg_defch_save         ; Frequenz etc. speichern wenn Gerät ausgeschaltet wird
                 andb #BIT_DEFCH_SAVE
                 jsr  pwr_sw_chk             ; Ein/Ausschalter abfragen & bedienen
-                clra
-                jsr  pll_led                ; show pll lock state on red LED
 ;*** TRX check
                 jsr  ptt_get_status         ; PTT Status abfragen
                 asla                        ; Höchstes Bit ins Carryflag schieben
@@ -155,6 +153,8 @@ trc_end
                 jsr  squelch                ; Squelch bedienen
 ml_sql_end
                 swi
+                clra
+                jsr  pll_led                ; show pll lock state on red LED
                 jsr  frq_check              ; Überprüfen ob Frequenz geändert werden soll
                 jsr  wd_reset
                 jsr  s_timer_update

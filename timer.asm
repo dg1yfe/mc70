@@ -151,9 +151,6 @@ upt_tone_timer
 wait_ms         ; X : Time to wait in ms
                 ; changed Regs: X
 
-                pshb
-                psha
-
                 xgdx                  ; Wartezeit nach D
                 addd tick_ms          ; aktuellen Tickzähler addieren
                 xgdx                  ; wieder nach X
@@ -166,8 +163,39 @@ wms_loop2
                 cpx  tick_ms          ; und dann noch solange bis tick_ms
                 swi
                 bcc  wms_loop2        ; größer ist als unsere Wartezeit
-
-                pula
-                pulb
                 rts
 
+;**************************
+; W A I T _ F L A G_U I T
+;**************************
+;
+; Wait for Bit transistion at given address using a timeout
+; Function times out if UI timer reaches zero
+;
+; Parameters:
+; ui_timer : Timeout (in ms)
+; X        : Address to check
+; A        : AND Bitmask
+; B        : Bit state to wait for
+;
+; Timeout set via ui_timer
+;
+; changed Regs: none
+
+wait_flag_uit
+                psha                  ; save bit mask
+wfu_loop
+                anda 0,x              ; mask Bit
+                cba                   ; compare
+                beq  wfu_match        ; exit if equal
+                pula
+                psha
+                tst  ui_timer
+                beq  wfu_timeout      ; loop until ui_timer == 0
+                swi
+                bra  wfu_loop
+wfu_timeout
+                ldaa #1
+wfu_match
+                pula
+                rts

@@ -30,6 +30,7 @@
 ;
 ; Internal State register
 #define BIT_PLL_STATE (1 << 0)
+#define BIT_PLL_UPDATE_NOW (1 << 1)
 #define BIT_MTIMER_EN (1 << 7)
 ;
 ;
@@ -490,6 +491,7 @@ mem_bank        .db                                    ; aktuelle Bank / Frequen
 intern_state                                          ; Internal State Register
 m_timer_en                                            ; Bit     FUNCTION
                                                       ;     7 - Menu timer enabled
+pll_update_flag                                       ;     1 - request immediate PLL state update
 pll_locked_flag .db                                   ;     0 - PLL not locked
 
 

@@ -88,6 +88,9 @@
 ;
 #DEFINE MENUTIMEOUT   40  ; 4 sek Eingabetimeout
 #DEFINE PLLCHKTIMEOUT 2   ; 200ms Timeout für PLL Check
+#DEFINE PLLLOCKTIMEOUT 30 ; 30ms - Maximum time for PLL to reach new lock after frequency change
+                          ;        Typical locked-to-unlocked time: 6-8 ms  (nearly constant)
+                          ;        Typical unlocked-to-locked time: 1-12 ms (depending on frequency delta)
 #DEFINE PTT_DEBOUNCE_VAL 20
 #DEFINE TX_TO_RX_TIME 5  ; 5 ms TX -> RX Umschaltung
 #DEFINE RX_TO_TX_TIME 5  ; 5 ms RX -> TX Umschaltung

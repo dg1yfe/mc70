@@ -328,6 +328,9 @@ pll_led
                 andb #LOCKBIT
                 tsta
                 bne  plc_force_update
+                ldaa pll_update_flag
+                anda #BIT_PLL_UPDATE_NOW     ; check if UI task requests immediate
+                bne  plc_force_update        ; update of PLL state
 
                 ldaa pll_timer
                 bne  plc_end                 ; PLL check timer is zero? If not, exit
@@ -354,6 +357,7 @@ plc_locked
                 ldab #RED_LED+LED_OFF        ; deactivate red LED
 plc_set_led
                 jsr  led_set                 ; set LED state
+                aim  #~(BIT_PLL_UPDATE_NOW),pll_update_flag ; signal update of PLL state
 plc_end
                 rts
 ;
