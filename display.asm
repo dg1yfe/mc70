@@ -53,7 +53,7 @@ lcd_h_reset
                 ldaa  #-1
                 ldab  #SR_LCDRESET
                 jsr   send2shift_reg ; LCD Reset Leitung auf High (=Reset)
-                WAIT(1)
+                WAIT(20)
                 ldaa  #~SR_LCDRESET
                 clrb
                 jsr   send2shift_reg ; und wieder low
@@ -82,8 +82,10 @@ lcd_s_reset
                beq  lcd_s_reset          ; clear RX buffer
                ldd  #0
                std  lcd_timer
+#ifdef EVA9
                                          ; EVA9 has no HW reset pin for the control head
                WAIT(20)                  ; wait 20 ms, if control head is in reset
+#endif
                clra
                psha
 lcs_chkres_loop
