@@ -26,8 +26,8 @@
 ;
                .MODULE FIRMWARE
 ;
-#define DEBUG
-;#define RELEASE
+;#define DEBUG
+#define RELEASE
 #INCLUDE "macros.asm"           ; include macros & definitions
 #INCLUDE "regmem.asm"           ; Portadresses & Random Access Memory
 #include "audio_tabs.asm"

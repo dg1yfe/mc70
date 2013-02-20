@@ -100,12 +100,12 @@ ui_long_msg
                 jsr  lcd_fill
                 clrb
                 jsr  lcd_cpos
-                WAIT(80)
+                WAIT(200)
                 PRINTF(ver_str)
                 jsr  lcd_fill
                 clrb
                 jsr  lcd_cpos
-                WAIT(200)
+                WAIT(250)
                 PRINTF(dg1yfe_str)
                 jsr  lcd_fill
                 clrb
@@ -114,7 +114,7 @@ ui_long_msg
                 oraa #%10000000
                 anda #%10111111
                 staa msg_mode           ; kurze Meldung ausgeben
-                WAIT(50)
+                WAIT(250)
 ui_short_msg
 no_intro
                 jsr  menu_init
@@ -149,7 +149,7 @@ dg1yfe_str
 soft_str
                 .db "MC70",0
 ver_str
-                .db "12 002",0
+                .db "13 001",0
 rom_init_str
                 .db "ROM INIT",0
 slot_str
