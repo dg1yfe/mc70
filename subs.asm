@@ -118,9 +118,9 @@ pgs_end
 ;
 ; Paramenter: none
 ;
-; Returns: none
+; Returns: nothing
 ;
-; aktiviert Empfänger
+; Set TRX to receive (deactivate PA & Mic, etc...)
 ;
 receive
                 ldab tx_ctcss_flag
@@ -143,11 +143,11 @@ rcv_ledoff
                 jsr  send2shift_reg
 #endif
                 ldab #TX_TO_RX_TIME
-                stab gp_timer               ; 5ms warten
+                stab gp_timer               ; wait 5ms
 rcv_wait
                 swi                         ; Taskswitch
                 ldab gp_timer
-                bne  rcv_wait               ; Timer schon bei 0 angekommen?
+                bne  rcv_wait               ; Timer reached 0 ?
 
 #ifdef EVA5
                 ldaa #~SR_RFPA               ; Disable RF PA
@@ -160,7 +160,10 @@ rcv_wait
                 ldx  #frequency
                 jsr  set_rx_freq            ; RX Frequenz setzen
 
-                clr  rxtx_state             ; Status auf RX setzen
+                ldab #1
+                stab pll_timer              ; Update PLL LED in 100 ms
+
+                clr  rxtx_state             ; Set state to rx
 #ifdef EVA5
                 ldaa #-1
                 ldab #SR_RXAUDIO            ; RX Audio enable
@@ -240,6 +243,7 @@ tnt_pwrhi
 
                 ldab #1
                 stab rxtx_state             ; Status setzen
+                stab pll_timer              ; Update PLL LED in 100 ms
 
                 ldab tx_ctcss_flag
                 andb #TX_CTCSS              ; check if CTCSS tone should be enabled
