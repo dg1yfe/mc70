@@ -3,7 +3,7 @@
 ;    MC70 - Firmware for the Motorola MC micro trunking radio
 ;           to use it as an Amateur-Radio transceiver
 ;
-;    Copyright (C) 2004 - 2012  Felix Erckenbrecht, DG1YFE
+;    Copyright (C) 2004 - 2013  Felix Erckenbrecht, DG1YFE
 ;
 ;     This file is part of MC70.
 ;
