@@ -100,12 +100,12 @@ ui_long_msg
                 jsr  lcd_fill
                 clrb
                 jsr  lcd_cpos
-                WAIT(200)
+                WAIT(250)
                 PRINTF(ver_str)
                 jsr  lcd_fill
                 clrb
                 jsr  lcd_cpos
-                WAIT(250)
+                WAIT(400)
                 PRINTF(dg1yfe_str)
                 jsr  lcd_fill
                 clrb
@@ -135,7 +135,7 @@ ui_loop                                     ; komplette Display Kommunikation
                 swi
 
                 ldx  tick_hms
-                cpx  #3000                  ; schon 2 MInuten eingeschaltet?
+                cpx  #1200                  ; schon 2 MInuten eingeschaltet?
                 bcs  ui_loop                ; Noch nicht -> loop
                 ldab msg_mode               ; Wird lange Meldung ausgegeben?
                 bpl  ui_loop                ; Ja -> loop
