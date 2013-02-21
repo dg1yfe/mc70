@@ -157,11 +157,14 @@ rcv_wait
                 clrb
                 jsr  vco_switch             ; RX VCO aktivieren
 
+                sei
+                ldab #2
+                stab pll_timer              ; Update PLL LED in 200 ms
+                aim  #~BIT_PLL_UPDATE_NOW,pll_update_flag   ; update pll after given time
+                cli
+
                 ldx  #frequency
                 jsr  set_rx_freq            ; RX Frequenz setzen
-
-                ldab #1
-                stab pll_timer              ; Update PLL LED in 100 ms
 
                 clr  rxtx_state             ; Set state to rx
 #ifdef EVA5
@@ -243,7 +246,11 @@ tnt_pwrhi
 
                 ldab #1
                 stab rxtx_state             ; Status setzen
-                stab pll_timer              ; Update PLL LED in 100 ms
+                sei
+                ldab #2
+                stab pll_timer              ; Update PLL LED in 200 ms
+                aim  #~BIT_PLL_UPDATE_NOW,pll_update_flag   ; update pll after given time
+                cli
 
                 ldab tx_ctcss_flag
                 andb #TX_CTCSS              ; check if CTCSS tone should be enabled
