@@ -149,7 +149,7 @@ dg1yfe_str
 soft_str
                 .db "MC70",0
 ver_str
-                .db "13 001",0
+                .db "14 001",0
 rom_init_str
                 .db "ROM INIT",0
 slot_str

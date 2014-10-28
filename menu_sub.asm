@@ -3,7 +3,7 @@
 ;    MC70 - Firmware for the Motorola MC micro trunking radio
 ;           to use it as an Amateur-Radio transceiver
 ;
-;    Copyright (C) 2004 - 2012  Felix Erckenbrecht, DG1YFE
+;    Copyright (C) 2004 - 2014  Felix Erckenbrecht, DG1YFE
 ;
 ;     This file is part of MC70.
 ;
@@ -326,7 +326,7 @@ mcts_print
                bcs  mcts_show_freq
                clrb                    ; set to 0 if not
 mcts_show_freq
-               lslb                    ; double index because to address 2 Byte table entries
+               lslb                    ; double index in order to address 2 Byte table entries
                ldx  #ctcss_tab         ; get pointer to CTCSS frequency table
                abx                     ; add index
                ldd  0,x                ; get tone entry

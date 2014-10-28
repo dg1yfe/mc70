@@ -3,7 +3,7 @@
 ;    MC70 - Firmware for the Motorola MC micro trunking radio
 ;           to use it as an Amateur-Radio transceiver
 ;
-;    Copyright (C) 2004 - 2013  Felix Erckenbrecht, DG1YFE
+;    Copyright (C) 2004 - 2014  Felix Erckenbrecht, DG1YFE
 ;
 ;     This file is part of MC70.
 ;
@@ -682,6 +682,22 @@ read_eep_ch
                 std  ui_txshift+2           ; neue Shift setzen (lassen)
                 stx  ui_txshift
 
+                tsx
+                ldab 3,x                    ; get CTCSS index
+                lsrb
+                lsrb                        ; shift into correct bit position
+                stab ctcss_index
+               bne  rec_start_ctcss         ; check if CTCSS is enabled
+                                            ; if CTCSS is disabled
+               aim  #~TX_CTCSS,tx_ctcss_flag ; delete flag to activate ctcss on tx
+               jsr  tone_stop_pl            ; stop tone
+               bra  rec_ctcss_done
+rec_start_ctcss
+               oim  #TX_CTCSS,tx_ctcss_flag ; enable CTCSS during TX
+               ldab rxtx_state              ; check current transmitter state
+               beq  rec_ctcss_done          ; if TRX is in rx, exit here
+               jsr  ctcss_start             ; else start CTCSS generator now
+rec_ctcss_done
                 clra
 rec_end
                 tsx
@@ -705,6 +721,17 @@ rec_end
 ; Ergebnis :  A - 0 = OK
 ;
 ; Changed Regs : A
+;
+;
+; Memory slot :
+;
+; Byte
+; 00000000 11111|11|1 2222222  | 333333 | 33 Byte 3.1-9.0 |
+; 76543210 76543|21|0 7654321  | 765432 |
+; Channelword   |  |Offset Word| CTCSS  | RFU
+; (RX Frequency-|00|Shift/25000|TX Index|
+;  FBASE)/1250  |  |           |        |
+;
 ;
 ;
 store_eep_ch
@@ -753,8 +780,17 @@ store_eep_ch
                 oraa 1,x                    ; Mit bereits gespeichertem Byte verknüpfen
                 staa 1,x                    ; und speichern
 
-                clrb                        ; noch keinen Namen speichern
-                stab 3,x
+                ldab #ctcss_index           ; get current CTCSS index
+                lslb
+                lslb                        ; use only 6 Bits (0-63 ... current max. idx is 55)
+                stab 3,x                    ; store in Byte 3.7 - 3.2
+
+                clrb                        ; clear Byte 4
+                stab 4,x
+                ldd  #$0ff                  ; set (rffu) Bytes 5-9 to 0xff
+                std  5,x
+                std  7,x
+                stab 9,x
 
                 ldab 10,x                   ; Slotnummer holen
                 ldaa #10                    ; mit 10 multiplizieren
