@@ -292,7 +292,7 @@ mss_none                               ; Raussperre deaktivieren
                 jsr  arrow_set
 #endif
 #ifdef EVA9
-                andb #SQBIT
+                andb #BIT_SQ
                 bne  mss_none          ; RSSI -> none
 mss_carrier                            ; Carrier Squelch Pin auswerten
                 ldaa #1
@@ -306,7 +306,7 @@ mss_none                               ; Raussperre deaktivieren
 #endif
 mss_end
 #ifdef EVA9
-                eim  #SQBIT, sql_mode
+                eim  #BIT_SQ, sql_mode
 #endif
                 jmp  m_end
 

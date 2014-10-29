@@ -54,25 +54,59 @@ io_init
                 aim  #%11100111,RP5CR          ; do not wait for "Memory Ready", internal SRAM is fast enough
                                                ; also deactivate "HALT" input, Port53 is used as GPIO
 
+; Preparation for ShiftReg Init
                 oim  #%0100, RMCR              ; set asynchronous mode for SCI, to use P22 as GPIO
                                                ; (P22 is SCI clock I/O in synchronous mode)
-
-                ldab #%10110100
-                stab Port2_DDR_buf             ; Clock (I2C),
-                stab Port2_DDR                 ; SCI TX, T/R Shift (PLL), Shift Reg Latch auf Ausgang
-
+; Port 2
 ; I2C Init
                 aim  #%11111011,Port2_Data     ; I2C Clock = 0
-;ShiftReg Init
-                aim  #%01111111,Port2_Data     ; Shift Reg Latch = 0
 ;SCI TX
                 oim  #%10000, Port2_Data       ; SCI TX=1
+; Preparation for ShiftReg Init
+                aim  #%01111111,Port2_Data     ; Shift Reg Latch = 0
+#ifdef EVA5
+                ldab #%10110100                ; Clock (I2C),
+                                               ; SCI TX, T/R Shift (PLL), Shift Reg Latch auf Ausgang
+#endif
+#ifdef EVA9
+                ldab #%10110100                ; Clock (I2C),
+                                               ; SCI TX, DPTT/TX Power en, Shift Reg Latch are outputs
+#endif
+                stab Port2_DDR_buf
+                stab Port2_DDR
 
+; Port 5
+#ifdef EVA9
+                oim  #%00000100, Port5_Data    ; EEPROM off (/EEP Pwr Stb = 1)
+                ldab #%00000100
+#endif
+#ifdef EVA5
+                oim  #BIT_SQEXT, PORT_SQEXT    ; EXT Alarm off (Hi)
+                ldab #%00001000
+#endif
+                stab Port5_DDR                 ; EXT Alarm auf Ausgang, Alles andere auf Input
+                stab Port5_DDR_buf
+; Shift Register
                 clr  SR_data_buf               ; clear shift reg buffer
 
+#ifdef EVA5
                 ldaa #~(SR_RFPA)               ; disable PA
                 ldab #(SR_nTXPWR + SR_nCLKSHIFT + SR_9V6)
                                                ; disable Power control, disable clock shift, enable 9,6 V
+#endif
+#ifdef EVA9
+                                               ; Rx Audio enable = 0
+                                               ; Mic enable = 0
+                                               ; Sel5 Att = 0
+                                               ; Ext Alarm = 1 (open)
+                                               ; Hi/Lo Power = 0 (Hi Power)
+                                               ; TX / #RX     = 0
+                                               ; STBY&9,6V    = 1
+                                               ; Audio PA enable = 0
+                ldaa #~(SR_EXTALARM+SR_9V6)
+                ldab #(SR_EXTALARM+SR_9V6)     ; EXTALARM (Carrier Det.) = 1 (open / inactive)
+                                               ; 9V6 = 1 (Radio is on ... for now)
+#endif
                 jsr  send2shift_reg            ; Shift register requires initialization within
                                                ; 0.5s after the radio is connected to power.
                                                ; An R-C combination (tau = 0.47 s) tristates
@@ -84,19 +118,23 @@ io_init
                                                ; Since 5 V are directly generated from (unswitched) B+
                                                ; this state would persist until power connection is
                                                ; disabled.
-; Port 5
-                ldab #%00001000
-                stab Port5_DDR                 ; EXT Alarm auf Ausgang, Alles andere auf Input
-                stab Port5_DDR_buf
-                oim  #BIT_SQEXT, PORT_SQEXT    ; EXT Alarm off (Hi)
-
 ; Port 6
+#ifdef EVA5
                 ldab #%00001100
                 stab Port6_DDR_buf
                 stab Port6_DDR                 ; A16 (Bank Switch), PTT Syn Latch auf Ausgang
 
                 aim  #%10011011, Port6_Data    ; Bank 0 wählen
+#endif
+#ifdef EVA9
+                aim  #%01001000, Port6_Data    ; set DACs around midpoint (MSB = 1)
+                oim  #%01001000, Port6_Data
 
+                ldab #%11111111
+                stab Port6_DDR_buf
+                stab Port6_DDR                 ; PTT Syn Latch and DACs are outputs
+
+#endif
                 clr  led_buf
                 clr  arrow_buf
                 clr  arrow_buf+1

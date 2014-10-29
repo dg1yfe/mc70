@@ -100,7 +100,7 @@ menu_init
                 oim  #SQM_CARRIER,sql_mode    ; start with carrier squelch
 #endif
 #ifdef EVA9
-                oim  #SQBIT,sql_mode           ; Squelch aktiviert
+                oim  #BIT_SQ,sql_mode           ; Squelch aktiviert
 #endif
                 ldab #2
                 ldaa #1

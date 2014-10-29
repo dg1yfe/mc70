@@ -56,7 +56,7 @@ ui_init
                 oim  #SQM_CARRIER,sql_mode ; Squelch aktiviert
 #endif
 #ifdef EVA9
-                oim  #SQBIT,sql_mode ; Squelch aktiviert
+                oim  #BIT_SQ,sql_mode ; Squelch aktiviert
 #endif
                 rts
 ;***************************

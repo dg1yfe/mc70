@@ -78,14 +78,14 @@
 #define BIT_DEFCH_SAVE (1 << 1)
 #define TX_CTCSS       (1 << 2)
 #define CDIFF_FLAG     (1 << 3)
-#define SQBIT_C        (1 << 4)
-#define SQBIT_R        (1 << 5)
-#define SQBIT_BOTH     (SQBIT_R | SQBIT_C)
+#define BIT_SQC        (1 << 4)
+#define BIT_SQR        (1 << 5)
+#define BIT_SQBOTH     (BIT_SQR | BIT_SQC)
 
 #define SQM_OFF       0
-#define SQM_CARRIER   SQBIT_C
-#define SQM_RSSI      SQBIT_R
-#define SQM_BOTH      (SQBIT_R | SQBIT_C)
+#define SQM_CARRIER   BIT_SQC
+#define SQM_RSSI      BIT_SQR
+#define SQM_BOTH      (BIT_SQR | BIT_SQC)
 ;
 ; Interface to shift register
 #define SRCLKPORT     Port2_Data
@@ -100,6 +100,14 @@
 #define BIT_SRLATCH   (1<< 7)
 
 ; Shift register output
+; 0 - R468/Q405 - TX/RX Switch (1=TX) (PIN 4 )
+; 1 - STBY&9,6V                       (PIN 5 )
+; 2 - LCD Reset,                      (PIN 6 )
+; 3 - /Clock Shift,                   (PIN 7 )
+; 4 - Audio PA enable (1=enable)      (PIN 14)
+; 5 - Mic enable                      (PIN 13)
+; 6 - /TX Power enable                (PIN 12)
+; 7 - Rx Audio enable (1=enable)      (PIN 11)
 #define SR_RFPA       (1<< 0)
 #define SR_9V6        (1<< 1)
 #define SR_LCDRESET   (1<< 2)
@@ -134,8 +142,8 @@
 #define BIT_SWB       (1 << 7)
 
 ;Squelch Input
-#define SQPORT        Port5_Data
-#define SQBIT         (1<< 5)
+#define PORT_SQ        Port5_Data
+#define BIT_SQ         (1<< 5)
 ;
 #define SQM_OFF       0
 #define SQM_CARRIER   SQBIT
@@ -146,12 +154,15 @@
 #define CDIFF_FLAG     (1 << 3)
 #define BIT_PWRMODE    (1 << 4)
 ; Interface to shift register
-; #define SRCLKPORT     Port2_Data
-; #define SRCLKDDR      Port2_DDR
-; #define SRCLKBIT      (1<< 2)
-; #define SRDATAPORT    Port2_Data
-; #define SRDATADDR     Port2_DDR
-; #define SRDATABIT     (1<< 1)
+#define SRCLKPORT     Port2_Data
+#define SRCLKDDR      Port2_DDR
+#define SRCLKBIT      (1<< 2)
+#define SRDATAPORT    Port2_Data
+#define SRDATADDR     Port2_DDR
+#define SRDATABIT     (1<< 1)
+#define PORT_SRLATCH  Port2_Data
+#define DDR_SRLATCH   Port2_DDR
+#define BIT_SRLATCH   (1<< 7)
 
 ; Shift register output
  ; 0 - Audio PA enable (1=enable)      (PIN 4 ) *

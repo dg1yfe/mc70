@@ -80,10 +80,10 @@ Start
 
                cli
 #ifdef EVA5
-               oim  #SQBIT_C, sql_mode
+               oim  #BIT_SQC, sql_mode
 #endif
 #ifdef EVA9
-               oim  #SQBIT, sql_mode      ; Squelch Input auf jeden Fall prüfen und neu setzen
+               oim  #BIT_SQ, sql_mode      ; Squelch Input auf jeden Fall prüfen und neu setzen
 #endif
 
 #ifdef SIM

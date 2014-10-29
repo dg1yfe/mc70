@@ -284,10 +284,10 @@ squelch
 
                 ldab sql_mode              ; Squelch aktiviert?
 #ifdef EVA9
-                andb #SQBIT
+                andb #BIT_SQ
 #endif
 #ifdef EVA5
-                andb #SQBIT_BOTH
+                andb #BIT_SQBOTH
 #endif
                 beq  sq_audio_on           ; Squelch off -> activate Audio
 sq_check
