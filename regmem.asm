@@ -159,6 +159,7 @@
 #define SRCLKBIT      (1<< 2)
 #define SRDATAPORT    Port2_Data
 #define SRDATADDR     Port2_DDR
+#define SRDATADDRbuf  Port2_DDR_buf
 #define SRDATABIT     (1<< 1)
 #define PORT_SRLATCH  Port2_Data
 #define DDR_SRLATCH   Port2_DDR

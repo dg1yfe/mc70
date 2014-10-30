@@ -461,6 +461,8 @@ dts_end
 ;             X - Tonfrequenz 2 in Hz
 ;
 ;
+; not yet in use...
+#if 0
 dtone_startm
                pshb
                psha
@@ -578,6 +580,7 @@ dtsm_end
                pula
                pulb
                rts
+#endif
 ;***************************
 ; T O N E   S T O P   S I G
 ;***************************
@@ -595,11 +598,13 @@ tone_stop_sig
                beq  tsts_end
                cpx  #OCI_OSC1_sig
                beq  tsts_disable
+#ifdef EVA5
                cpx  #OCI_OSC1d
                beq  tsts_disable
-               cpx  #OCI_OSC2
-               beq  tsts_disable
                cpx  #OCI_OSC2m
+               beq  tsts_disable
+#endif
+               cpx  #OCI_OSC2
                beq  tsts_disable
                cpx  #OCI_OSC2_sp
                beq  tsts_osc1pl

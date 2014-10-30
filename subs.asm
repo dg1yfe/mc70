@@ -780,7 +780,7 @@ store_eep_ch
                 oraa 1,x                    ; Mit bereits gespeichertem Byte verknüpfen
                 staa 1,x                    ; und speichern
 
-                ldab #ctcss_index           ; get current CTCSS index
+                ldab ctcss_index            ; get current CTCSS index
                 lslb
                 lslb                        ; use only 6 Bits (0-63 ... current max. idx is 55)
                 stab 3,x                    ; store in Byte 3.7 - 3.2
