@@ -34,6 +34,12 @@
 #define BIT_MTIMER_EN (1 << 7)
 ;
 ;
+;Local tone output (alert tone)
+#define PORT_ATONE    Port2_Data
+#define DDR_ATONE     Port2_DDR
+#define DDRbuf_ATONE  Port2_DDR_buf
+#define BIT_ATONE     (1 << 6)
+
 #IFDEF EVA5
 #DEFINE PTTPORT       Port6_Data
 #DEFINE PTTBIT        (1 << 7)
@@ -44,12 +50,6 @@
 ;VCO Select Output
 #DEFINE VCOPORT       Port2_Data
 #DEFINE VCOBIT        (1 << 5)
-
-;Local tone output (alert tone)
-#define PORT_ATONE    Port2_Data
-#define DDR_ATONE     Port2_DDR
-#define DDRbuf_ATONE  Port2_DDR_buf
-#define BIT_ATONE     (1 << 6)
 
 ;PLL Lock Input
 #define LOCKPORT      Port5_Data
