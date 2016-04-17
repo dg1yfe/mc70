@@ -36,7 +36,11 @@ all: mc70
 	$(AS) $(OPTIONS) -dBAND70CM $< firmware.bin
 
 mc70: $(AFILES)
-	$(AS) $(OPTIONS) $< firmware.bin
+	$(AS) $(OPTIONS) -dEVA5 -dBAND70CM $< firmware.bin
+	$(AS) $(OPTIONS) -dEVA5 -dBAND2M $< firmware_eva5_2m.bin
+	$(AS) $(OPTIONS) -dEVA9 -dBAND2M $< firmware_eva9_2m.bin
+	$(AS) $(OPTIONS) -dEVA9 -dBAND70CM $< firmware_eva9_70cm.bin
+	$(AS) $(OPTIONS) -dEVA9 -dBAND4M $< firmware_eva9_4m.bin
 
 sim: $(AFILES)
 	$(AS) $(OPTIONS) -dSIM $< firmware.bin
