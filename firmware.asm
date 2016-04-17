@@ -79,13 +79,7 @@ Start
                stab tasksw_en             ; Taskswitch verbieten
 
                cli
-#ifdef EVA5
-               oim  #BIT_SQC, sql_mode
-#endif
-#ifdef EVA9
-               oim  #BIT_SQ, sql_mode      ; Squelch Input auf jeden Fall prüfen und neu setzen
-#endif
-
+               oim  #BIT_SQC, sql_mode    ; Squelch Input auf jeden Fall prüfen und neu setzen
 #ifdef SIM
 	ldaa #2
 	staa cfg_head

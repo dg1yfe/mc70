@@ -269,7 +269,7 @@ m_sql_switch
                 andb #SQM_CARRIER
                 bne  mss_rssi          ; carrier -> RSSI
 mss_carrier                            ; Carrier Squelch Pin auswerten
-                andb #~SQM_BOTH
+                andb #~SQM_BITMASK
                 orab #SQM_CARRIER
                 stab sql_mode
                 ldaa #1
@@ -277,7 +277,7 @@ mss_carrier                            ; Carrier Squelch Pin auswerten
                 jsr  arrow_set
                 bra  mss_end
 mss_rssi                               ; RSSI Pin auswerten
-                andb #~SQM_BOTH
+                andb #~SQM_BITMASK
                 orab #SQM_RSSI
                 stab sql_mode
                 ldaa #2
@@ -285,14 +285,14 @@ mss_rssi                               ; RSSI Pin auswerten
                 jsr  arrow_set
                 bra  mss_end
 mss_none                               ; Raussperre deaktivieren
-                andb #~SQM_BOTH
+                andb #~SQM_BITMASK
                 stab sql_mode
                 ldaa #0
                 ldab #2
                 jsr  arrow_set
 #endif
 #ifdef EVA9
-                andb #BIT_SQ
+                andb #SQM_BITMASK
                 bne  mss_none          ; RSSI -> none
 mss_carrier                            ; Carrier Squelch Pin auswerten
                 ldaa #1
@@ -306,7 +306,7 @@ mss_none                               ; Raussperre deaktivieren
 #endif
 mss_end
 #ifdef EVA9
-                eim  #BIT_SQ, sql_mode
+                eim  #SQM_BITMASK, sql_mode
 #endif
                 jmp  m_end
 

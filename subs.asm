@@ -283,18 +283,13 @@ squelch
                 stab sql_timer
 
                 ldab sql_mode              ; Squelch aktiviert?
-#ifdef EVA9
-                andb #BIT_SQ
-#endif
-#ifdef EVA5
-                andb #BIT_SQBOTH
-#endif
+                andb #SQM_BITMASK
                 beq  sq_audio_on           ; Squelch off -> activate Audio
 sq_check
                 ldaa sql_ctr               ; get squelch counter
 #ifdef EVA5
-                lslb
-                lslb
+                lslb                       ; shift mode bitmask to squelch port bit position
+                lslb                       ; (Bits 4 & 5) -> (Bits 6 & 7)
 #endif
                 andb PORT_SQ               ; Squelch Input auslesen
                 beq  sq_cnt_down           ; Kein Signal vorhanden? Dann springen

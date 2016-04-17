@@ -96,12 +96,7 @@ menu_init
                 clr  io_menubuf_w    ; Zeiger von Eingabepuffer auf 0
 
                 clr  mem_bank
-#ifdef EVA5
-                oim  #SQM_CARRIER,sql_mode    ; start with carrier squelch
-#endif
-#ifdef EVA9
-                oim  #BIT_SQ,sql_mode           ; Squelch aktiviert
-#endif
+                oim  #SQM_CARRIER,sql_mode    ; always start with carrier squelch
                 ldab #2
                 ldaa #1
                 jsr  arrow_set

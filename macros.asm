@@ -41,7 +41,7 @@
 ; Define hardware to compile for
 ; uncomment definition for model
 ;
-;#DEFINE EVA5
+#DEFINE EVA5
 ;#DEFINE EVA9
 ;#DEFINE BAND2M
 ;#DEFINE BAND70CM
