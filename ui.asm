@@ -52,12 +52,7 @@ ui_init
                 ldx  #-1
                 stx  ui_txshift
                 stx  ui_txshift+2
-#ifdef EVA5
                 oim  #SQM_CARRIER,sql_mode ; Squelch aktiviert
-#endif
-#ifdef EVA9
-                oim  #BIT_SQ,sql_mode ; Squelch aktiviert
-#endif
                 rts
 ;***************************
 ; U I   S T A R T
@@ -149,7 +144,7 @@ dg1yfe_str
 soft_str
                 .db "MC70",0
 ver_str
-                .db "14 001",0
+                .db "16 01",0
 rom_init_str
                 .db "ROM INIT",0
 slot_str
