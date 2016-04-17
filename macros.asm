@@ -60,6 +60,12 @@
 #undef EVA9
 #endif
 #endif
+#ifdef EVA5
+.ECHO "\r\nBuilding for model: EVA5\r\n"
+#endif
+#ifdef EVA9
+.ECHO "\r\nBuilding for model: EVA9\r\n"
+#endif
 ;************************
 ; Stack
 ;
@@ -123,7 +129,7 @@
 ;
 #IFDEF BAND2M
 ;*******************************************
-.ECHO   "\r\nCompiling for 144 MHz\r\n\r\n"
+.ECHO   "\r\nBuilding for 144 MHz\r\n\r\n"
 ;
 #DEFINE FBASE 140000000         ; lowest frequency (for eeprom storage) = 140MHz (430 MHz with 70 cm)
 #DEFINE FBASE_MEM_RECALL 140000000
@@ -136,7 +142,7 @@
 #IFDEF BAND4M
 ;
 ;*******************************************
-.ECHO   "\r\nCompiling for 70 MHz\r\n\r\n"
+.ECHO   "\r\nBuilding for 70 MHz\r\n\r\n"
 #DEFINE FBASE 68750000         ; lowest frequency (for eeprom storage) = 68.75 (430 MHz with 70 cm)
 #DEFINE FBASE_MEM_RECALL 70000000
 #DEFINE FDEF  70000000         ; Default Frequency
@@ -146,7 +152,7 @@
 ;
 ;*******************************************
 #ELSE
-.ECHO   "\r\nCompiling for 430 MHz\r\n\r\n"
+.ECHO   "\r\nBuilding for 430 MHz\r\n\r\n"
 ;
 #DEFINE FBASE 430000000         ; lowest frequency (for eeprom storage) = 140MHz (430 MHz with 70 cm)
 #DEFINE FBASE_MEM_RECALL 400000000
