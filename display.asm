@@ -323,14 +323,14 @@ lcd_cpos
 
                 cmpa cpos
                 bne  lcp_newpos		; If cpos differs, set cursor to new position
-                tim  #CDIFF_FLAG, pcc_cdiff_flag ; test if hw cursor differs from sw cursor (cache has been used for printing)
+                tim  #MB_CDIFF_FLAG, mode_flags ; test if hw cursor differs from sw cursor (cache has been used for printing)
                 beq  lcp_end           ; if cursor is already on position, do not do anything
 lcp_newpos
                 stab cpos              ; store new position
                 addb #$60              ; assemble command to set cursor position
                 ldaa #'p'
                 jsr  putchar           ; send to Display
-                aim  #~CDIFF_FLAG, pcc_cdiff_flag ; clear flag, cursor positions match
+                aim  #~MB_CDIFF_FLAG, mode_flags ; clear flag, cursor positions match
 lcp_end
                 pulx                   ; thats it...
                 pula

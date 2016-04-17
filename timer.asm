@@ -140,7 +140,7 @@ upt_tone_timer
 ; TONE STOP
 ;***********
                 jsr  tone_stop_sig
-                aim  #~BIT_UI_PTT_REQ, ui_ptt_req				; TODO: rename to tone_ptt_req / use bitfields
+                aim  #~MB_UI_PTT_REQ, mode_flags				; TODO: rename to tone_ptt_req / use bitfields
 
                 bra  upt_end
 

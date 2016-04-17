@@ -41,7 +41,7 @@
 ; Define hardware to compile for
 ; uncomment definition for model
 ;
-#DEFINE EVA5
+;#DEFINE EVA5
 ;#DEFINE EVA9
 ;#DEFINE BAND2M
 ;#DEFINE BAND70CM
@@ -50,6 +50,7 @@
 .ECHO "\r\n Warning: No model hardware (EVA5 / EVA9) selected\r\nUsing EVA5 as default\r\n"
 .ECHO "Change settings in macros.asm to alter this...\r\n"
 .END
+#DEFINE EVA5
 #endif
 #endif
 #ifdef EVA9

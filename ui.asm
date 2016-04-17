@@ -52,7 +52,7 @@ ui_init
                 ldx  #-1
                 stx  ui_txshift
                 stx  ui_txshift+2
-                oim  #SQM_CARRIER,sql_mode ; Squelch aktiviert
+                oim  #SQM_CARRIER,mode_flags ; Squelch aktiviert
                 rts
 ;***************************
 ; U I   S T A R T
@@ -83,10 +83,9 @@ ui
                 beq  ui_cont_w_lcd         ; Loopback detected -> no display (and no initialisation)
                 jmp  no_intro              ; -> start immediatly
 ui_cont_w_lcd
-                ldab msg_mode              ; check if we should print the version etc.
-                tba
-                andb #%11000000
-                cmpb #%10000000
+                ldab mode_flags            ; check if we should print the version etc.
+                andb #BITMASK_POWER_ON_MSG
+                cmpb #MB_SHORT_MSG
                 bne  ui_long_msg           ; no, we did this a short time ago
                 jmp  ui_short_msg          ; only print short message
 ui_long_msg
@@ -105,10 +104,8 @@ ui_long_msg
                 jsr  lcd_fill
                 clrb
                 jsr  lcd_cpos
-                ldaa msg_mode
-                oraa #%10000000
-                anda #%10111111
-                staa msg_mode           ; kurze Meldung ausgeben
+                aim  #~MB_LONG_MSG, mode_flags
+                oim  #MB_SHORT_MSG, mode_flags ; show short power-on message
                 WAIT(250)
 ui_short_msg
 no_intro
@@ -132,10 +129,9 @@ ui_loop                                     ; komplette Display Kommunikation
                 ldx  tick_hms
                 cpx  #1200                  ; schon 2 MInuten eingeschaltet?
                 bcs  ui_loop                ; Noch nicht -> loop
-                ldab msg_mode               ; Wird lange Meldung ausgegeben?
+                ldab mode_flags             ; Wird lange Meldung ausgegeben?
                 bpl  ui_loop                ; Ja -> loop
-                andb #%01111111             ; Nach 2 Minuten Einschaltzeit lange Meldung ausgeben
-                stab msg_mode
+                aim  #~MB_SHORT_MSG, mode_flags ; Nach 2 Minuten Einschaltzeit lange Meldung ausgeben
                 bra  ui_loop
 
 ;*******************************************

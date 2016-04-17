@@ -79,7 +79,7 @@ Start
                stab tasksw_en             ; Taskswitch verbieten
 
                cli
-               oim  #BIT_SQC, sql_mode    ; Squelch Input auf jeden Fall prüfen und neu setzen
+               oim  #MB_SQL_CARRIER, mode_flags  ; Squelch Input auf jeden Fall prüfen und neu setzen
 #ifdef SIM
 	ldaa #2
 	staa cfg_head
@@ -129,7 +129,7 @@ start_over
 
 loop
                 ldab cfg_defch_save         ; Frequenz etc. speichern wenn Gerät ausgeschaltet wird
-                andb #BIT_DEFCH_SAVE
+                andb #MB_DEFCH_SAVE
                 jsr  pwr_sw_chk             ; Ein/Ausschalter abfragen & bedienen
 ;*** TRX check
                 jsr  ptt_get_status         ; PTT Status abfragen

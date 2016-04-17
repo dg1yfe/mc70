@@ -94,7 +94,7 @@ ptt_get_status
 ptc_on
                 ldab #1
 ptc_end
-                orab ui_ptt_req             ; Senderequest von UI Task?
+                orab mode_flags             ; Senderequest von UI Task?
                 andb #1
                 cba                         ; Mit aktuellen Status vergleichen
                 bne  pgs_change             ; Verzweigen, wenn Status ungleich (PTT gedrückt & RX / PTT frei & TX)
@@ -123,8 +123,8 @@ pgs_end
 ; Set TRX to receive (deactivate PA & Mic, etc...)
 ;
 receive
-                ldab tx_ctcss_flag
-                andb #TX_CTCSS              ; check if CTCSS tone should be enabled
+                ldab mode_flags
+                andb #MB_TX_CTCSS            ; check if CTCSS tone should be enabled
                 beq  rcv_ledoff
                 jsr  tone_stop_pl           ; disable CTCSS tone generator
 rcv_ledoff
@@ -232,8 +232,8 @@ tnt_wait
                 jsr  send2shift_reg
 #endif
 #ifdef EVA9
-                ldab pwr_mode               ; Power/Squelch Mode lesen
-                andb #BIT_PWRMODE           ; Bit 3 isolieren (Pwr)
+                ldab mode_flags             ; Power/Squelch Mode lesen
+                andb #MB_PWRLOW             ; Bit 3 isolieren (Pwr)
                 beq  tnt_pwrhi
                 ldab #SR_RFPWRHI            ;
 tnt_pwrhi
@@ -252,8 +252,8 @@ tnt_pwrhi
                 aim  #~BIT_PLL_UPDATE_NOW,pll_update_flag   ; update pll after given time
                 cli
 
-                ldab tx_ctcss_flag
-                andb #TX_CTCSS              ; check if CTCSS tone should be enabled
+                ldab mode_flags
+                andb #MB_TX_CTCSS           ; check if CTCSS tone should be enabled
                 beq  tnt_end                ;
                 jsr  ctcss_start
 tnt_end
@@ -282,7 +282,7 @@ squelch
                 ldab #5                    ; alle 5ms checken
                 stab sql_timer
 
-                ldab sql_mode              ; Squelch aktiviert?
+                ldab mode_flags            ; Squelch aktiviert?
                 andb #SQM_BITMASK
                 beq  sq_audio_on           ; Squelch off -> activate Audio
 sq_check
@@ -305,7 +305,7 @@ sq_audio_on
                 bne  sq_end                ; do nothing if it is
 
 #ifdef EVA5
-                aim  #~BIT_SQEXT, PORT_SQEXT ; "Ext Alarm" auf 0
+                aim  #~PB_SQEXT, PORT_SQEXT ; "Ext Alarm" auf 0
                 ldaa #-1
                 ldab #SR_RXAUDIO
                 jsr  send2shift_reg        ; RX Audio an
@@ -329,7 +329,7 @@ sq_audio_off
                 andb #SR_RXAUDIO           ; check if audio is already DEactivated
                 beq  sq_end                ; exit here if it is
 #ifdef EVA5
-                oim  #BIT_SQEXT, PORT_SQEXT ; "Ext Alarm" auf 1
+                oim  #PB_SQEXT, PORT_SQEXT ; "Ext Alarm" auf 1
 
                 ldaa #~SR_RXAUDIO
                 clrb
@@ -684,11 +684,11 @@ read_eep_ch
                 stab ctcss_index
                bne  rec_start_ctcss         ; check if CTCSS is enabled
                                             ; if CTCSS is disabled
-               aim  #~TX_CTCSS,tx_ctcss_flag ; delete flag to activate ctcss on tx
+               aim  #~MB_TX_CTCSS,mode_flags ; delete flag to activate ctcss on tx
                jsr  tone_stop_pl            ; stop tone
                bra  rec_ctcss_done
 rec_start_ctcss
-               oim  #TX_CTCSS,tx_ctcss_flag ; enable CTCSS during TX
+               oim  #MB_TX_CTCSS,mode_flags ; enable CTCSS during TX
                ldab rxtx_state              ; check current transmitter state
                beq  rec_ctcss_done          ; if TRX is in rx, exit here
                jsr  ctcss_start             ; else start CTCSS generator now

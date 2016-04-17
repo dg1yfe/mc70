@@ -81,7 +81,7 @@ io_init
                 ldab #%00000100
 #endif
 #ifdef EVA5
-                oim  #BIT_SQEXT, PORT_SQEXT    ; EXT Alarm off (Hi)
+                oim  #PB_SQEXT, PORT_SQEXT     ; EXT Alarm off (Hi)
                 ldab #%00001000
 #endif
                 stab Port5_DDR                 ; EXT Alarm auf Ausgang, Alles andere auf Input
@@ -140,7 +140,7 @@ io_init
                 clr  arrow_buf+1
 
                 clr  sql_ctr
-                clr  ui_ptt_req             ;
+                aim  #~MB_UI_PTT_REQ, mode_flags
                 clr  tone_timer
                 rts
 
@@ -1028,18 +1028,18 @@ pc_cache
                cmpa 0,x               ; Mit auszugebenden Zeichen vergleichen
                beq  pcc_same          ; Wenn es gleich ist, Zeichen nicht ausgeben
 
-               ldaa pcc_cdiff_flag    ; Unterscheidet sich Cursorposition in CPOS von tatsächlicher Cursorposition?
-               anda #CDIFF_FLAG
+               ldaa mode_flags        ; Unterscheidet sich Cursorposition in CPOS von tatsächlicher Cursorposition?
+               anda #MB_CDIFF_FLAG
                beq  pcc_diff          ; Nein, dann weitermachen - Returnvalue = 'Zeichen ausgeben'
 
                ldaa #'p'
                addb #$60              ; $60 zu Cursorposition addieren -> Positionierungsbefehl erzeugen
                jsr  putchar           ; Cursor korrekt positionieren
-               aim  #~CDIFF_FLAG, pcc_cdiff_flag ; clear flag, cursor positions match
+               aim  #~MB_CDIFF_FLAG, mode_flags ; clear flag, cursor positions match
                bra  pcc_diff
 pcc_same
                inc  cpos              ; Cursor weitersetzen
-               oim  #CDIFF_FLAG, pcc_cdiff_flag    ; Cursorposition in CPOS unterscheidet sich von tatsächlicher
+               oim  #MB_CDIFF_FLAG, mode_flags  ; Cursorposition in CPOS unterscheidet sich von tatsächlicher
                clra                   ; Returnvalue: 'Zeichen überspringen'
                bra  pcc_end
 pcc_diff

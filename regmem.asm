@@ -26,7 +26,7 @@
 ;
 ; Port Function Macros
 ;
-; Common macros
+; Common macros and constants
 ;
 ; Internal State register
 #define BIT_PLL_STATE (1 << 0)
@@ -40,7 +40,26 @@
 #define DDRbuf_ATONE  Port2_DDR_buf
 #define BIT_ATONE     (1 << 6)
 
+; Mode Bits
+; used in 'mode_flags'
+#define MB_UI_PTT_REQ  (1 << 0)
+#define MB_DEFCH_SAVE  (1 << 1)
+#define MB_TX_CTCSS    (1 << 2)
+#define MB_CDIFF_FLAG  (1 << 3)
+#define MB_LONG_MSG    (1 << 6)
+#define MB_SHORT_MSG   (1 << 7)
+
+#define BITMASK_POWER_ON_MSG (MB_LONG_MSG | MB_SHORT_MSG)
+;*************************************
+;
+; EVA5 CONSTANTS
+;
 #IFDEF EVA5
+; Mode Bits
+#define MB_SQL_CARRIER (1 << 4)
+#define MB_SQL_RSSI    (1 << 5)
+
+; Port Bits
 #DEFINE PTTPORT       Port6_Data
 #DEFINE PTTBIT        (1 << 7)
 
@@ -65,26 +84,19 @@
 
 ;Squelch Input
 #define PORT_SQ       Port5_Data
-;#define BIT_SQC       (1<< 6)
-;#define BIT_SQR       (1<< 7)
+#define PB_SQC        (1<< 6)
+#define PB_SQR        (1<< 7)
 
 #define PORT_SQEXT    Port5_Data
 #define DDR_SQEXT     Port5_DDR
 #define DDRbuf_SQEXT  Port5_DDR_buf
-#define BIT_SQEXT     (1<< 3)
+#define PB_SQEXT      (1<< 3)
 ;
 ;
-#define BIT_UI_PTT_REQ (1 << 0)
-#define BIT_DEFCH_SAVE (1 << 1)
-#define TX_CTCSS       (1 << 2)
-#define CDIFF_FLAG     (1 << 3)
-#define BIT_SQC        (1 << 4)
-#define BIT_SQR        (1 << 5)
-
 #define SQM_OFF       0
-#define SQM_CARRIER   BIT_SQC
-#define SQM_RSSI      BIT_SQR
-#define SQM_BITMASK   (BIT_SQR | BIT_SQC)
+#define SQM_CARRIER   MB_SQL_CARRIER
+#define SQM_RSSI      MB_SQL_RSSI
+#define SQM_BITMASK   (MB_SQL_RSSI | MB_SQL_CARRIER)
 ;
 ; Interface to shift register
 #define SRCLKPORT     Port2_Data
@@ -122,6 +134,11 @@
 ; EVA9 CONSTANTS
 ;
 #IFDEF EVA9
+; Mode Bits
+#define MB_PWRLOW      (1 << 4)
+#define MB_SQL_CARRIER (1 << 5)
+
+; Port Bits
 #DEFINE PTTPORT       Port5_Data
 #DEFINE PTTBIT        (1<< 1)
 ; TODO: Set correct values for remaining port macros & use them
@@ -141,18 +158,14 @@
 #define BIT_SWB       (1 << 7)
 
 ;Squelch Input
-#define PORT_SQ        Port5_Data
-#define BIT_SQC        (1<< 5)
+#define PORT_SQ       Port5_Data
+#define PB_SQC        (1<< 5)
 ;
 #define SQM_OFF       0
-#define SQM_CARRIER   BIT_SQC
-#define SQM_BITMASK   BIT_SQC
+#define SQM_CARRIER   MB_SQL_CARRIER
+#define SQM_BITMASK   MB_SQL_CARRIER
 ;
-#define BIT_UI_PTT_REQ (1 << 0)
-#define BIT_DEFCH_SAVE (1 << 1)
-#define TX_CTCSS       (1 << 2)
-#define CDIFF_FLAG     (1 << 3)
-#define BIT_PWRMODE    (1 << 4)
+
 ; Interface to shift register
 #define SRCLKPORT     Port2_Data
 #define SRCLKDDR      Port2_DDR
@@ -477,23 +490,16 @@ m_state	        .db
 m_timer         .dw                                   ; 100ms
 
 sql_timer       .db
-
-tx_ctcss_flag
-pcc_cdiff_flag
-ui_ptt_req
-#ifdef EVA9
-pwr_mode                                              ; Mode Flag Bit   Function
-#endif
-sql_mode        .db                                   ;           7,6 = Power On Message
-                                                      ;           5   = Carrier Squelch
-                                                      ;           4   = EVA9: Power (1=Lo, 0=Hi)
+                                                      ; Mode Flag Bit   Function
+mode_flags      .db                                   ;           7,6 = Power On Message
+                                                      ;           5   = EVA9: Carrier Squelch
                                                       ;                 EVA5: RSSI Squelch
-                                                      ;           3   = PCC CDIFF FLAG
+                                                      ;           4   = EVA9: Power (1=Lo, 0=Hi)
+                                                      ;                 EVA5: Carrier Squelch
+                                                      ;           3   = display cache invalidation flag
                                                       ;           2   = CTCSS during TX
-                                                      ;           1   = BIT_DEFCH_SAVE
+                                                      ;           1   = Save default channel on power-off
                                                       ;           0   = PTT req. by UI task
-;sql_mode        .db                                   ; Mode ($80 = Carrier, $40 = RSSI, 0 = off)
-msg_mode        .db
 sql_ctr         .db
 
 mem_bank        .db                                    ; aktuelle Bank / Frequenzspeicherplätze

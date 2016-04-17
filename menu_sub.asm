@@ -46,9 +46,9 @@
 m_power
 mpws_power_cycle
                 clra
-                ldab pwr_mode
-                andb #BIT_PWRMODE        ; 0 = hi power
-                bne  mpw_tohi          ; Power Hi -> Power Lo
+                ldab mode_flags
+                andb #MB_PWRLOW         ; 0 = hi power
+                bne  mpw_tohi           ; Power Hi -> Power Lo
                 bra  mpw_tolo
 mpw_tohi
                 inca
@@ -56,7 +56,7 @@ mpw_tolo
 mpw_end
                 ldab #3
                 jsr  arrow_set
-                eim  #BIT_PWRMODE,pwr_mode ; toggle tx power mode
+                eim  #MB_PWRLOW,mode_flags; toggle tx power mode
                 ldab m_state
                 cmpb #POWER_SELECT
                 beq  mps_print
@@ -70,8 +70,8 @@ mps_print
                 clrb
                 jsr  lcd_cpos
                 PRINTF(m_power_str)
-                ldaa pwr_mode
-                anda #%BIT_PWRMODE
+                ldaa mode_flags
+                anda #%MB_PWRLOW
                 beq  mps_hi            ; Power Hi -> Power Lo
                 PRINTF(m_power_lo_str)
                 jmp  m_end
@@ -128,7 +128,7 @@ m_defch_submenu
                 ldaa #DEFCH_SELECT             ; go to "default channel select" state
                 staa m_state
                 ldab cfg_defch_save
-                andb #BIT_DEFCH_SAVE           ; Isolate Bit
+                andb #MB_DEFCH_SAVE            ; Isolate Bit
                 beq  mdcm_manual               ; Print current state (auto or manual)
                 PRINTF(m_defch_str_auto)
                 ldab #2                        ; start at index 2 (auto)
@@ -210,7 +210,7 @@ mdcs_enter
                 bne  mdcs_auto_on      ; else set config to automatic store
 mdcs_eep
                 ldaa cfg_defch_save    ; get config byte
-                anda #~BIT_DEFCH_SAVE  ; discard current state (in A)
+                anda #~MB_DEFCH_SAVE   ; discard current state (in A)
                 aba                    ; add new state (already in B)
                 staa cfg_defch_save    ; store new state to RAM
                 tab
@@ -229,7 +229,7 @@ mdcs_eep
                 jmp  m_end_restore     ; restore display content
 ;**************
 mdcs_auto_on
-                ldab #BIT_DEFCH_SAVE   ; enable auto store
+                ldab #MB_DEFCH_SAVE    ; enable auto store
                 bra  mdcs_eep
 ;**************************************
 ; Store current frequency and shift to EEPROM as power-up default
@@ -369,7 +369,7 @@ mcts_enter
                ldx  #ctcss_tab         ; get pointer to CTCSS frequency table
                abx                     ; add index
                ldd  0,x                ; get tone entry
-               oim  #TX_CTCSS,tx_ctcss_flag ; set flag to activate ctcss on tx
+               oim  #MB_TX_CTCSS,mode_flags ; set flag to activate ctcss on tx
                ldab rxtx_state         ; check current state
                beq  mcts_ok            ; if TRX is in rx, exit here
                jsr  tone_start_pl      ; else start output with selected frequency
@@ -381,7 +381,7 @@ mcts_ok
                WAIT(200)               ; wait 200ms
                jmp  m_end_restore
 mcts_stop_tone
-               aim  #~TX_CTCSS,tx_ctcss_flag ; delete flag to activate ctcss on tx
+               aim  #~MB_TX_CTCSS,mode_flags ; delete flag to activate ctcss on tx
                jsr  tone_stop_pl       ; stop tone
                bra  mcts_ok
 ;**************************************
@@ -416,7 +416,7 @@ m_dtmf_print
                jmp  m_print
 
 m_dtmf_enter
-               oim  #BIT_UI_PTT_REQ, ui_ptt_req     ; enable PTT
+               oim  #MB_UI_PTT_REQ, mode_flags     ; enable PTT
                ldaa tone_timer
                beq  mdts_chk_ctcss       ; check if tone is still on
                jsr  tone_stop_sig        ; if it is, stop it
@@ -468,5 +468,5 @@ mdts_output
                incb
                bra  mdts_loop
 mdts_end
-               aim  #~BIT_UI_PTT_REQ,ui_ptt_req     ; disable PTT
+               aim  #~MB_UI_PTT_REQ,mode_flags     ; disable PTT
                jmp  m_end_restore

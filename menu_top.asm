@@ -261,7 +261,7 @@ mfd_end
 ; Carriersquelch lässt niedrigere Schwelle zu als RSSI Squelch
 ;
 m_sql_switch
-                ldab sql_mode
+                ldab mode_flags
 #ifdef EVA5
                 tba
                 anda #SQM_RSSI
@@ -271,7 +271,7 @@ m_sql_switch
 mss_carrier                            ; Carrier Squelch Pin auswerten
                 andb #~SQM_BITMASK
                 orab #SQM_CARRIER
-                stab sql_mode
+                stab mode_flags
                 ldaa #1
                 ldab #2
                 jsr  arrow_set
@@ -279,14 +279,14 @@ mss_carrier                            ; Carrier Squelch Pin auswerten
 mss_rssi                               ; RSSI Pin auswerten
                 andb #~SQM_BITMASK
                 orab #SQM_RSSI
-                stab sql_mode
+                stab mode_flags
                 ldaa #2
                 ldab #2
                 jsr  arrow_set
                 bra  mss_end
 mss_none                               ; Raussperre deaktivieren
                 andb #~SQM_BITMASK
-                stab sql_mode
+                stab mode_flags
                 ldaa #0
                 ldab #2
                 jsr  arrow_set
@@ -306,7 +306,7 @@ mss_none                               ; Raussperre deaktivieren
 #endif
 mss_end
 #ifdef EVA9
-                eim  #SQM_BITMASK, sql_mode
+                eim  #SQM_BITMASK, mode_flags
 #endif
                 jmp  m_end
 
@@ -317,7 +317,7 @@ mss_end
 ;
 m_tone
 
-                oim  #1,ui_ptt_req     ; PTT drücken
+                oim  #MB_UI_PTT_REQ,mode_flags     ; PTT drücken
                 ldab tone_timer
                 bne  mtn_reset_timer
                 ldd  #1750

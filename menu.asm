@@ -96,13 +96,13 @@ menu_init
                 clr  io_menubuf_w    ; Zeiger von Eingabepuffer auf 0
 
                 clr  mem_bank
-                oim  #SQM_CARRIER,sql_mode    ; always start with carrier squelch
+                oim  #SQM_CARRIER,mode_flags    ; always start with carrier squelch
                 ldab #2
                 ldaa #1
                 jsr  arrow_set
 
 #ifdef EVA9
-                aim  #~BIT_PWRMODE,pwr_mode    ; Power Hi
+                aim  #~MB_PWRLOW,mode_flags    ; Power Hi
                 ldab #3
                 ldaa #1
                 jsr  arrow_set
